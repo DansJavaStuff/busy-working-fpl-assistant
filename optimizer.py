@@ -2,8 +2,7 @@ from collections import defaultdict
 
 import pulp
 
-from fpl_api import get_bootstrap
-
+from fpl_api import get_bootstrap, get_fixtures
 
 BUDGET = 1000  # FPL stores prices in tenths: £100.0m = 1000
 
@@ -16,10 +15,101 @@ def safe_float(value, default=0.0):
     except (ValueError, TypeError):
         return default
 
+def build_fixture_scores():
+
+    fixtures = get_fixtures()
+
+    # Earlier gameweeks matter more
+    gw_weights = {
+        1: 1.00,
+        2: 0.90,
+        3: 0.80,
+        4: 0.70,
+        5: 0.60,
+    }
+
+    #
+    # Convert FPL difficulty into a positive score:
+    #
+    # Difficulty 1 -> 5 points
+    # Difficulty 2 -> 4
+    # Difficulty 3 -> 3
+    # Difficulty 4 -> 2
+    # Difficulty 5 -> 1
+    #
+    difficulty_score = {
+        1: 5.0,
+        2: 4.0,
+        3: 3.0,
+        4: 2.0,
+        5: 1.0,
+    }
+
+    fixture_scores = {}
+    fixture_details = {}
+
+    for fixture in fixtures:
+
+        gw = fixture.get("event")
+
+        if gw not in gw_weights:
+            continue
+
+        home_team = fixture["team_h"]
+        away_team = fixture["team_a"]
+
+        home_difficulty = fixture["team_h_difficulty"]
+        away_difficulty = fixture["team_a_difficulty"]
+
+        weight = gw_weights[gw]
+
+        home_score = (
+            difficulty_score[home_difficulty]
+            * weight
+        )
+
+        away_score = (
+            difficulty_score[away_difficulty]
+            * weight
+        )
+
+        fixture_scores[home_team] = (
+            fixture_scores.get(home_team, 0)
+            + home_score
+        )
+
+        fixture_scores[away_team] = (
+            fixture_scores.get(away_team, 0)
+            + away_score
+        )
+
+        fixture_details.setdefault(
+            home_team,
+            []
+        ).append({
+            "gw": gw,
+            "difficulty": home_difficulty,
+            "home": True,
+            "opponent": away_team,
+        })
+
+        fixture_details.setdefault(
+            away_team,
+            []
+        ).append({
+            "gw": gw,
+            "difficulty": away_difficulty,
+            "home": False,
+            "opponent": home_team,
+        })
+
+    return fixture_scores, fixture_details
 
 def load_players():
     data = get_bootstrap()
 
+    fixture_scores, fixture_details = build_fixture_scores()
+   
     teams = {
         team["id"]: team["name"]
         for team in data["teams"]
@@ -53,17 +143,106 @@ def load_players():
 
         season_points_per_game = safe_float(p.get("points_per_game"))
 
+        xg90 = safe_float(
+            p.get("expected_goals_per_90")
+        )
+
+        xa90 = safe_float(
+            p.get("expected_assists_per_90")
+        )
+
+        xgi90 = safe_float(
+            p.get("expected_goal_involvements_per_90")
+        )
+
+        clean_sheets90 = safe_float(
+            p.get("clean_sheets_per_90")
+        )
+
+        defensive90 = safe_float(
+            p.get("defensive_contribution_per_90")
+        )
+
+        saves90 = safe_float(
+            p.get("saves_per_90")
+        )
+
         # Minutes reliability:
         # 3420 = 38 full matches
         minutes_factor = min(minutes / 3420, 1.0)
 
+        # Reliability for per-90 stats.
+        # Full strength at 1800+ minutes, heavily reduced for tiny samples.
+        per90_reliability = min(minutes / 1800, 1.0)
+
+        xg90_adj = xg90 * per90_reliability
+        xa90_adj = xa90 * per90_reliability
+        xgi90_adj = xgi90 * per90_reliability
+        clean_sheets90_adj = clean_sheets90 * per90_reliability
+        defensive90_adj = defensive90 * per90_reliability
+        saves90_adj = saves90 * per90_reliability
+
         # Initial rating.
-        rating = (
-            ep_next * 10.0
-            + season_points_per_game * 2.0
-            + minutes_factor * 3.0
+        fixture_score = fixture_scores.get(
+            p["team"],
+            0.0
         )
 
+        position = positions[p["element_type"]]
+
+        #
+        # Base score shared by all positions
+        #
+        base_rating = (
+            ep_next * 4.0
+            + season_points_per_game * 3.0
+            + minutes_factor * 3.0
+            + fixture_score * 1.2
+        )
+
+        #
+        # Position-specific upside
+        #
+        if position == "GKP":
+
+            position_rating = (
+                clean_sheets90_adj * 8.0
+                + saves90_adj * 1.5
+            )
+
+        elif position == "DEF":
+
+            position_rating = (
+                clean_sheets90_adj * 7.0
+                + xgi90_adj * 12.0
+                + defensive90_adj * 0.30
+            )
+
+        elif position == "MID":
+
+            position_rating = (
+                xgi90_adj * 15.0
+                + xg90_adj * 5.0
+                + xa90_adj * 5.0
+                + defensive90_adj * 0.15
+            )
+
+        elif position == "FWD":
+
+            position_rating = (
+                xgi90_adj * 18.0
+                + xg90_adj * 7.0
+                + xa90_adj * 3.0
+            )
+
+        else:
+
+            position_rating = 0.0
+
+        rating = (
+            base_rating
+            + position_rating
+        )
         # Small availability penalty
         status = p.get("status", "a")
 
@@ -91,11 +270,21 @@ def load_players():
             "starts": int(starts),
             "ownership": ownership,
             "status": status,
+            "fixture_score": fixture_score,
+            "fixtures": fixture_details.get(
+                p["team"],
+                []
+            ),
             "rating": rating,
+            "xg90": xg90,
+            "xa90": xa90,
+            "xgi90": xgi90,
+            "clean_sheets90": clean_sheets90,
+            "defensive90": defensive90,
+            "saves90": saves90,
         })
 
     return players
-
 
 def optimise_squad(players):
 
@@ -106,17 +295,62 @@ def optimise_squad(players):
 
     selected = {
         p["id"]: pulp.LpVariable(
-            f"player_{p['id']}",
+            f"selected_{p['id']}",
             cat="Binary"
         )
         for p in players
     }
 
-    # Maximise our player rating
+    starter = {
+        p["id"]: pulp.LpVariable(
+            f"starter_{p['id']}",
+            cat="Binary"
+        )
+        for p in players
+    }
+
+    captain = {
+        p["id"]: pulp.LpVariable(
+            f"captain_{p['id']}",
+            cat="Binary"
+        )
+        for p in players
+    }
+
+    #
+    # OBJECTIVE
+    #
+    # Starter gets full value.
+    #
+    # Captain gets another full copy of their score,
+    # because captain points are doubled.
+    #
+    # A bench player gets 15% of their score so that
+    # the optimiser doesn't completely ignore bench quality.
+    #
+
+    STARTER_WEIGHT = 1.0
+    BENCH_WEIGHT = 0.15
+    CAPTAIN_WEIGHT = 1.0
+
     problem += pulp.lpSum(
-        selected[p["id"]] * p["rating"]
+        (
+            starter[p["id"]] * p["rating"] * STARTER_WEIGHT
+            +
+            (selected[p["id"]] - starter[p["id"]])
+            * p["rating"]
+            * BENCH_WEIGHT
+            +
+            captain[p["id"]]
+            * p["rating"]
+            * CAPTAIN_WEIGHT
+        )
         for p in players
     )
+
+    #
+    # SQUAD RULES
+    #
 
     # Exactly 15 players
     problem += pulp.lpSum(
@@ -124,28 +358,28 @@ def optimise_squad(players):
         for p in players
     ) == 15
 
-    # Budget
+    # £100.0m budget
     problem += pulp.lpSum(
         selected[p["id"]] * p["cost"]
         for p in players
     ) <= BUDGET
 
-    # Position requirements
-    position_limits = {
+    # Squad position requirements
+    squad_positions = {
         "GKP": 2,
         "DEF": 5,
         "MID": 5,
         "FWD": 3,
     }
 
-    for position, required in position_limits.items():
+    for position, required in squad_positions.items():
         problem += pulp.lpSum(
             selected[p["id"]]
             for p in players
             if p["position"] == position
         ) == required
 
-    # Maximum 3 players from any Premier League club
+    # Maximum 3 players from one club
     teams = set(
         p["team_id"]
         for p in players
@@ -158,6 +392,93 @@ def optimise_squad(players):
             if p["team_id"] == team_id
         ) <= 3
 
+    #
+    # STARTING XI RULES
+    #
+
+    # Exactly 11 starters
+    problem += pulp.lpSum(
+        starter[p["id"]]
+        for p in players
+    ) == 11
+
+    # A starter must be in the squad
+    for p in players:
+        problem += (
+            starter[p["id"]]
+            <= selected[p["id"]]
+        )
+
+    # Exactly one starting goalkeeper
+    problem += pulp.lpSum(
+        starter[p["id"]]
+        for p in players
+        if p["position"] == "GKP"
+    ) == 1
+
+    # Minimum 3 defenders
+    problem += pulp.lpSum(
+        starter[p["id"]]
+        for p in players
+        if p["position"] == "DEF"
+    ) >= 3
+
+    # Maximum 5 defenders
+    problem += pulp.lpSum(
+        starter[p["id"]]
+        for p in players
+        if p["position"] == "DEF"
+    ) <= 5
+
+    # Minimum 2 midfielders
+    problem += pulp.lpSum(
+        starter[p["id"]]
+        for p in players
+        if p["position"] == "MID"
+    ) >= 2
+
+    # Maximum 5 midfielders
+    problem += pulp.lpSum(
+        starter[p["id"]]
+        for p in players
+        if p["position"] == "MID"
+    ) <= 5
+
+    # Minimum 1 forward
+    problem += pulp.lpSum(
+        starter[p["id"]]
+        for p in players
+        if p["position"] == "FWD"
+    ) >= 1
+
+    # Maximum 3 forwards
+    problem += pulp.lpSum(
+        starter[p["id"]]
+        for p in players
+        if p["position"] == "FWD"
+    ) <= 3
+
+    #
+    # CAPTAIN RULES
+    #
+
+    # Exactly one captain
+    problem += pulp.lpSum(
+        captain[p["id"]]
+        for p in players
+    ) == 1
+
+    # Captain must be a starter
+    for p in players:
+        problem += (
+            captain[p["id"]]
+            <= starter[p["id"]]
+        )
+
+    #
+    # SOLVE
+    #
+
     problem.solve(
         pulp.COIN_CMD(
             path="/usr/bin/cbc",
@@ -167,17 +488,29 @@ def optimise_squad(players):
 
     if pulp.LpStatus[problem.status] != "Optimal":
         raise RuntimeError(
-            f"Optimisation failed: {pulp.LpStatus[problem.status]}"
+            f"Optimisation failed: "
+            f"{pulp.LpStatus[problem.status]}"
         )
 
-    squad = [
-        p
-        for p in players
-        if selected[p["id"]].value() == 1
-    ]
+    squad = []
+
+    for p in players:
+
+        if selected[p["id"]].value() == 1:
+
+            player = p.copy()
+
+            player["starter"] = (
+                starter[p["id"]].value() == 1
+            )
+
+            player["captain"] = (
+                captain[p["id"]].value() == 1
+            )
+
+            squad.append(player)
 
     return squad
-
 
 def print_squad(squad):
 
@@ -188,29 +521,53 @@ def print_squad(squad):
         "FWD": 4,
     }
 
-    squad.sort(
+    starters = [
+        p for p in squad
+        if p["starter"]
+    ]
+
+    bench = [
+        p for p in squad
+        if not p["starter"]
+    ]
+
+    starters.sort(
         key=lambda p: (
             position_order[p["position"]],
             -p["rating"]
         )
     )
 
-    total_cost = sum(p["cost"] for p in squad)
+    bench.sort(
+        key=lambda p: (
+            position_order[p["position"]],
+            -p["rating"]
+        )
+    )
+
+    total_cost = sum(
+        p["cost"]
+        for p in squad
+    )
 
     print()
-    print("=" * 84)
-    print("                     FPL GW1 OPTIMISED SQUAD")
-    print("=" * 84)
+    print("=" * 92)
+    print("                         FPL GW1 OPTIMISED TEAM")
+    print("=" * 92)
+
+    print()
+    print("STARTING XI")
+    print("-" * 92)
 
     current_position = None
 
-    for p in squad:
+    for p in starters:
 
         if p["position"] != current_position:
             current_position = p["position"]
 
             names = {
-                "GKP": "GOALKEEPERS",
+                "GKP": "GOALKEEPER",
                 "DEF": "DEFENDERS",
                 "MID": "MIDFIELDERS",
                 "FWD": "FORWARDS",
@@ -218,7 +575,11 @@ def print_squad(squad):
 
             print()
             print(names[current_position])
-            print("-" * 84)
+
+        captain_marker = ""
+
+        if p["captain"]:
+            captain_marker = "  (C)"
 
         print(
             f"{p['name']:18} "
@@ -226,16 +587,50 @@ def print_squad(squad):
             f"£{p['price']:4.1f}m   "
             f"EP {p['ep_next']:4.1f}   "
             f"PPG {p['points_per_game']:4.1f}   "
+            f"xGI90 {p['xgi90']:4.2f}   "
+            f"FIX {p['fixture_score']:4.1f}   "
             f"Owned {p['ownership']:5.1f}%   "
             f"Score {p['rating']:5.1f}"
+            f"{captain_marker}"
         )
 
     print()
-    print("=" * 84)
-    print(f"Squad cost : £{total_cost / 10:.1f}m")
-    print(f"In bank    : £{(BUDGET - total_cost) / 10:.1f}m")
-    print("=" * 84)
+    print("BENCH")
+    print("-" * 92)
 
+    for number, p in enumerate(bench, start=1):
+
+        print(
+            f"{number}. "
+            f"{p['name']:16} "
+            f"{p['team']:18} "
+            f"{p['position']:3} "
+            f"£{p['price']:4.1f}m   "
+            f"EP {p['ep_next']:4.1f}   "
+            f"Score {p['rating']:5.1f}"
+        )
+
+    captain_player = next(
+        p for p in squad
+        if p["captain"]
+    )
+
+    print()
+    print("=" * 92)
+    print(
+        f"Captain    : "
+        f"{captain_player['name']} "
+        f"({captain_player['team']})"
+    )
+    print(
+        f"Squad cost : "
+        f"£{total_cost / 10:.1f}m"
+    )
+    print(
+        f"In bank    : "
+        f"£{(BUDGET - total_cost) / 10:.1f}m"
+    )
+    print("=" * 92)
 
 if __name__ == "__main__":
 
@@ -248,3 +643,4 @@ if __name__ == "__main__":
     squad = optimise_squad(players)
 
     print_squad(squad)
+

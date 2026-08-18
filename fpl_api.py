@@ -11,6 +11,13 @@ def get_bootstrap():
     response.raise_for_status()
     return response.json()
 
+def get_fixtures():
+    response = requests.get(
+        f"{BASE_URL}/fixtures/",
+        timeout=20
+    )
+    response.raise_for_status()
+    return response.json()
 
 def get_players():
     data = get_bootstrap()
