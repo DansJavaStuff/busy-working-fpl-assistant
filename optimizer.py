@@ -15,6 +15,144 @@ def safe_float(value, default=0.0):
     except (ValueError, TypeError):
         return default
 
+def fixture_multiplier(difficulty):
+    """
+    Convert FPL fixture difficulty into a simple points multiplier.
+    Neutral fixture = 1.00
+    """
+    multipliers = {
+        1: 1.18,
+        2: 1.10,
+        3: 1.00,
+        4: 0.90,
+        5: 0.82,
+    }
+
+    return multipliers.get(difficulty, 1.00)
+
+def project_gameweeks(player, fixtures):
+
+    ppg = player["points_per_game"]
+    ep_next = player["ep_next"]
+
+    minutes = player["minutes"]
+
+    #
+    # Reliability based on historical minutes.
+    # Full confidence once a player has around
+    # half a season of minutes.
+    #
+    reliability = min(minutes / 1800, 1.0)
+
+    #
+    # Historical baseline.
+    #
+    # For established players use PPG strongly.
+    # For low-minute players regress towards a
+    # conservative 2 points per game.
+    #
+    historical_baseline = (
+        (ppg * reliability)
+        + (2.0 * (1.0 - reliability))
+    )
+    position = player["position"]
+
+    xgi90 = player["xgi90"]
+    clean_sheets90 = player["clean_sheets90"]
+    defensive90 = player["defensive90"]
+    saves90 = player["saves90"]
+
+    #
+    # Small underlying-performance adjustment.
+    #
+    # This deliberately modifies rather than replaces
+    # historical PPG. PPG remains our strongest anchor.
+    #
+
+    if position == "GKP":
+
+        underlying_adjustment = (
+            clean_sheets90 * 0.8
+            + saves90 * 0.15
+        )
+
+    elif position == "DEF":
+
+        underlying_adjustment = (
+            clean_sheets90 * 0.7
+            + xgi90 * 1.5
+            + defensive90 * 0.03
+        )
+
+    elif position == "MID":
+
+        underlying_adjustment = (
+            xgi90 * 1.8
+            + defensive90 * 0.015
+        )
+
+    elif position == "FWD":
+
+        underlying_adjustment = (
+            xgi90 * 2.0
+        )
+
+    else:
+
+        underlying_adjustment = 0.0
+
+    #
+    # Reliability-adjust the underlying stats too.
+    #
+    underlying_adjustment *= reliability
+
+    projected_baseline = (
+        historical_baseline * 0.85
+        + underlying_adjustment * 0.15
+    )
+
+    projections = {}
+
+    for gw in range(1, 6):
+
+        fixture = next(
+            (
+                f
+                for f in fixtures
+                if f["gw"] == gw
+            ),
+            None
+        )
+
+        if fixture is None:
+            projections[gw] = 0.0
+            continue
+
+        multiplier = fixture_multiplier(
+            fixture["difficulty"]
+        )
+
+        #
+        # GW1 is special because FPL itself
+        # gives us ep_next.
+        #
+        if gw == 1 and ep_next > 0:
+
+            baseline = (
+                ep_next * 0.65
+                + projected_baseline * 0.35
+            )
+
+        else:
+
+            baseline = projected_baseline
+
+        projected = baseline * multiplier
+
+        projections[gw] = projected
+
+    return projections
+
 def build_fixture_scores():
 
     fixtures = get_fixtures()
@@ -254,6 +392,35 @@ def load_players():
         if chance is not None:
             rating *= safe_float(chance) / 100.0
 
+        player_fixture_details = fixture_details.get(
+            p["team"],
+            []
+        )
+
+        projection_input = {
+            "points_per_game": season_points_per_game,
+            "ep_next": ep_next,
+            "minutes": int(minutes),
+            "position": position,
+            "xgi90": xgi90,
+            "clean_sheets90": clean_sheets90,
+            "defensive90": defensive90,
+            "saves90": saves90,
+        }
+
+        projections = project_gameweeks(
+            projection_input,
+            player_fixture_details
+        )
+
+        proj_gw1 = projections[1]
+        proj_gw2 = projections[2]
+        proj_gw3 = projections[3]
+        proj_gw4 = projections[4]
+        proj_gw5 = projections[5]
+
+        proj_5gw = sum(projections.values())
+
         players.append({
             "id": p["id"],
             "name": p["web_name"],
@@ -271,10 +438,7 @@ def load_players():
             "ownership": ownership,
             "status": status,
             "fixture_score": fixture_score,
-            "fixtures": fixture_details.get(
-                p["team"],
-                []
-            ),
+            "fixtures": player_fixture_details,
             "rating": rating,
             "xg90": xg90,
             "xa90": xa90,
@@ -282,6 +446,12 @@ def load_players():
             "clean_sheets90": clean_sheets90,
             "defensive90": defensive90,
             "saves90": saves90,
+            "proj_gw1": proj_gw1,
+            "proj_gw2": proj_gw2,
+            "proj_gw3": proj_gw3,
+            "proj_gw4": proj_gw4,
+            "proj_gw5": proj_gw5,
+            "proj_5gw": proj_5gw,
         })
 
     return players
@@ -329,25 +499,21 @@ def optimise_squad(players, force_player_id=None):
     # the optimiser doesn't completely ignore bench quality.
     #
 
-    STARTER_WEIGHT = 1.0
-    BENCH_WEIGHT = 0.15
-    CAPTAIN_WEIGHT = 1.0
+    SQUAD_HORIZON_WEIGHT = 0.15
 
     problem += pulp.lpSum(
         (
-            starter[p["id"]] * p["rating"] * STARTER_WEIGHT
+            starter[p["id"]] * p["proj_gw1"]
             +
-            (selected[p["id"]] - starter[p["id"]])
-            * p["rating"]
-            * BENCH_WEIGHT
+            captain[p["id"]] * p["proj_gw1"]
             +
-            captain[p["id"]]
-            * p["rating"]
-            * CAPTAIN_WEIGHT
+            selected[p["id"]]
+            * p["proj_5gw"]
+            * SQUAD_HORIZON_WEIGHT
         )
         for p in players
     )
-
+    
     #
     # SQUAD RULES
     #
@@ -520,21 +686,22 @@ def optimise_squad(players, force_player_id=None):
 
 def calculate_objective_score(squad):
 
-    STARTER_WEIGHT = 1.0
-    BENCH_WEIGHT = 0.15
-    CAPTAIN_WEIGHT = 1.0
+    SQUAD_HORIZON_WEIGHT = 0.15
 
     score = 0.0
 
     for p in squad:
 
         if p["starter"]:
-            score += p["rating"] * STARTER_WEIGHT
-        else:
-            score += p["rating"] * BENCH_WEIGHT
+            score += p["proj_gw1"]
 
         if p["captain"]:
-            score += p["rating"] * CAPTAIN_WEIGHT
+            score += p["proj_gw1"]
+
+        score += (
+            p["proj_5gw"]
+            * SQUAD_HORIZON_WEIGHT
+        )
 
     return score
 
@@ -719,6 +886,8 @@ def print_squad(squad):
             f"FIX {p['fixture_score']:4.1f}   "
             f"Owned {p['ownership']:5.1f}%   "
             f"Score {p['rating']:5.1f}"
+            f"GW1 {p['proj_gw1']:4.2f}   "
+            f"5GW {p['proj_5gw']:5.2f}   "
             f"{captain_marker}"
         )
 
@@ -760,11 +929,70 @@ def print_squad(squad):
     )
     print("=" * 92)
 
+def print_projection_table(players, names):
+
+    wanted = [
+        p
+        for p in players
+        if p["name"] in names
+    ]
+
+    wanted.sort(
+        key=lambda p: p["proj_5gw"],
+        reverse=True
+    )
+
+    print()
+    print("GW1-GW5 PROJECTIONS")
+    print("-" * 88)
+
+    print(
+        f"{'Player':18} "
+        f"{'Price':>6} "
+        f"{'GW1':>6} "
+        f"{'GW2':>6} "
+        f"{'GW3':>6} "
+        f"{'GW4':>6} "
+        f"{'GW5':>6} "
+        f"{'Total':>7}"
+    )
+
+    print("-" * 88)
+
+    for p in wanted:
+
+        print(
+            f"{p['name']:18} "
+            f"£{p['price']:4.1f} "
+            f"{p['proj_gw1']:6.2f} "
+            f"{p['proj_gw2']:6.2f} "
+            f"{p['proj_gw3']:6.2f} "
+            f"{p['proj_gw4']:6.2f} "
+            f"{p['proj_gw5']:6.2f} "
+            f"{p['proj_5gw']:7.2f}"
+        )
+
 if __name__ == "__main__":
 
     print("Downloading live FPL data...")
 
     players = load_players()
+
+    print_projection_table(
+        players,
+        {
+            "Haaland",
+            "B.Fernandes",
+            "Saka",
+            "Palmer",
+            "Mbeumo",
+            "Cherki",
+            "João Pedro",
+            "Thiago",
+            "Gabriel",
+            "Raya",
+        }
+    )
 
     print(
         f"Considering {len(players)} selectable players..."
