@@ -286,7 +286,7 @@ def load_players():
 
     return players
 
-def optimise_squad(players):
+def optimise_squad(players, force_player_id=None):
 
     problem = pulp.LpProblem(
         "FPL_GW1_Squad",
@@ -474,7 +474,13 @@ def optimise_squad(players):
             captain[p["id"]]
             <= starter[p["id"]]
         )
+    
+    #
+    # OPTIONAL FORCED PLAYER
+    #
 
+    if force_player_id is not None:
+        problem += selected[force_player_id] == 1
     #
     # SOLVE
     #
@@ -511,6 +517,128 @@ def optimise_squad(players):
             squad.append(player)
 
     return squad
+
+def calculate_objective_score(squad):
+
+    STARTER_WEIGHT = 1.0
+    BENCH_WEIGHT = 0.15
+    CAPTAIN_WEIGHT = 1.0
+
+    score = 0.0
+
+    for p in squad:
+
+        if p["starter"]:
+            score += p["rating"] * STARTER_WEIGHT
+        else:
+            score += p["rating"] * BENCH_WEIGHT
+
+        if p["captain"]:
+            score += p["rating"] * CAPTAIN_WEIGHT
+
+    return score
+
+def compare_squads(base_squad, forced_squad, forced_player):
+
+    base_score = calculate_objective_score(base_squad)
+    forced_score = calculate_objective_score(forced_squad)
+
+    base_ids = {
+        p["id"]
+        for p in base_squad
+    }
+
+    forced_ids = {
+        p["id"]
+        for p in forced_squad
+    }
+
+    added = [
+        p
+        for p in forced_squad
+        if p["id"] not in base_ids
+    ]
+
+    removed = [
+        p
+        for p in base_squad
+        if p["id"] not in forced_ids
+    ]
+
+    print()
+    print("-" * 92)
+    print(
+        f"COMPARISON: FORCE {forced_player['name'].upper()} INTO SQUAD"
+    )
+    print("-" * 92)
+
+    print(
+        f"Normal squad score : {base_score:.2f}"
+    )
+
+    print(
+        f"Forced squad score : {forced_score:.2f}"
+    )
+
+    difference = forced_score - base_score
+
+    print(
+        f"Difference         : {difference:+.2f}"
+    )
+
+    print()
+    print("PLAYERS ADDED")
+    print("-" * 50)
+
+    for p in added:
+        starter = "START" if p["starter"] else "BENCH"
+        captain = " (C)" if p["captain"] else ""
+
+        print(
+            f"{p['name']:18} "
+            f"{p['position']:3} "
+            f"£{p['price']:4.1f}m "
+            f"{starter:5}"
+            f"{captain}"
+        )
+
+    print()
+    print("PLAYERS REMOVED")
+    print("-" * 50)
+
+    for p in removed:
+        starter = "START" if p["starter"] else "BENCH"
+        captain = " (C)" if p["captain"] else ""
+
+        print(
+            f"{p['name']:18} "
+            f"{p['position']:3} "
+            f"£{p['price']:4.1f}m "
+            f"{starter:5}"
+            f"{captain}"
+        )
+
+    print()
+
+    if difference > 0.01:
+
+        print(
+            f"RESULT: Including {forced_player['name']} "
+            f"improves the model by {difference:.2f}."
+        )
+
+    elif difference < -0.01:
+
+        print(
+            f"RESULT: Including {forced_player['name']} "
+            f"reduces the model by {abs(difference):.2f}."
+        )
+
+    else:
+
+        print(
+            "RESULT: The two squad structures are essentially equal."
+        )
 
 def print_squad(squad):
 
@@ -638,9 +766,75 @@ if __name__ == "__main__":
 
     players = load_players()
 
-    print(f"Considering {len(players)} selectable players...")
+    print(
+        f"Considering {len(players)} selectable players..."
+    )
+
+    #
+    # Normal optimisation
+    #
 
     squad = optimise_squad(players)
 
     print_squad(squad)
+
+    #
+    # Premium player comparisons
+    #
+
+    comparison_players = [
+        ("Haaland", "Man City"),
+        ("Saka", "Arsenal"),
+        ("Palmer", "Chelsea"),
+    ]
+
+    for player_name, team_name in comparison_players:
+
+        comparison_player = next(
+            (
+                p
+                for p in players
+                if p["name"] == player_name
+                and p["team"] == team_name
+            ),
+            None
+        )
+
+        if comparison_player is None:
+            continue
+
+        already_selected = any(
+            p["id"] == comparison_player["id"]
+            for p in squad
+        )
+
+        print()
+        print("=" * 92)
+
+        if already_selected:
+
+            print(
+                f"{comparison_player['name']} is already "
+                f"in the optimal squad."
+            )
+
+            continue
+
+        alternative_squad = optimise_squad(
+            players,
+            force_player_id=comparison_player["id"]
+        )
+
+        print()
+        print(
+            f"{comparison_player['name'].upper()} ALTERNATIVE"
+        )
+
+        print_squad(alternative_squad)
+
+        compare_squads(
+            squad,
+            alternative_squad,
+            comparison_player
+        )
 
