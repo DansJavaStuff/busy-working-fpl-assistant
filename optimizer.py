@@ -150,7 +150,14 @@ def project_gameweeks(player, fixtures):
         projected = baseline * multiplier
 
         projections[gw] = projected
-
+        projections["_debug"] = {
+            "ppg": ppg,
+            "ep_next": ep_next,
+            "reliability": reliability,
+            "historical_baseline": historical_baseline,
+            "underlying_adjustment": underlying_adjustment,
+            "projected_baseline": projected_baseline,
+        }
     return projections
 
 def build_fixture_scores():
@@ -413,13 +420,39 @@ def load_players():
             player_fixture_details
         )
 
+        projection_debug = projections["_debug"]
+
         proj_gw1 = projections[1]
         proj_gw2 = projections[2]
         proj_gw3 = projections[3]
         proj_gw4 = projections[4]
         proj_gw5 = projections[5]
 
-        proj_5gw = sum(projections.values())
+        proj_5gw = sum(
+            projections[gw]
+            for gw in range(1, 6)
+        )
+
+        availability_factor = 1.0
+
+        if status != "a":
+            availability_factor = 0.5
+
+        if chance is not None:
+            availability_factor = safe_float(chance) / 100.0
+
+        proj_gw1 *= availability_factor
+
+        # For now only heavily penalise GW1.
+        # Longer-term projections retain most of their value because
+        # an injury/doubt may clear before later gameweeks.
+        proj_5gw = (
+            proj_gw1
+            + proj_gw2
+            + proj_gw3
+            + proj_gw4
+            + proj_gw5
+        )
 
         players.append({
             "id": p["id"],
@@ -452,6 +485,7 @@ def load_players():
             "proj_gw4": proj_gw4,
             "proj_gw5": proj_gw5,
             "proj_5gw": proj_5gw,
+            "projection_debug": projection_debug,
         })
 
     return players
@@ -971,6 +1005,42 @@ def print_projection_table(players, names):
             f"{p['proj_gw5']:6.2f} "
             f"{p['proj_5gw']:7.2f}"
         )
+def print_projection_debug(players, names):
+
+    print()
+    print("PROJECTION DEBUG")
+    print("-" * 100)
+
+    print(
+        f"{'Player':18} "
+        f"{'PPG':>5} "
+        f"{'EP':>5} "
+        f"{'Rel':>5} "
+        f"{'Hist':>6} "
+        f"{'Under':>7} "
+        f"{'Base':>6} "
+        f"{'GW1':>6}"
+    )
+
+    print("-" * 100)
+
+    for p in players:
+
+        if p["name"] not in names:
+            continue
+
+        d = p["projection_debug"]
+
+        print(
+            f"{p['name']:18} "
+            f"{d['ppg']:5.2f} "
+            f"{d['ep_next']:5.2f} "
+            f"{d['reliability']:5.2f} "
+            f"{d['historical_baseline']:6.2f} "
+            f"{d['underlying_adjustment']:7.2f} "
+            f"{d['projected_baseline']:6.2f} "
+            f"{p['proj_gw1']:6.2f}"
+        )
 
 if __name__ == "__main__":
 
@@ -991,6 +1061,15 @@ if __name__ == "__main__":
             "Thiago",
             "Gabriel",
             "Raya",
+        }
+    )
+    
+    print_projection_debug(
+        players,
+        {
+            "Haaland",
+            "B.Fernandes",
+            "Gabriel",
         }
     )
 
