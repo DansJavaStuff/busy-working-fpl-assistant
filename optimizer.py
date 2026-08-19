@@ -34,27 +34,8 @@ def project_gameweeks(player, fixtures):
 
     ppg = player["points_per_game"]
     ep_next = player["ep_next"]
-
     minutes = player["minutes"]
 
-    #
-    # Reliability based on historical minutes.
-    # Full confidence once a player has around
-    # half a season of minutes.
-    #
-    reliability = min(minutes / 1800, 1.0)
-
-    #
-    # Historical baseline.
-    #
-    # For established players use PPG strongly.
-    # For low-minute players regress towards a
-    # conservative 2 points per game.
-    #
-    historical_baseline = (
-        (ppg * reliability)
-        + (2.0 * (1.0 - reliability))
-    )
     position = player["position"]
 
     xgi90 = player["xgi90"]
@@ -63,10 +44,20 @@ def project_gameweeks(player, fixtures):
     saves90 = player["saves90"]
 
     #
-    # Small underlying-performance adjustment.
+    # Reliability based on historical minutes.
     #
-    # This deliberately modifies rather than replaces
-    # historical PPG. PPG remains our strongest anchor.
+    reliability = min(minutes / 1800, 1.0)
+
+    #
+    # Historical baseline.
+    #
+    historical_baseline = (
+        (ppg * reliability)
+        + (2.0 * (1.0 - reliability))
+    )
+
+    #
+    # Underlying-performance adjustment.
     #
 
     if position == "GKP":
@@ -101,9 +92,6 @@ def project_gameweeks(player, fixtures):
 
         underlying_adjustment = 0.0
 
-    #
-    # Reliability-adjust the underlying stats too.
-    #
     underlying_adjustment *= reliability
 
     projected_baseline = (
@@ -132,10 +120,6 @@ def project_gameweeks(player, fixtures):
             fixture["difficulty"]
         )
 
-        #
-        # GW1 is special because FPL itself
-        # gives us ep_next.
-        #
         if gw == 1 and ep_next > 0:
 
             baseline = (
@@ -143,21 +127,41 @@ def project_gameweeks(player, fixtures):
                 + projected_baseline * 0.35
             )
 
+            #
+            # ep_next is already fixture-aware.
+            # Apply only 35% of our own fixture adjustment
+            # in GW1 to avoid double-counting the fixture.
+            #
+            gw1_multiplier = 1.0 + (
+                (multiplier - 1.0) * 0.35
+            )
+
+            projected = (
+                baseline * gw1_multiplier
+            )
+
         else:
 
             baseline = projected_baseline
 
-        projected = baseline * multiplier
+            projected = (
+                baseline * multiplier
+            )
 
         projections[gw] = projected
-        projections["_debug"] = {
-            "ppg": ppg,
-            "ep_next": ep_next,
-            "reliability": reliability,
-            "historical_baseline": historical_baseline,
-            "underlying_adjustment": underlying_adjustment,
-            "projected_baseline": projected_baseline,
-        }
+
+    #
+    # Diagnostic information.
+    #
+    projections["_debug"] = {
+        "ppg": ppg,
+        "ep_next": ep_next,
+        "reliability": reliability,
+        "historical_baseline": historical_baseline,
+        "underlying_adjustment": underlying_adjustment,
+        "projected_baseline": projected_baseline,
+    }
+
     return projections
 
 def build_fixture_scores():
@@ -919,7 +923,6 @@ def print_squad(squad):
             f"xGI90 {p['xgi90']:4.2f}   "
             f"FIX {p['fixture_score']:4.1f}   "
             f"Owned {p['ownership']:5.1f}%   "
-            f"Score {p['rating']:5.1f}"
             f"GW1 {p['proj_gw1']:4.2f}   "
             f"5GW {p['proj_5gw']:5.2f}   "
             f"{captain_marker}"
@@ -938,7 +941,10 @@ def print_squad(squad):
             f"{p['position']:3} "
             f"£{p['price']:4.1f}m   "
             f"EP {p['ep_next']:4.1f}   "
-            f"Score {p['rating']:5.1f}"
+            f"Score {p['rating']:5.1f}   "
+            f"£{p['price']:4.1f}m   "
+            f"GW1 {p['proj_gw1']:4.2f}   "
+            f"5GW {p['proj_5gw']:5.2f}"
         )
 
     captain_player = next(
