@@ -4,6 +4,12 @@ import pulp
 
 from fpl_api import get_bootstrap, get_fixtures
 
+from team_strength import (
+    get_team_strengths,
+    attacking_fixture_multiplier,
+    defensive_fixture_multiplier,
+)
+
 BUDGET = 1000  # FPL stores prices in tenths: £100.0m = 1000
 
 
@@ -29,6 +35,31 @@ def fixture_multiplier(difficulty):
     }
 
     return multipliers.get(difficulty, 1.00)
+
+def fallback_strength_from_fpl(team, home_or_away):
+    """
+    Convert FPL preseason overall strength (typically 2-5)
+    into an approximate multiplier around 1.00.
+    """
+
+    if home_or_away == "home":
+        raw = team.get("strength_overall_home")
+    else:
+        raw = team.get("strength_overall_away")
+
+    raw = safe_float(raw, 3.0)
+
+    mapping = {
+        2: 0.85,
+        3: 1.00,
+        4: 1.15,
+        5: 1.30,
+    }
+
+    return mapping.get(
+        int(round(raw)),
+        1.00
+    )
 
 def project_gameweeks(player, fixtures):
 
@@ -116,9 +147,35 @@ def project_gameweeks(player, fixtures):
             projections[gw] = 0.0
             continue
 
-        multiplier = fixture_multiplier(
-            fixture["difficulty"]
-        )
+                #
+        # V4 fixture model:
+        #
+        # Goalkeepers and defenders primarily care about
+        # the opponent's attacking strength.
+        #
+        # Midfielders and forwards primarily care about
+        # the opponent's defensive strength.
+        #
+        if position in {
+            "GKP",
+            "DEF",
+        }:
+
+            multiplier = fixture.get(
+                "defence_multiplier",
+                fixture_multiplier(
+                    fixture["difficulty"]
+                )
+            )
+
+        else:
+
+            multiplier = fixture.get(
+                "attack_multiplier",
+                fixture_multiplier(
+                    fixture["difficulty"]
+                )
+            )
 
         if gw == 1 and ep_next > 0:
 
@@ -164,7 +221,11 @@ def project_gameweeks(player, fixtures):
 
     return projections
 
-def build_fixture_scores():
+def build_fixture_scores(
+    teams,
+    team_data,
+    historical_team_strengths
+):
 
     fixtures = get_fixtures()
 
@@ -232,6 +293,68 @@ def build_fixture_scores():
             + away_score
         )
 
+        #
+        # HOME TEAM'S FIXTURE
+        #
+        # Their opponent is the away team, so when falling
+        # back to FPL strength we use the opponent's AWAY
+        # strength.
+        #
+
+        home_opponent_name = teams[
+            away_team
+        ]
+
+        home_opponent_history = (
+            historical_team_strengths.get(
+                home_opponent_name
+            )
+        )
+
+        if home_opponent_history:
+
+            home_opponent_attack = (
+                home_opponent_history[
+                    "attack_strength"
+                ]
+            )
+
+            home_opponent_defence = (
+                home_opponent_history[
+                    "defence_strength"
+                ]
+            )
+
+            home_strength_source = (
+                "historical"
+            )
+
+        else:
+
+            fallback = (
+                fallback_strength_from_fpl(
+                    team_data[away_team],
+                    "away"
+                )
+            )
+
+            home_opponent_attack = fallback
+            home_opponent_defence = fallback
+
+            home_strength_source = "fpl"
+
+        home_attack_multiplier = (
+            attacking_fixture_multiplier(
+                home_opponent_defence
+            )
+        )
+
+        home_defence_multiplier = (
+            defensive_fixture_multiplier(
+                home_opponent_attack
+            )
+        )
+
         fixture_details.setdefault(
             home_team,
             []
@@ -240,7 +363,76 @@ def build_fixture_scores():
             "difficulty": home_difficulty,
             "home": True,
             "opponent": away_team,
+            "opponent_name": home_opponent_name,
+            "opponent_attack": home_opponent_attack,
+            "opponent_defence": home_opponent_defence,
+            "attack_multiplier": home_attack_multiplier,
+            "defence_multiplier": home_defence_multiplier,
+            "strength_source": home_strength_source,
         })
+
+
+        #
+        # AWAY TEAM'S FIXTURE
+        #
+        # Their opponent is the home team, so when falling
+        # back to FPL strength we use the opponent's HOME
+        # strength.
+        #
+
+        away_opponent_name = teams[
+            home_team
+        ]
+
+        away_opponent_history = (
+            historical_team_strengths.get(
+                away_opponent_name
+            )
+        )
+
+        if away_opponent_history:
+
+            away_opponent_attack = (
+                away_opponent_history[
+                    "attack_strength"
+                ]
+            )
+
+            away_opponent_defence = (
+                away_opponent_history[
+                    "defence_strength"
+                ]
+            )
+
+            away_strength_source = (
+                "historical"
+            )
+
+        else:
+
+            fallback = (
+                fallback_strength_from_fpl(
+                    team_data[home_team],
+                    "home"
+                )
+            )
+
+            away_opponent_attack = fallback
+            away_opponent_defence = fallback
+
+            away_strength_source = "fpl"
+
+        away_attack_multiplier = (
+            attacking_fixture_multiplier(
+                away_opponent_defence
+            )
+        )
+
+        away_defence_multiplier = (
+            defensive_fixture_multiplier(
+                away_opponent_attack
+            )
+        )
 
         fixture_details.setdefault(
             away_team,
@@ -250,6 +442,12 @@ def build_fixture_scores():
             "difficulty": away_difficulty,
             "home": False,
             "opponent": home_team,
+            "opponent_name": away_opponent_name,
+            "opponent_attack": away_opponent_attack,
+            "opponent_defence": away_opponent_defence,
+            "attack_multiplier": away_attack_multiplier,
+            "defence_multiplier": away_defence_multiplier,
+            "strength_source": away_strength_source,
         })
 
     return fixture_scores, fixture_details
@@ -257,12 +455,50 @@ def build_fixture_scores():
 def load_players():
     data = get_bootstrap()
 
-    fixture_scores, fixture_details = build_fixture_scores()
-   
+    historical_team_strengths = get_team_strengths()
+
     teams = {
         team["id"]: team["name"]
         for team in data["teams"]
     }
+
+    team_data = {
+        team["id"]: team
+        for team in data["teams"]
+    }
+
+    fixture_scores, fixture_details = (
+        build_fixture_scores(
+            teams,
+            team_data,
+            historical_team_strengths
+        )
+    )   
+
+    print()
+    print("HISTORICAL TEAM STRENGTH MATCHING")
+    print("-" * 72)
+
+    for team_id, team_name in teams.items():
+
+        strength = historical_team_strengths.get(
+            team_name
+        )
+
+        if strength:
+
+            print(
+                f"{team_name:20} "
+                f"ATT {strength['attack_strength']:5.2f}   "
+                f"DEF {strength['defence_strength']:5.2f}"
+            )
+
+        else:
+
+            print(
+                f"{team_name:20} "
+                f"NO HISTORICAL PL DATA"
+            )
 
     positions = {
         position["id"]: position["singular_name_short"]
@@ -491,6 +727,50 @@ def load_players():
             "proj_5gw": proj_5gw,
             "projection_debug": projection_debug,
         })
+    print()
+    print("V4 FIXTURE STRENGTH TEST")
+    print("-" * 90)
+
+    for player_name in [
+        "Haaland",
+        "Gabriel",
+        "B.Fernandes",
+    ]:
+
+        player = next(
+            (
+                p for p in players
+                if p["name"] == player_name
+            ),
+            None
+        )
+
+        if not player:
+            continue
+
+        fixture = next(
+            (
+                f
+                for f in fixture_details[
+                    player["team_id"]
+                ]
+                if f["gw"] == 1
+            ),
+            None
+        )
+
+        if not fixture:
+            continue
+
+        print(
+            f"{player_name:15} "
+            f"vs {fixture['opponent_name']:18} "
+            f"OppATT {fixture['opponent_attack']:5.2f}  "
+            f"OppDEF {fixture['opponent_defence']:5.2f}  "
+            f"AM {fixture['attack_multiplier']:5.2f}  "
+            f"DM {fixture['defence_multiplier']:5.2f}  "
+            f"[{fixture['strength_source']}]"
+        )
 
     return players
 
@@ -941,8 +1221,6 @@ def print_squad(squad):
             f"{p['position']:3} "
             f"£{p['price']:4.1f}m   "
             f"EP {p['ep_next']:4.1f}   "
-            f"Score {p['rating']:5.1f}   "
-            f"£{p['price']:4.1f}m   "
             f"GW1 {p['proj_gw1']:4.2f}   "
             f"5GW {p['proj_5gw']:5.2f}"
         )
