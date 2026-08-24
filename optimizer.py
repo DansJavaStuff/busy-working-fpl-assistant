@@ -10,6 +10,8 @@ from team_strength import (
     defensive_fixture_multiplier,
 )
 
+from player_context import PLAYER_CONTEXT
+
 BUDGET = 1000  # FPL stores prices in tenths: £100.0m = 1000
 
 
@@ -69,6 +71,18 @@ def project_gameweeks(player, fixtures):
 
     position = player["position"]
 
+    POSITION_PRIOR = {
+        "GKP": 3.5,
+        "DEF": 3.5,
+        "MID": 3.5,
+        "FWD": 3.5,
+    }
+
+    position_prior = POSITION_PRIOR.get(
+        position,
+        3.5
+    )
+
     xgi90 = player["xgi90"]
     clean_sheets90 = player["clean_sheets90"]
     defensive90 = player["defensive90"]
@@ -77,14 +91,32 @@ def project_gameweeks(player, fixtures):
     #
     # Reliability based on historical minutes.
     #
-    reliability = min(minutes / 1800, 1.0)
+    historical_reliability = min(
+        minutes / 1800,
+        1.0
+    )
+
+    reliability = historical_reliability
+
+    context = PLAYER_CONTEXT.get(
+        player["name"],
+        {}
+    )
+
+    expected_start_probability = context.get(
+        "expected_start_probability",
+        1.0
+    )
 
     #
     # Historical baseline.
     #
     historical_baseline = (
         (ppg * reliability)
-        + (2.0 * (1.0 - reliability))
+        + (
+            position_prior
+            * (1.0 - reliability)
+        )
     )
 
     #
@@ -205,6 +237,9 @@ def project_gameweeks(player, fixtures):
                 baseline * multiplier
             )
 
+            projected *= (
+                expected_start_probability
+            )
         projections[gw] = projected
 
     #
@@ -217,6 +252,7 @@ def project_gameweeks(player, fixtures):
         "historical_baseline": historical_baseline,
         "underlying_adjustment": underlying_adjustment,
         "projected_baseline": projected_baseline,
+        "expected_start_probability": expected_start_probability,
     }
 
     return projections
@@ -505,6 +541,54 @@ def load_players():
         for position in data["element_types"]
     }
 
+    #
+    # Calculate positional PPG priors from players
+    # with a meaningful historical sample.
+    #
+    position_samples = defaultdict(list)
+
+    for p in data["elements"]:
+
+        minutes = safe_float(
+            p.get("minutes") 
+        )
+
+        ppg = safe_float(
+            p.get("points_per_game")
+        )
+
+        if minutes < 900:
+            continue
+
+        position = positions[
+            p["element_type"]
+        ]
+
+        position_samples[
+            position
+        ].append(ppg) 
+
+    position_priors = {}
+
+    for position, values in position_samples.items():
+
+        if values:
+            position_priors[position] = (
+                sum(values) / len(values)
+            )
+
+    print() 
+    print("POSITIONAL PPG PRIORS")
+    print()
+
+    for position in ["GKP", "DEF", "MID", "FWD"]:
+
+        print(
+            f"{position}: "
+            f"{position_priors.get(position, 3.5):.2f} "
+            f"({len(position_samples.get(position, []))} players)"
+        )
+
     players = []
 
     for p in data["elements"]:
@@ -645,6 +729,7 @@ def load_players():
         )
 
         projection_input = {
+            "name": p["web_name"],
             "points_per_game": season_points_per_game,
             "ep_next": ep_next,
             "minutes": int(minutes),
@@ -725,6 +810,7 @@ def load_players():
             "proj_gw4": proj_gw4,
             "proj_gw5": proj_gw5,
             "proj_5gw": proj_5gw,
+            "chance_of_playing_next_round": (p.get("chance_of_playing_next_round")),
             "projection_debug": projection_debug,
         })
     print()
@@ -1289,6 +1375,7 @@ def print_projection_table(players, names):
             f"{p['proj_gw5']:6.2f} "
             f"{p['proj_5gw']:7.2f}"
         )
+
 def print_projection_debug(players, names):
 
     print()
@@ -1326,11 +1413,62 @@ def print_projection_debug(players, names):
             f"{p['proj_gw1']:6.2f}"
         )
 
+
+def print_goalkeeper_diagnostic(players, names):
+
+    print()
+    print("GOALKEEPER DIAGNOSTIC")
+    print("-" * 110)
+
+    print(
+        f"{'Player':18} "
+        f"{'Team':18} "
+        f"{'Price':>6} "
+        f"{'Min':>5} "
+        f"{'Starts':>6} "
+        f"{'Status':>7} "
+        f"{'Chance':>7} "
+        f"{'GW1':>6} "
+        f"{'5GW':>6} "
+        f"{'Start%':>7} "
+    )
+
+    print("-" * 110)
+
+    for p in players:
+
+        if p["name"] not in names:
+            continue
+
+        print(
+            f"{p['name']:18} "
+            f"{p['team']:18} "
+            f"£{p['price']:4.1f}m "
+            f"{p['minutes']:5} "
+            f"{p['starts']:6} "
+            f"{p['status']:>7} "
+            f"{str(p.get('chance_of_playing_next_round')):>7} "
+            f"{p['proj_gw1']:6.2f} "
+            f"{p['proj_5gw']:6.2f} "
+            f"{p['projection_debug']['expected_start_probability'] * 100:6.0f}% "
+        )
+
 if __name__ == "__main__":
 
     print("Downloading live FPL data...")
 
     players = load_players()
+
+    print_goalkeeper_diagnostic(
+        players,
+        {
+            "Raya",
+            "Kinsky",
+            "Martinez",
+            "Verbruggen",
+            "Dubravka",
+        }
+    )
 
     print_projection_table(
         players,
@@ -1347,7 +1485,7 @@ if __name__ == "__main__":
             "Raya",
         }
     )
-    
+ 
     print_projection_debug(
         players,
         {
