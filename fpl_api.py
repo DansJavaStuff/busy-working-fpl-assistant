@@ -1,7 +1,20 @@
 import requests
+import os
+import requests
+from dotenv import load_dotenv
 
 BASE_URL = "https://fantasy.premierleague.com/api"
+ENTRY_ID = 5710014
 
+TOKEN_URL = (
+    "https://account.premierleague.com/"
+    "as/token"
+)
+
+CLIENT_ID = (
+    "bfcbaf69-aade-4c1b-8f00-"
+    "c1cb8a193030"
+)
 
 def get_bootstrap():
     response = requests.get(
@@ -47,6 +60,241 @@ def get_players():
 
     return players
 
+def get_entry(entry_id=ENTRY_ID):
+
+    url = (
+        "https://fantasy.premierleague.com/"
+        f"api/entry/{entry_id}/"
+    )
+
+    response = requests.get(
+        url,
+        timeout=30
+    )
+
+    response.raise_for_status()
+
+    return response.json()
+
+def get_entry_picks(
+    gameweek,
+    entry_id=ENTRY_ID
+):
+
+    url = (
+        "https://fantasy.premierleague.com/"
+        f"api/entry/{entry_id}/"
+        f"event/{gameweek}/picks/"
+    )
+
+    response = requests.get(
+        url,
+        timeout=30
+    )
+
+    response.raise_for_status()
+
+    return response.json()
+
+def get_gameweek_status():
+
+    data = get_bootstrap()
+
+    current = None
+    next_gameweek = None
+
+    for event in data["events"]:
+
+        if event.get("is_current"):
+            current = event["id"]
+
+        if event.get("is_next"):
+            next_gameweek = event["id"]
+
+    return {
+        "current": current,
+        "next": next_gameweek,
+    }
+
+def get_planning_gameweek():
+
+    status = get_gameweek_status()
+
+    #
+    # While a Gameweek is still being played,
+    # we're normally planning for the next one.
+    #
+    if status["next"] is not None:
+        return status["next"]
+
+    #
+    # Fallback if FPL isn't currently flagging
+    # a next Gameweek.
+    #
+    if status["current"] is not None:
+        return status["current"] + 1
+
+    raise RuntimeError(
+        "Unable to determine next FPL Gameweek"
+    )
+
+def get_latest_gameweek():
+
+    data = get_bootstrap()
+
+    current = next(
+        (
+            event["id"]
+            for event in data["events"]
+            if event.get("is_current")
+        ),
+        None
+    )
+
+    if current is not None:
+        return current
+
+    finished = [
+        event["id"]
+        for event in data["events"]
+        if event.get("finished")
+    ]
+
+    if finished:
+        return max(finished)
+
+    return 1
+
+def save_refresh_token(new_token):
+
+    env_file = ".env"
+
+    lines = []
+
+    if os.path.exists(env_file):
+        with open(
+            env_file,
+            "r",
+            encoding="utf-8"
+        ) as f:
+            lines = f.readlines()
+
+    updated = False
+
+    for i, line in enumerate(lines):
+
+        if line.startswith(
+            "FPL_REFRESH_TOKEN="
+        ):
+            lines[i] = (
+                f"FPL_REFRESH_TOKEN="
+                f"{new_token}\n"
+            )
+
+            updated = True
+
+    if not updated:
+        lines.append(
+            f"FPL_REFRESH_TOKEN="
+            f"{new_token}\n"
+        )
+
+    with open(
+        env_file,
+        "w",
+        encoding="utf-8"
+    ) as f:
+        f.writelines(lines)
+
+    os.chmod(
+        env_file,
+        0o600
+    )
+
+
+def get_access_token():
+
+    load_dotenv(
+        override=True
+    )
+
+    refresh_token = os.getenv(
+        "FPL_REFRESH_TOKEN"
+    )
+
+    if not refresh_token:
+        raise RuntimeError(
+            "FPL_REFRESH_TOKEN missing from .env"
+        )
+
+    response = requests.post(
+        TOKEN_URL,
+        data={
+            "grant_type":
+                "refresh_token",
+            "refresh_token":
+                refresh_token,
+            "client_id":
+                CLIENT_ID,
+        },
+        timeout=30,
+    )
+
+    response.raise_for_status()
+
+    data = response.json()
+
+    access_token = data[
+        "access_token"
+    ]
+
+    new_refresh_token = data.get(
+        "refresh_token"
+    )
+
+    if (
+        new_refresh_token
+        and
+        new_refresh_token
+        != refresh_token
+    ):
+
+        save_refresh_token(
+            new_refresh_token
+        )
+
+        print(
+            "Refresh token rotated "
+            "and saved safely."
+        )
+
+    return access_token
+
+def get_my_team(
+    entry_id=ENTRY_ID
+):
+
+    access_token = (
+        get_access_token()
+    )
+
+    url = (
+        "https://fantasy.premierleague.com/"
+        f"api/my-team/{entry_id}/"
+    )
+
+    response = requests.get(
+        url,
+        headers={
+            "X-API-Authorization":
+                f"Bearer {access_token}",
+        },
+        timeout=30,
+    )
+
+    response.raise_for_status()
+
+    return response.json()
 
 if __name__ == "__main__":
     players = get_players()
