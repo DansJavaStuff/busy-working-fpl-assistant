@@ -11,4 +11,9 @@ PLAYER_CONTEXT = {
         "role": "backup",
         "note": "Signed by Spurs as backup to Kinsky",
     },
+    "Austin": {
+        "expected_start_probability": 0.01,
+        "role": "third_choice",
+        "note": "Spurs reserve goalkeeper behind Kinsky and Dubravka",
+    },
 }

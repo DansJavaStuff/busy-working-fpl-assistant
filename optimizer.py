@@ -2,7 +2,11 @@ from collections import defaultdict
 
 import pulp
 
-from fpl_api import get_bootstrap, get_fixtures
+from fpl_api import (
+    get_bootstrap,
+    get_fixtures,
+    get_planning_gameweek,
+)
 
 from team_strength import (
     get_team_strengths,
@@ -64,7 +68,11 @@ def fallback_strength_from_fpl(team, home_or_away):
         1.00
     )
 
-def project_gameweeks(player, fixtures):
+def project_gameweeks(
+    player,
+    fixtures,
+    planning_gameweek,
+):
 
     ppg = player["points_per_game"]
     ep_next = player["ep_next"]
@@ -158,7 +166,10 @@ def project_gameweeks(player, fixtures):
 
     projections = {}
 
-    for gw in range(1, 6):
+    for gw in range(
+        planning_gameweek,
+        planning_gameweek + 5
+    ):
 
         fixture = next(
             (
@@ -203,7 +214,10 @@ def project_gameweeks(player, fixtures):
                 )
             )
 
-        if gw == 1 and ep_next > 0:
+        if (
+            gw == planning_gameweek
+            and ep_next > 0
+        ):
 
             baseline = (
                 ep_next * 0.65
@@ -254,18 +268,20 @@ def project_gameweeks(player, fixtures):
 def build_fixture_scores(
     teams,
     team_data,
-    historical_team_strengths
+    historical_team_strengths,
+    planning_gameweek,
 ):
 
     fixtures = get_fixtures()
 
     # Earlier gameweeks matter more
+    planning_gameweek,
     gw_weights = {
-        1: 1.00,
-        2: 0.90,
-        3: 0.80,
-        4: 0.70,
-        5: 0.60,
+        planning_gameweek: 1.00,
+        planning_gameweek + 1: 0.90,
+        planning_gameweek + 2: 0.80,
+        planning_gameweek + 3: 0.70,
+        planning_gameweek + 4: 0.60,
     }
 
     #
@@ -485,6 +501,10 @@ def build_fixture_scores(
 def load_players():
     data = get_bootstrap()
 
+    planning_gameweek = (
+        get_planning_gameweek()
+    )
+
     historical_team_strengths = get_team_strengths()
 
     teams = {
@@ -501,7 +521,8 @@ def load_players():
         build_fixture_scores(
             teams,
             team_data,
-            historical_team_strengths
+            historical_team_strengths,
+            planning_gameweek,
         )
     )   
     if DEBUG:
@@ -741,21 +762,21 @@ def load_players():
 
         projections = project_gameweeks(
             projection_input,
-            player_fixture_details
+            player_fixture_details,
+            planning_gameweek,
         )
 
         projection_debug = projections["_debug"]
 
-        proj_gw1 = projections[1]
-        proj_gw2 = projections[2]
-        proj_gw3 = projections[3]
-        proj_gw4 = projections[4]
-        proj_gw5 = projections[5]
-
-        proj_5gw = sum(
-            projections[gw]
-            for gw in range(1, 6)
+        projected_gameweeks = range(
+            planning_gameweek,
+            planning_gameweek + 5
         )
+
+        projection_fields = {
+            f"proj_gw{gw}": projections[gw]
+            for gw in projected_gameweeks
+        } 
 
         availability_factor = 1.0
 
@@ -765,17 +786,18 @@ def load_players():
         if chance is not None:
             availability_factor = safe_float(chance) / 100.0
 
-        proj_gw1 *= availability_factor
+        projection_fields[
+            f"proj_gw{planning_gameweek}"
+        ] *= availability_factor
 
         # For now only heavily penalise GW1.
         # Longer-term projections retain most of their value because
         # an injury/doubt may clear before later gameweeks.
-        proj_5gw = (
-            proj_gw1
-            + proj_gw2
-            + proj_gw3
-            + proj_gw4
-            + proj_gw5
+        proj_5gw = sum(
+            projection_fields[
+                f"proj_gw{gw}"
+            ]
+            for gw in projected_gameweeks
         )
 
         players.append({
@@ -803,11 +825,13 @@ def load_players():
             "clean_sheets90": clean_sheets90,
             "defensive90": defensive90,
             "saves90": saves90,
-            "proj_gw1": proj_gw1,
-            "proj_gw2": proj_gw2,
-            "proj_gw3": proj_gw3,
-            "proj_gw4": proj_gw4,
-            "proj_gw5": proj_gw5,
+            "planning_gameweek":
+                planning_gameweek,
+            "proj_next":
+                projection_fields[
+                    f"proj_gw{planning_gameweek}"
+                ],
+            **projection_fields,
             "proj_5gw": proj_5gw,
             "chance_of_playing_next_round": (p.get("chance_of_playing_next_round")),
             "projection_debug": projection_debug,
@@ -908,9 +932,9 @@ def optimise_squad(players, force_player_id=None):
 
     problem += pulp.lpSum(
         (
-            starter[p["id"]] * p["proj_gw1"]
+            starter[p["id"]] * p["proj_next"]
             +
-            captain[p["id"]] * p["proj_gw1"]
+            captain[p["id"]] * p["proj_next"]
             +
             selected[p["id"]]
             * p["proj_5gw"]
@@ -1098,10 +1122,10 @@ def calculate_objective_score(squad):
     for p in squad:
 
         if p["starter"]:
-            score += p["proj_gw1"]
+            score += p["proj_next"]
 
         if p["captain"]:
-            score += p["proj_gw1"]
+            score += p["proj_next"]
 
         score += (
             p["proj_5gw"]
