@@ -14,6 +14,7 @@ from player_context import PLAYER_CONTEXT
 
 BUDGET = 1000  # FPL stores prices in tenths: £100.0m = 1000
 
+DEBUG=False
 
 def safe_float(value, default=0.0):
     try:
@@ -71,18 +72,11 @@ def project_gameweeks(player, fixtures):
 
     position = player["position"]
 
-    POSITION_PRIOR = {
-        "GKP": 3.5,
-        "DEF": 3.5,
-        "MID": 3.5,
-        "FWD": 3.5,
-    }
-
-    position_prior = POSITION_PRIOR.get(
-        position,
+    position_prior = player.get(
+        "position_prior",
         3.5
     )
-
+    
     xgi90 = player["xgi90"]
     clean_sheets90 = player["clean_sheets90"]
     defensive90 = player["defensive90"]
@@ -510,31 +504,32 @@ def load_players():
             historical_team_strengths
         )
     )   
+    if DEBUG:
 
-    print()
-    print("HISTORICAL TEAM STRENGTH MATCHING")
-    print("-" * 72)
+        print()
+        print("HISTORICAL TEAM STRENGTH MATCHING")
+        print("-" * 72)
 
-    for team_id, team_name in teams.items():
+        for team_id, team_name in teams.items():
 
-        strength = historical_team_strengths.get(
-            team_name
-        )
-
-        if strength:
-
-            print(
-                f"{team_name:20} "
-                f"ATT {strength['attack_strength']:5.2f}   "
-                f"DEF {strength['defence_strength']:5.2f}"
+            strength = historical_team_strengths.get(
+                team_name
             )
 
-        else:
+            if strength:
 
-            print(
-                f"{team_name:20} "
-                f"NO HISTORICAL PL DATA"
-            )
+                print(
+                    f"{team_name:20} "
+                    f"ATT {strength['attack_strength']:5.2f}   "
+                    f"DEF {strength['defence_strength']:5.2f}"
+                )
+
+            else:
+
+                print(
+                    f"{team_name:20} "
+                    f"NO HISTORICAL PL DATA"
+                )
 
     positions = {
         position["id"]: position["singular_name_short"]
@@ -576,18 +571,18 @@ def load_players():
             position_priors[position] = (
                 sum(values) / len(values)
             )
+    if DEBUG:
+        print() 
+        print("POSITIONAL PPG PRIORS")
+        print()
 
-    print() 
-    print("POSITIONAL PPG PRIORS")
-    print()
+        for position in ["GKP", "DEF", "MID", "FWD"]:
 
-    for position in ["GKP", "DEF", "MID", "FWD"]:
-
-        print(
-            f"{position}: "
-            f"{position_priors.get(position, 3.5):.2f} "
-            f"({len(position_samples.get(position, []))} players)"
-        )
+            print(
+                f"{position}: "
+                f"{position_priors.get(position, 3.5):.2f} "
+                f"({len(position_samples.get(position, []))} players)"
+            )
 
     players = []
 
@@ -734,6 +729,10 @@ def load_players():
             "ep_next": ep_next,
             "minutes": int(minutes),
             "position": position,
+            "position_prior": position_priors.get(
+                position,
+                3.5
+            ),
             "xgi90": xgi90,
             "clean_sheets90": clean_sheets90,
             "defensive90": defensive90,
@@ -813,50 +812,52 @@ def load_players():
             "chance_of_playing_next_round": (p.get("chance_of_playing_next_round")),
             "projection_debug": projection_debug,
         })
-    print()
-    print("V4 FIXTURE STRENGTH TEST")
-    print("-" * 90)
+    if DEBUG:
 
-    for player_name in [
-        "Haaland",
-        "Gabriel",
-        "B.Fernandes",
-    ]:
+        print()
+        print("V4 FIXTURE STRENGTH TEST")
+        print("-" * 90)
 
-        player = next(
-            (
-                p for p in players
-                if p["name"] == player_name
-            ),
-            None
-        )
+        for player_name in [
+            "Haaland",
+            "Gabriel",
+            "B.Fernandes",
+        ]:
 
-        if not player:
-            continue
+            player = next(
+                (
+                    p for p in players
+                    if p["name"] == player_name
+                ),
+                None
+            )
 
-        fixture = next(
-            (
-                f
-                for f in fixture_details[
-                    player["team_id"]
-                ]
-                if f["gw"] == 1
-            ),
-            None
-        )
+            if not player:
+                continue
 
-        if not fixture:
-            continue
+            fixture = next(
+                (
+                    f
+                    for f in fixture_details[
+                        player["team_id"]
+                    ]
+                    if f["gw"] == 1
+                ),
+                None
+            )
 
-        print(
-            f"{player_name:15} "
-            f"vs {fixture['opponent_name']:18} "
-            f"OppATT {fixture['opponent_attack']:5.2f}  "
-            f"OppDEF {fixture['opponent_defence']:5.2f}  "
-            f"AM {fixture['attack_multiplier']:5.2f}  "
-            f"DM {fixture['defence_multiplier']:5.2f}  "
-            f"[{fixture['strength_source']}]"
-        )
+            if not fixture:
+                continue
+
+            print(
+                f"{player_name:15} "
+                f"vs {fixture['opponent_name']:18} "
+                f"OppATT {fixture['opponent_attack']:5.2f}  "
+                f"OppDEF {fixture['opponent_defence']:5.2f}  "
+                f"AM {fixture['attack_multiplier']:5.2f}  "
+                f"DM {fixture['defence_multiplier']:5.2f}  "
+                f"[{fixture['strength_source']}]"
+            )
 
     return players
 
@@ -1459,17 +1460,34 @@ if __name__ == "__main__":
 
     players = load_players()
 
-    print_goalkeeper_diagnostic(
-        players,
-        {
-            "Raya",
-            "Kinsky",
-            "Martinez",
-            "Verbruggen",
-            "Dubravka",
-        }
-    )
+    #
+    # Debug-only output
+    #
+    if DEBUG:
 
+        print_goalkeeper_diagnostic(
+            players,
+            {
+                "Raya",
+                "Kinsky",
+                "Martinez",
+                "Verbruggen",
+                "Dubravka",
+            }
+        )
+
+        print_projection_debug(
+            players,
+            {
+                "Haaland",
+                "B.Fernandes",
+                "Gabriel",
+            }
+        )
+
+    #
+    # Useful normal output
+    #
     print_projection_table(
         players,
         {
@@ -1485,15 +1503,6 @@ if __name__ == "__main__":
             "Raya",
         }
     )
- 
-    print_projection_debug(
-        players,
-        {
-            "Haaland",
-            "B.Fernandes",
-            "Gabriel",
-        }
-    )
 
     print(
         f"Considering {len(players)} selectable players..."
@@ -1502,7 +1511,6 @@ if __name__ == "__main__":
     #
     # Normal optimisation
     #
-
     squad = optimise_squad(players)
 
     print_squad(squad)
@@ -1510,7 +1518,6 @@ if __name__ == "__main__":
     #
     # Premium player comparisons
     #
-
     comparison_players = [
         ("Haaland", "Man City"),
         ("Saka", "Arsenal"),
