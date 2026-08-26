@@ -947,6 +947,42 @@ def load_players():
 
     return players
 
+def calculate_captain_score(player):
+    """
+    Captaincy score.
+
+    Expected points remains the main factor, but captaincy should
+    favour attacking upside rather than blindly selecting the player
+    with the highest mean projection.
+    """
+
+    planning_gameweek = player[
+        "planning_gameweek"
+    ]
+
+    projection = player.get(
+        f"proj_gw{planning_gameweek}",
+        0.0,
+    )
+
+    position = player["position"]
+
+    score = projection
+
+    if position == "FWD":
+        score *= 1.15
+
+    elif position == "MID":
+        score *= 1.12
+
+    elif position == "DEF":
+        score *= 1.03
+
+    elif position == "GKP":
+        score *= 0.95
+
+    return score
+
 def optimise_squad(players, force_player_id=None):
 
     problem = pulp.LpProblem(
@@ -996,7 +1032,7 @@ def optimise_squad(players, force_player_id=None):
         (
             starter[p["id"]] * p["proj_next"]
             +
-            captain[p["id"]] * p["proj_next"]
+            captain[p["id"]] * calculate_captain_score(p)
             +
             selected[p["id"]]
             * p["proj_5gw"]
@@ -1173,6 +1209,23 @@ def optimise_squad(players, force_player_id=None):
 
             squad.append(player)
 
+    vice_candidates = [
+        p
+        for p in squad
+        if p["starter"]
+        and not p["captain"]
+    ]
+
+    vice_captain = max(
+        vice_candidates,
+        key=calculate_captain_score,
+    )
+
+    for p in squad:
+        p["vice_captain"] = (
+            p["id"] == vice_captain["id"]
+        )
+
     return squad
 
 def calculate_objective_score(squad):
@@ -1187,7 +1240,7 @@ def calculate_objective_score(squad):
             score += p["proj_next"]
 
         if p["captain"]:
-            score += p["proj_next"]
+            score += calculate_captain_score(p)
 
         score += (
             p["proj_5gw"]
@@ -1250,14 +1303,19 @@ def compare_squads(base_squad, forced_squad, forced_player):
 
     for p in added:
         starter = "START" if p["starter"] else "BENCH"
-        captain = " (C)" if p["captain"] else ""
+        marker = ""
+        
+        if p["captain"]:
+            marker = " (C)"
+        elif p.get("vice_captain"):
+            marker = " (VC)"
 
         print(
             f"{p['name']:18} "
             f"{p['position']:3} "
             f"£{p['price']:4.1f}m "
-            f"{starter:5}"
-            f"{captain}"
+            f"{starter:5} "
+            f"{marker} "
         )
 
     print()
@@ -1366,6 +1424,8 @@ def print_squad(squad):
 
         if p["captain"]:
             captain_marker = "  (C)"
+        elif p.get("vice_captain"):
+            captain_marker = "  (VC)"
 
         print(
             f"{p['name']:18} "
@@ -1405,12 +1465,23 @@ def print_squad(squad):
         if p["captain"]
     )
 
+    vice_captain_player = next(
+        p
+        for p in squad
+        if p.get("vice_captain")
+    )
+
     print()
     print("=" * 92)
     print(
         f"Captain    : "
         f"{captain_player['name']} "
         f"({captain_player['team']})"
+    )
+    print(
+        f"Vice       : "
+        f"{vice_captain_player['name']} "
+        f"({vice_captain_player['team']})"
     )
     print(
         f"Squad cost : "

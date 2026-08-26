@@ -5,7 +5,7 @@ from fpl_api import (
     get_planning_gameweek,
 )
 
-from optimizer import load_players
+from optimizer import (load_players,calculate_captain_score,)
 
 import csv
 from pathlib import Path
@@ -205,10 +205,7 @@ def optimise_transfers(
         +
         (
             captain[p["id"]]
-            * get_projection(
-                p,
-                planning_gameweek
-            )
+            * calculate_captain_score(p)
         )
         +
         (
@@ -511,11 +508,7 @@ def optimise_transfers(
 
     vice_captain = max(
         vice_candidates,
-        key=lambda p:
-            get_projection(
-                p,
-                planning_gameweek
-            )
+        key=calculate_captain_score,
     )
 
     return {
