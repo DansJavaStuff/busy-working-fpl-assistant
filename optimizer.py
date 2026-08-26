@@ -16,6 +16,10 @@ from team_strength import (
 
 from player_context import PLAYER_CONTEXT
 
+from goalkeeper_depth import (
+    get_goalkeeper_depth,
+)
+
 BUDGET = 1000  # FPL stores prices in tenths: £100.0m = 1000
 
 DEBUG=False
@@ -107,8 +111,36 @@ def project_gameweeks(
 
     expected_start_probability = context.get(
         "expected_start_probability",
-        1.0
     )
+    
+    if expected_start_probability is None:
+
+        keeper_info = player.get(
+            "goalkeeper_depth",
+            {}
+        )
+        
+        if keeper_info:
+
+            expected_start_probability = (
+                keeper_info[
+                    "expected_start_probability"
+                ]
+            )
+
+        elif player["position"] == "GKP":
+
+            #
+            # FPL goalkeeper who does not appear
+            # on the external depth chart.
+            #
+            # Assume extremely unlikely to start.
+            #
+            expected_start_probability = 0.01
+
+        else:
+
+            expected_start_probability = 1.0
 
     #
     # Historical baseline.
@@ -500,7 +532,11 @@ def build_fixture_scores(
 
 def load_players():
     data = get_bootstrap()
-
+    
+    goalkeeper_depth = (
+        get_goalkeeper_depth()
+    )
+    
     planning_gameweek = (
         get_planning_gameweek()
     )
@@ -745,6 +781,7 @@ def load_players():
         )
 
         projection_input = {
+            "id": p["id"],
             "name": p["web_name"],
             "points_per_game": season_points_per_game,
             "ep_next": ep_next,
@@ -758,6 +795,12 @@ def load_players():
             "clean_sheets90": clean_sheets90,
             "defensive90": defensive90,
             "saves90": saves90,
+            "goalkeeper_depth": (
+                goalkeeper_depth.get(
+                    p["id"],
+                    {}
+                )
+            ),
         }
 
         projections = project_gameweeks(
@@ -888,7 +931,7 @@ def load_players():
 def optimise_squad(players, force_player_id=None):
 
     problem = pulp.LpProblem(
-        "FPL_GW1_Squad",
+        "FPL_Squad",
         pulp.LpMaximize
     )
 
@@ -1276,7 +1319,7 @@ def print_squad(squad):
 
     print()
     print("=" * 92)
-    print("                         FPL GW1 OPTIMISED TEAM")
+    print("                         FPL OPTIMISED TEAM")
     print("=" * 92)
 
     print()
@@ -1314,7 +1357,8 @@ def print_squad(squad):
             f"xGI90 {p['xgi90']:4.2f}   "
             f"FIX {p['fixture_score']:4.1f}   "
             f"Owned {p['ownership']:5.1f}%   "
-            f"GW1 {p['proj_gw1']:4.2f}   "
+            f"GW{p['planning_gameweek']} "
+            f"{p['proj_next']:4.2f}   "
             f"5GW {p['proj_5gw']:5.2f}   "
             f"{captain_marker}"
         )
@@ -1332,7 +1376,8 @@ def print_squad(squad):
             f"{p['position']:3} "
             f"£{p['price']:4.1f}m   "
             f"EP {p['ep_next']:4.1f}   "
-            f"GW1 {p['proj_gw1']:4.2f}   "
+            f"GW{p['planning_gameweek']} "
+            f"{p['proj_next']:4.2f}   "
             f"5GW {p['proj_5gw']:5.2f}"
         )
 
@@ -1360,6 +1405,16 @@ def print_squad(squad):
 
 def print_projection_table(players, names):
 
+    projection_gws = sorted(
+        {
+            int(key.replace("proj_gw", ""))
+            for p in players
+            for key in p
+            if key.startswith("proj_gw")
+            and key != "proj_5gw"
+        }
+    )
+
     wanted = [
         p
         for p in players
@@ -1372,36 +1427,52 @@ def print_projection_table(players, names):
     )
 
     print()
-    print("GW1-GW5 PROJECTIONS")
-    print("-" * 88)
 
     print(
-        f"{'Player':18} "
-        f"{'Price':>6} "
-        f"{'GW1':>6} "
-        f"{'GW2':>6} "
-        f"{'GW3':>6} "
-        f"{'GW4':>6} "
-        f"{'GW5':>6} "
-        f"{'Total':>7}"
+        f"GW{projection_gws[0]}-"
+        f"GW{projection_gws[-1]} PROJECTIONS"
     )
+
+    print("-" * 88)
+
+    header = (
+        f"{'Player':18} "
+        f"{'Price':>7} "
+    )
+
+    for gw in projection_gws:
+        header += (
+            f"{'GW' + str(gw):>7} "
+        )
+
+    header += f"{'Total':>7}"
+
+    print(header)
 
     print("-" * 88)
 
     for p in wanted:
 
-        print(
+        line = (
             f"{p['name']:18} "
-            f"£{p['price']:4.1f} "
-            f"{p['proj_gw1']:6.2f} "
-            f"{p['proj_gw2']:6.2f} "
-            f"{p['proj_gw3']:6.2f} "
-            f"{p['proj_gw4']:6.2f} "
-            f"{p['proj_gw5']:6.2f} "
-            f"{p['proj_5gw']:7.2f}"
+            f"£{p['price']:5.1f} "
         )
 
+        for gw in projection_gws:
+
+            line += (
+                f"{p.get(f'proj_gw{gw}', 0.0):7.2f} "
+            )
+
+        line += (
+            f"{p.get('proj_5gw', 0.0):7.2f}"
+        )
+
+        print(line)
+
 def print_projection_debug(players, names):
+
+    planning_gameweek = players[0]["planning_gameweek"]
 
     print()
     print("PROJECTION DEBUG")
@@ -1415,7 +1486,7 @@ def print_projection_debug(players, names):
         f"{'Hist':>6} "
         f"{'Under':>7} "
         f"{'Base':>6} "
-        f"{'GW1':>6}"
+        f"{'GW' + str(planning_gameweek):>6}"
     )
 
     print("-" * 100)
@@ -1435,11 +1506,13 @@ def print_projection_debug(players, names):
             f"{d['historical_baseline']:6.2f} "
             f"{d['underlying_adjustment']:7.2f} "
             f"{d['projected_baseline']:6.2f} "
-            f"{p['proj_gw1']:6.2f}"
+            f"{p['proj_next']:6.2f}"
         )
 
 
 def print_goalkeeper_diagnostic(players, names):
+
+    planning_gameweek = players[0]["planning_gameweek"]
 
     print()
     print("GOALKEEPER DIAGNOSTIC")
@@ -1453,7 +1526,7 @@ def print_goalkeeper_diagnostic(players, names):
         f"{'Starts':>6} "
         f"{'Status':>7} "
         f"{'Chance':>7} "
-        f"{'GW1':>6} "
+        f"{'GW' + str(planning_gameweek):>6} "
         f"{'5GW':>6} "
         f"{'Start%':>7} "
     )
@@ -1473,7 +1546,7 @@ def print_goalkeeper_diagnostic(players, names):
             f"{p['starts']:6} "
             f"{p['status']:>7} "
             f"{str(p.get('chance_of_playing_next_round')):>7} "
-            f"{p['proj_gw1']:6.2f} "
+            f"{p['proj_next']:6.2f} "
             f"{p['proj_5gw']:6.2f} "
             f"{p['projection_debug']['expected_start_probability'] * 100:6.0f}% "
         )
@@ -1481,6 +1554,10 @@ def print_goalkeeper_diagnostic(players, names):
 if __name__ == "__main__":
 
     print("Downloading live FPL data...")
+
+    print(
+        "FPL UNCONSTRAINED / WILDCARD BENCHMARK"
+    )
 
     players = load_players()
 

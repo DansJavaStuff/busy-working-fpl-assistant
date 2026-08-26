@@ -239,8 +239,37 @@ def get_access_token():
         },
         timeout=30,
     )
+    
+    if not response.ok:
 
-    response.raise_for_status()
+        print(
+            "FPL token refresh failed:",
+            response.status_code
+        )
+
+        try:
+            error_data = response.json()
+
+            print(
+                "Error:",
+                error_data.get("error")
+            )
+
+            print(
+                "Description:",
+                error_data.get(
+                    "error_description"
+                )
+            )
+
+        except ValueError:
+
+            print(
+                "Response:",
+                response.text[:500]
+            )
+
+        response.raise_for_status()
 
     data = response.json()
 

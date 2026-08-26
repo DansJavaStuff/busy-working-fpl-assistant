@@ -7,6 +7,8 @@ from fpl_api import (
 
 from optimizer import load_players
 
+import csv
+from pathlib import Path
 
 CBC_PATH = "/usr/bin/cbc"
 
@@ -17,6 +19,71 @@ CBC_PATH = "/usr/bin/cbc"
 #
 HORIZON_WEIGHT = 0.15
 
+def save_season_history(
+    gameweek,
+    current_score,
+    best_transfer_score,
+    ideal_score,
+    gap_to_ideal,
+    recommended_transfers,
+    hit_cost,
+):
+    history_file = Path("data/season_history.csv")
+
+    history_file.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    fieldnames = [
+        "gameweek",
+        "current_score",
+        "best_transfer_score",
+        "ideal_score",
+        "gap_to_ideal",
+        "recommended_transfers",
+        "hit_cost",
+    ]
+
+    rows = []
+
+    if history_file.exists():
+        with history_file.open("r", newline="") as f:
+            rows = list(csv.DictReader(f))
+
+    # Keep only one snapshot per planning Gameweek.
+    # Running the optimiser again before the deadline
+    # replaces the previous snapshot for that GW.
+    rows = [
+        row
+        for row in rows
+        if int(row["gameweek"]) != gameweek
+    ]
+
+    rows.append(
+        {
+            "gameweek": gameweek,
+            "current_score": f"{current_score:.2f}",
+            "best_transfer_score": f"{best_transfer_score:.2f}",
+            "ideal_score": f"{ideal_score:.2f}",
+            "gap_to_ideal": f"{gap_to_ideal:.2f}",
+            "recommended_transfers": recommended_transfers,
+            "hit_cost": hit_cost,
+        }
+    )
+
+    rows.sort(
+        key=lambda row: int(row["gameweek"])
+    )
+
+    with history_file.open("w", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=fieldnames,
+        )
+
+        writer.writeheader()
+        writer.writerows(rows)
 
 def get_projection(player, gameweek):
     return player.get(
@@ -30,7 +97,7 @@ def get_horizon_projection(
     planning_gameweek
 ):
     """
-    optimizer.py currently projects GW1-GW5.
+    optimizer.py projects a rolling five-gameweek window.
 
     For GW2 this therefore uses GW2-GW5.
     Later we'll make the projection engine
@@ -730,6 +797,12 @@ if __name__ == "__main__":
             r["net_score"]
     )
 
+    from optimizer import (
+        load_players,
+        optimise_squad,
+        calculate_objective_score,
+    )
+
     print()
     print("=" * 92)
     print("RECOMMENDATION")
@@ -767,3 +840,62 @@ if __name__ == "__main__":
                 f"Points hit: "
                 f"-{best['hit_cost']}"
             )
+    print()
+    print("=" * 92)
+    print("SEASON BENCHMARK")
+    print("=" * 92)
+
+    ideal_squad = optimise_squad(
+        players
+    )
+
+    ideal_score = calculate_objective_score(
+        ideal_squad
+    )
+
+    current_score = next(
+        r["net_score"]
+        for r in results
+        if r["transfers"] == 0
+    )
+
+    gap_to_ideal = (
+        ideal_score
+        - current_score
+    )
+
+    print(
+        f"Current squad score : "
+        f"{current_score:.2f}"
+    )
+
+    print(
+        f"Best transfer path  : "
+        f"{best['net_score']:.2f}"
+    )
+
+    print(
+        f"Ideal fresh squad   : "
+        f"{ideal_score:.2f}"
+    )
+
+    print(
+        f"Gap to ideal        : "
+        f"{gap_to_ideal:+.2f}"
+    )
+
+    save_season_history(
+        gameweek=planning_gameweek,
+        current_score=current_score,
+        best_transfer_score=best["net_score"],
+        ideal_score=ideal_score,
+        gap_to_ideal=gap_to_ideal,
+        recommended_transfers=best["transfers"],
+        hit_cost=best["hit_cost"],
+    )
+
+    print()
+    print(
+        "Season benchmark saved to "
+        "data/season_history.csv"
+    )

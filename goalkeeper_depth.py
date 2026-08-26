@@ -1,5 +1,10 @@
+import re
+import unicodedata
+
 import requests
 from bs4 import BeautifulSoup
+
+from fpl_api import get_bootstrap
 
 
 ROTOWIRE_URL = (
@@ -7,8 +12,58 @@ ROTOWIRE_URL = (
     "soccer/premier-league-depth-charts-1/"
 )
 
+NAME_ALIASES = {
+    "alisson": "alisson becker",
+}
 
-def get_goalkeeper_depth():
+GOALKEEPER_DEPTH_PROBABILITY = {
+    1: 0.95,
+    2: 0.05,
+    3: 0.01,
+    4: 0.01,
+    5: 0.01,
+}
+
+
+def normalise_name(name):
+
+    name = unicodedata.normalize(
+        "NFKD",
+        name
+    )
+
+    name = "".join(
+        c
+        for c in name
+        if not unicodedata.combining(c)
+    )
+
+    #
+    # Remove RotoWire middle initials:
+    #
+    # Martin M. Dubravka
+    # Antonin A. Kinsky
+    #
+    name = re.sub(
+        r"\b[A-Z]\.\s*",
+        "",
+        name
+    )
+
+    name = name.lower()
+
+    name = re.sub(
+        r"[^a-z0-9]+",
+        " ",
+        name
+    )
+
+    return " ".join(
+        name.split()
+    )
+
+
+def get_rotowire_goalkeeper_depth():
 
     response = requests.get(
         ROTOWIRE_URL,
@@ -52,48 +107,16 @@ def get_goalkeeper_depth():
         ):
             continue
 
-        #
-        # Team name
-        #
-        team_name = None
+        full_text = team_block.get_text(
+            " ",
+            strip=True
+        )
 
-        for child in team_block.find_all(
-            recursive=False
-        ):
+        team_name = full_text.split(
+            "Goalkeeper",
+            1
+        )[0].strip()
 
-            text = child.get_text(
-                " ",
-                strip=True
-            )
-
-            if (
-                text
-                and "Goalkeeper" not in text
-            ):
-                team_name = text
-                break
-
-        #
-        # Fallback:
-        # extract everything before the word
-        # Goalkeeper from the whole block.
-        #
-        if not team_name:
-
-            full_text = team_block.get_text(
-                " ",
-                strip=True
-            )
-
-            team_name = full_text.split(
-                "Goalkeeper",
-                1
-            )[0].strip()
-
-        #
-        # Find player links inside only the
-        # goalkeeper position block.
-        #
         keepers = []
 
         for link in position_block.find_all(
@@ -105,26 +128,96 @@ def get_goalkeeper_depth():
                 strip=True
             )
 
-            if not name:
-                continue
-
-            #
-            # RotoWire sometimes shows:
-            #
-            # David Raya
-            # Kepa K. Arrizabalaga
-            #
-            # We'll clean names later when
-            # matching to FPL.
-            #
-            if name not in keepers:
+            if (
+                name
+                and name not in keepers
+            ):
                 keepers.append(name)
 
-        if (
-            team_name
-            and keepers
-        ):
+        if team_name and keepers:
             result[team_name] = keepers
+
+    return result
+
+
+def get_goalkeeper_depth():
+
+    bootstrap = get_bootstrap()
+
+    fpl_goalkeepers = [
+        p
+        for p in bootstrap["elements"]
+        if p["element_type"] == 1
+    ]
+
+    rotowire_depth = (
+        get_rotowire_goalkeeper_depth()
+    )
+
+    result = {}
+
+    for rotowire_team, keepers in (
+        rotowire_depth.items()
+    ):
+
+        for depth_number, rw_name in (
+            enumerate(
+                keepers,
+                start=1
+            )
+        ):
+
+            rw_normal = normalise_name(
+                rw_name
+            )
+
+            rw_normal = NAME_ALIASES.get(
+                rw_normal,
+                rw_normal
+            )
+
+            candidates = []
+
+            for p in fpl_goalkeepers:
+
+                fpl_name = normalise_name(
+                    p["web_name"]
+                )
+
+                full_name = normalise_name(
+                    (
+                        f"{p.get('first_name', '')} "
+                        f"{p.get('second_name', '')}"
+                    )
+                )
+
+                if (
+                    fpl_name == rw_normal
+                    or
+                    full_name == rw_normal
+                    or
+                    rw_normal.endswith(
+                        f" {fpl_name}"
+                    )
+                ):
+                    candidates.append(p)
+
+            if len(candidates) != 1:
+                continue
+
+            player = candidates[0]
+
+            result[player["id"]] = {
+                "depth": depth_number,
+                "expected_start_probability":
+                    GOALKEEPER_DEPTH_PROBABILITY.get(
+                        depth_number,
+                        0.01
+                    ),
+                "rotowire_name": rw_name,
+                "rotowire_team": rotowire_team,
+                "fpl_name": player["web_name"],
+            }
 
     return result
 
@@ -134,23 +227,24 @@ if __name__ == "__main__":
     depth = get_goalkeeper_depth()
 
     print(
-        f"Found {len(depth)} teams"
+        f"Matched {len(depth)} FPL goalkeepers"
     )
 
     print()
 
-    for team, keepers in depth.items():
+    for player_id, info in sorted(
+        depth.items(),
+        key=lambda item: (
+            item[1]["rotowire_team"],
+            item[1]["depth"],
+        )
+    ):
 
-        print(team)
-
-        for number, keeper in enumerate(
-            keepers,
-            start=1
-        ):
-
-            print(
-                f"  {number}. "
-                f"{keeper}"
-            )
-
-        print()
+        print(
+            f"{info['rotowire_team']:25} "
+            f"{info['depth']}. "
+            f"{info['fpl_name']:18} "
+            f"Start "
+            f"{info['expected_start_probability'] * 100:5.1f}% "
+            f"(ID {player_id})"
+        )
