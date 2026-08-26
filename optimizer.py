@@ -1382,11 +1382,21 @@ def print_squad(squad):
         )
     )
 
-    bench.sort(
-        key=lambda p: (
-            position_order[p["position"]],
-            -p["rating"]
-        )
+    bench_goalkeepers = [
+        p
+        for p in bench
+        if p["position"] == "GKP"
+    ]
+
+    bench_outfield = [
+        p
+        for p in bench
+        if p["position"] != "GKP"
+    ]
+
+    bench_outfield.sort(
+        key=lambda p: p["proj_next"],
+        reverse=True
     )
 
     total_cost = sum(
@@ -1446,13 +1456,29 @@ def print_squad(squad):
     print("BENCH")
     print("-" * 92)
 
-    for number, p in enumerate(bench, start=1):
+    for number, p in enumerate(
+        bench_outfield,
+        start=1
+    ):
 
         print(
             f"{number}. "
             f"{p['name']:16} "
             f"{p['team']:18} "
             f"{p['position']:3} "
+            f"£{p['price']:4.1f}m   "
+            f"EP {p['ep_next']:4.1f}   "
+            f"GW{p['planning_gameweek']} "
+            f"{p['proj_next']:4.2f}   "
+            f"5GW {p['proj_5gw']:5.2f}"
+        )
+
+    for p in bench_goalkeepers:
+
+        print(
+            f"   GK "
+            f"{p['name']:13} "
+            f"{p['team']:18} "
             f"£{p['price']:4.1f}m   "
             f"EP {p['ep_next']:4.1f}   "
             f"GW{p['planning_gameweek']} "
