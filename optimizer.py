@@ -71,7 +71,7 @@ def fallback_strength_from_fpl(team, home_or_away):
         int(round(raw)),
         1.00
     )
-
+    
 def project_gameweeks(
     player,
     fixtures,
@@ -81,6 +81,16 @@ def project_gameweeks(
     ppg = player["points_per_game"]
     ep_next = player["ep_next"]
     minutes = player["minutes"]
+
+    current_season_games = player.get(
+        "current_season_games",
+        0
+    )
+
+    current_season_weight = min(
+        current_season_games / 6.0,
+        1.0
+    )
 
     position = player["position"]
 
@@ -145,12 +155,16 @@ def project_gameweeks(
     #
     # Historical baseline.
     #
+    adjusted_ppg = (
+        ppg * current_season_weight
+        + position_prior
+        * (1.0 - current_season_weight)
+    )
+
     historical_baseline = (
-        (ppg * reliability)
-        + (
-            position_prior
-            * (1.0 - reliability)
-        )
+        adjusted_ppg * reliability
+        + position_prior
+        * (1.0 - reliability)
     )
 
     #
@@ -293,6 +307,8 @@ def project_gameweeks(
         "underlying_adjustment": underlying_adjustment,
         "projected_baseline": projected_baseline,
         "expected_start_probability": expected_start_probability,
+        "current_season_weight": current_season_weight,
+        "adjusted_ppg": adjusted_ppg,
     }
 
     return projections
@@ -541,6 +557,8 @@ def load_players():
         get_planning_gameweek()
     )
 
+    completed_gameweeks = max(0,planning_gameweek - 1)
+
     historical_team_strengths = get_team_strengths()
 
     teams = {
@@ -781,6 +799,7 @@ def load_players():
         )
 
         projection_input = {
+            "current_season_games":completed_gameweeks, 
             "id": p["id"],
             "name": p["web_name"],
             "points_per_game": season_points_per_game,
