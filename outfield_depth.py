@@ -288,39 +288,6 @@ def get_outfield_depth():
                     )
 
                     if (
-                        rotowire_team == "Arsenal"
-                        and "bruno" in rw_normal
-                    ):
-
-                        print()
-                        print("BRUNO MATCH DEBUG")
-                        print(f"rw_name       = {rw_name!r}")
-                        print(f"rw_normal     = {rw_normal!r}")
-                        print(f"fpl web_name  = {p['web_name']!r}")
-                        print(f"fpl_name      = {fpl_name!r}")
-                        print(f"full_name     = {full_name!r}")
-                        print(
-                            "exact web     =",
-                            fpl_name == rw_normal
-                        )
-                        print(
-                            "exact full    =",
-                            full_name == rw_normal
-                        )
-                        print(
-                            "prefix full   =",
-                            full_name.startswith(
-                                f"{rw_normal} "
-                            )
-                        )
-                        print(
-                            "suffix web    =",
-                            rw_normal.endswith(
-                                f" {fpl_name}"
-                            )
-                        )
-
-                    if (
                         fpl_name == rw_normal
                         or full_name == rw_normal
                         or full_name.startswith(
