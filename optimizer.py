@@ -595,8 +595,8 @@ def load_players():
 
                 print(
                     f"{team_name:20} "
-                    f"ATT {strength['attack_strength']:5.2f}   "
-                    f"DEF {strength['defence_strength']:5.2f}"
+                    f"ATT {strength['attack_strength']:5.2f} "
+                    f"DEF {strength['defence_strength']:5.2f} "
                 )
 
             else:
@@ -983,7 +983,11 @@ def calculate_captain_score(player):
 
     return score
 
-def optimise_squad(players, force_player_id=None):
+def optimise_squad(
+    players, 
+    force_player_id=None, 
+    force_formation=None,
+):
 
     problem = pulp.LpProblem(
         "FPL_Squad",
@@ -1152,6 +1156,40 @@ def optimise_squad(players, force_player_id=None):
     ) <= 3
 
     #
+    # OPTIONAL FORCED FORMATION
+    #
+    # Format is:
+    #   (DEF, MID, FWD)
+    #
+    # Example:
+    #   (4, 4, 2) = 4-4-2
+    #
+
+    if force_formation is not None:
+
+        defenders, midfielders, forwards = (
+            force_formation
+        )
+
+        problem += pulp.lpSum(
+            starter[p["id"]]
+            for p in players
+            if p["position"] == "DEF"
+        ) == defenders
+
+        problem += pulp.lpSum(
+            starter[p["id"]]
+            for p in players
+            if p["position"] == "MID"
+        ) == midfielders
+
+        problem += pulp.lpSum(
+            starter[p["id"]]
+            for p in players
+            if p["position"] == "FWD"
+        ) == forwards
+
+    #
     # CAPTAIN RULES
     #
 
@@ -1248,6 +1286,76 @@ def calculate_objective_score(squad):
         )
 
     return score
+
+def compare_formations(players):
+
+    formations = [
+        (5, 4, 1),
+        (5, 3, 2),
+        (4, 5, 1),
+        (4, 4, 2),
+        (4, 3, 3),
+        (3, 5, 2),
+        (3, 4, 3),
+    ]
+
+    results = []
+
+    for formation in formations:
+
+        squad = optimise_squad(
+            players,
+            force_formation=formation,
+        )
+
+        score = calculate_objective_score(
+            squad
+        )
+
+        results.append(
+            (
+                formation,
+                score,
+                squad,
+            )
+        )
+
+    results.sort(
+        key=lambda item: item[1],
+        reverse=True,
+    )
+
+    print()
+    print("=" * 92)
+    print("FORMATION COMPARISON")
+    print("=" * 92)
+
+    best_score = results[0][1]
+
+    for formation, score, squad in results:
+
+        formation_name = "-".join(
+            str(value)
+            for value in formation
+        )
+
+        difference = (
+            score - best_score
+        )
+
+        captain = next(
+            p
+            for p in squad
+            if p["captain"]
+        )
+
+        print(
+            f"{formation_name:7} "
+            f"{score:6.2f} "
+            f"{difference:+6.2f}   "
+            f"Captain: "
+            f"{captain['name']}"
+        )
 
 def compare_squads(base_squad, forced_squad, forced_player):
 
@@ -1790,4 +1898,6 @@ if __name__ == "__main__":
             alternative_squad,
             comparison_player
         )
+        
+        compare_formations(players)
 
