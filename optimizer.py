@@ -20,9 +20,13 @@ from goalkeeper_depth import (
     get_goalkeeper_depth,
 )
 
+from outfield_depth import (
+    get_outfield_depth,
+)
+
 BUDGET = 1000  # FPL stores prices in tenths: £100.0m = 1000
 
-DEBUG=False
+DEBUG = False
 
 def safe_float(value, default=0.0):
     try:
@@ -546,11 +550,51 @@ def build_fixture_scores(
 
     return fixture_scores, fixture_details
 
+def calculate_availability_factor(
+    fpl_status,
+    fpl_chance,
+    rotowire_status=None,
+):
+    """
+    Estimate availability for the next gameweek.
+
+    FPL is the primary source when it provides an explicit
+    chance-of-playing percentage.
+
+    RotoWire is used as a secondary source when FPL has not
+    supplied a percentage.
+    """
+
+    # FPL gives us an explicit probability.
+    if fpl_chance is not None:
+        return safe_float(fpl_chance) / 100.0
+
+    # FPL has flagged the player, but supplied no percentage.
+    if fpl_status != "a":
+        return 0.5
+
+    # FPL thinks the player is available, so use RotoWire
+    # as a secondary warning source.
+    if rotowire_status == "OUT":
+        return 0.05
+
+    if rotowire_status == "SUS":
+        return 0.05
+
+    if rotowire_status == "GTD":
+        return 0.75
+
+    return 1.0
+
 def load_players():
     data = get_bootstrap()
     
     goalkeeper_depth = (
         get_goalkeeper_depth()
+    )
+
+    outfield_depth, _ = (
+        get_outfield_depth()
     )
     
     planning_gameweek = (
@@ -782,16 +826,38 @@ def load_players():
             base_rating
             + position_rating
         )
-        # Small availability penalty
-        status = p.get("status", "a")
 
-        if status != "a":
-            rating *= 0.5
+        status = p.get(
+            "status",
+            "a"
+        )
 
-        chance = p.get("chance_of_playing_next_round")
+        chance = p.get(
+            "chance_of_playing_next_round"
+        )
 
-        if chance is not None:
-            rating *= safe_float(chance) / 100.0
+        outfield_info = (
+            outfield_depth.get(
+                p["id"],
+                {}
+            )
+        )
+
+        rotowire_status = (
+            outfield_info.get(
+                "rotowire_status"
+            )
+        )
+
+        availability_factor = (
+            calculate_availability_factor(
+                status,
+                chance,
+                rotowire_status,
+            )
+        )
+
+        rating *= availability_factor
 
         player_fixture_details = fixture_details.get(
             p["team"],
@@ -838,15 +904,7 @@ def load_players():
         projection_fields = {
             f"proj_gw{gw}": projections[gw]
             for gw in projected_gameweeks
-        } 
-
-        availability_factor = 1.0
-
-        if status != "a":
-            availability_factor = 0.5
-
-        if chance is not None:
-            availability_factor = safe_float(chance) / 100.0
+        }
 
         projection_fields[
             f"proj_gw{planning_gameweek}"
@@ -895,8 +953,28 @@ def load_players():
                 ],
             **projection_fields,
             "proj_5gw": proj_5gw,
-            "chance_of_playing_next_round": (p.get("chance_of_playing_next_round")),
-            "projection_debug": projection_debug,
+            "chance_of_playing_next_round": (
+                p.get(
+                    "chance_of_playing_next_round"
+                )
+            ),
+            "rotowire_group": (
+                outfield_info.get(
+                    "position"
+                )
+            ),
+            "rotowire_status": (
+                outfield_info.get(
+                    "rotowire_status"
+                )
+            ),
+            "rotowire_order": (
+                outfield_info.get(
+                    "rotowire_order"
+                )
+            ),
+            "projection_debug":
+                projection_debug,
         })
     if DEBUG:
 
@@ -1775,6 +1853,63 @@ def print_goalkeeper_diagnostic(players, names):
             f"{p['projection_debug']['expected_start_probability'] * 100:6.0f}% "
         )
 
+def print_playing_time_debug(
+    players,
+    names,
+):
+
+    print()
+    print("PLAYING TIME DEBUG")
+    print("-" * 100)
+
+    print(
+        f"{'Player':18} "
+        f"{'Team':18} "
+        f"{'Pos':>3} "
+        f"{'FPL':>5} "
+        f"{'Chance':>7} "
+        f"{'Start%':>7} "
+        f"{'RW Pos':>6} "
+        f"{'RW':>5}"
+    )
+
+    print("-" * 100)
+
+    for p in players:
+
+        if p["name"] not in names:
+            continue
+
+        d = p["projection_debug"]
+
+        chance = (
+            p.get(
+                "chance_of_playing_next_round"
+            )
+        )
+
+        rw_group = (
+            p.get("rotowire_group")
+            or "-"
+        )
+
+        rw_status = (
+            p.get("rotowire_status")
+            or "-"
+        )
+
+        print(
+            f"{p['name']:18} "
+            f"{p['team']:18} "
+            f"{p['position']:>3} "
+            f"{p['status']:>5} "
+            f"{str(chance):>7} "
+            f"{d['expected_start_probability'] * 100:6.0f}% "
+            f"{rw_group:>6} "
+            f"{rw_status:>5}"
+        )
+
+
 if __name__ == "__main__":
 
     print("Downloading live FPL data...")
@@ -1799,6 +1934,21 @@ if __name__ == "__main__":
                 "Verbruggen",
                 "Dubravka",
             }
+        )
+
+        print_playing_time_debug(
+            players,
+            [
+                "Bruno G.",
+                "Gakpo",
+                "Haaland",
+                "Richarlison",
+                "Dewsbury-Hall",
+                "Wilson",
+                "Gabriel",
+                "Guéhi",
+                "Muñoz",
+            ],
         )
 
         print_projection_debug(
@@ -1898,6 +2048,6 @@ if __name__ == "__main__":
             alternative_squad,
             comparison_player
         )
-        
+
         compare_formations(players)
 

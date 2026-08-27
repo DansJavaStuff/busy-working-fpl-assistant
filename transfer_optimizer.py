@@ -11,6 +11,7 @@ import csv
 from pathlib import Path
 
 CBC_PATH = "/usr/bin/cbc"
+MINIMUM_FREE_TRANSFER_GAIN = 1.0
 
 #
 # Same idea as the existing squad optimiser:
@@ -790,6 +791,17 @@ if __name__ == "__main__":
             r["net_score"]
     )
 
+    hold = next(
+        r
+        for r in results
+        if r["transfers"] == 0
+    )
+
+    transfer_gain = (
+        best["net_score"]
+        - hold["net_score"]
+    )
+
     from optimizer import (
         load_players,
         optimise_squad,
@@ -801,11 +813,41 @@ if __name__ == "__main__":
     print("RECOMMENDATION")
     print("=" * 92)
 
-    if best["transfers"] == 0:
+    if (
+        best["transfers"] == 0
+        or transfer_gain
+        < MINIMUM_FREE_TRANSFER_GAIN
+    ):
 
         print(
             "ROLL THE TRANSFER."
         )
+
+        if best["transfers"] > 0:
+
+            print()
+            print(
+                f"Best available transfer gains "
+                f"{transfer_gain:+.2f} points, "
+                f"below the "
+                f"{MINIMUM_FREE_TRANSFER_GAIN:.2f} "
+                f"threshold."
+            )
+
+            print()
+
+            print("Best optional move:")
+
+            for outgoing, incoming in zip(
+                best["outgoing"],
+                best["incoming"],
+            ):
+
+                print(
+                    f"{outgoing['name']} "
+                    f"-> "
+                    f"{incoming['name']}"
+                )
 
     else:
 
