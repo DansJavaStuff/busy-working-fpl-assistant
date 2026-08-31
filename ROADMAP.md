@@ -143,6 +143,29 @@ The terminal tools should remain independently usable.
 - Keep Mac development and Raspberry Pi runtime environments reproducible.
 - Keep README and roadmap aligned with implemented behaviour.
 
+### Rename Project / Repository
+
+The current `busy-working-fpl-assistant` name was inherited from the
+"Busy Working" Fantasy NFL project and is unrelated to this FPL assistant.
+
+Choose a clearer project name and rename the GitHub repository once the
+main modelling work is stable.
+
+Before renaming:
+
+- Search the codebase for references to `busy-working-fpl-assistant`.
+- Check local paths on the Mac and Raspberry Pi.
+- Check Git remote URLs on both machines.
+- Check scripts, documentation and configuration for hard-coded paths.
+- Rename the GitHub repository.
+- Update local Git remotes.
+- Optionally rename the local project directories.
+- Update README/documentation.
+- Test the normal Mac -> GitHub -> Raspberry Pi workflow.
+
+The rename should be treated as a maintenance change rather than combined
+with modelling changes.
+
 ## Completed Milestones
 
 Recent completed work includes:
