@@ -143,7 +143,7 @@ The terminal tools should remain independently usable.
 - Keep Mac development and Raspberry Pi runtime environments reproducible.
 - Keep README and roadmap aligned with implemented behaviour.
 
-### Rename Project / Repository
+### Rename project to Fantasy EPL Manager (fantasy-epl-manager)
 
 The current `busy-working-fpl-assistant` name was inherited from the
 "Busy Working" Fantasy NFL project and is unrelated to this FPL assistant.
