@@ -24,37 +24,55 @@ def save_season_history(
     gameweek,
     current_score,
     best_transfer_score,
-    ideal_score,
-    gap_to_ideal,
     recommended_transfers,
     hit_cost,
+    bank_before,
+    bank_after,
+    free_transfers,
 ):
-    history_file = Path("data/season_history.csv")
+    history_file = Path(
+        "data/season_history.csv"
+    )
 
     history_file.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
+    #
+    # Keep ideal_score and gap_to_ideal
+    # for compatibility with the GW2/GW3
+    # history already recorded.
+    #
     fieldnames = [
         "gameweek",
         "current_score",
         "best_transfer_score",
-        "ideal_score",
-        "gap_to_ideal",
         "recommended_transfers",
         "hit_cost",
+        "bank_before",
+        "bank_after",
+        "free_transfers",
+        "ideal_score",
+        "gap_to_ideal",
     ]
 
     rows = []
 
     if history_file.exists():
-        with history_file.open("r", newline="") as f:
-            rows = list(csv.DictReader(f))
 
-    # Keep only one snapshot per planning Gameweek.
-    # Running the optimiser again before the deadline
-    # replaces the previous snapshot for that GW.
+        with history_file.open(
+            "r",
+            newline=""
+        ) as f:
+
+            rows = list(
+                csv.DictReader(f)
+            )
+
+    #
+    # Only one pre-deadline snapshot per GW.
+    #
     rows = [
         row
         for row in rows
@@ -64,20 +82,35 @@ def save_season_history(
     rows.append(
         {
             "gameweek": gameweek,
-            "current_score": f"{current_score:.2f}",
-            "best_transfer_score": f"{best_transfer_score:.2f}",
-            "ideal_score": f"{ideal_score:.2f}",
-            "gap_to_ideal": f"{gap_to_ideal:.2f}",
-            "recommended_transfers": recommended_transfers,
-            "hit_cost": hit_cost,
+            "current_score":
+                f"{current_score:.2f}",
+            "best_transfer_score":
+                f"{best_transfer_score:.2f}",
+            "recommended_transfers":
+                recommended_transfers,
+            "hit_cost":
+                hit_cost,
+            "bank_before":
+                bank_before,
+            "bank_after":
+                bank_after,
+            "free_transfers":
+                free_transfers,
+            "ideal_score": "",
+            "gap_to_ideal": "",
         }
     )
 
     rows.sort(
-        key=lambda row: int(row["gameweek"])
+        key=lambda row:
+            int(row["gameweek"])
     )
 
-    with history_file.open("w", newline="") as f:
+    with history_file.open(
+        "w",
+        newline=""
+    ) as f:
+
         writer = csv.DictWriter(
             f,
             fieldnames=fieldnames,
@@ -92,27 +125,23 @@ def get_projection(player, gameweek):
         0.0
     )
 
-
 def get_horizon_projection(
     player,
     planning_gameweek
 ):
     """
-    optimizer.py projects a rolling five-gameweek window.
+    Return the rolling multi-gameweek projection
+    already calculated by optimizer.py.
 
-    For GW2 this therefore uses GW2-GW5.
-    Later we'll make the projection engine
-    itself dynamically produce GWn-GWn+4.
+    proj_5gw moves forward with the planning
+    gameweek, so this does not stop working
+    after GW5.
     """
 
-    return sum(
-        get_projection(player, gw)
-        for gw in range(
-            planning_gameweek,
-            6
-        )
+    return player.get(
+        "proj_5gw",
+        0.0
     )
-
 
 def optimise_transfers(
     players,
@@ -802,10 +831,10 @@ if __name__ == "__main__":
         - hold["net_score"]
     )
 
-    from optimizer import (
-        load_players,
-        optimise_squad,
-        calculate_objective_score,
+    roll_transfer = (
+        best["transfers"] == 0
+        or transfer_gain
+        < MINIMUM_FREE_TRANSFER_GAIN
     )
 
     print()
@@ -813,11 +842,7 @@ if __name__ == "__main__":
     print("RECOMMENDATION")
     print("=" * 92)
 
-    if (
-        best["transfers"] == 0
-        or transfer_gain
-        < MINIMUM_FREE_TRANSFER_GAIN
-    ):
+    if roll_transfer:
 
         print(
             "ROLL THE TRANSFER."
@@ -838,10 +863,16 @@ if __name__ == "__main__":
 
             print("Best optional move:")
 
-            for outgoing, incoming in zip(
+            for outgoing in sorted(
                 best["outgoing"],
-                best["incoming"],
+                key=lambda p: p["position_id"],
             ):
+
+                incoming = next(
+                    p
+                    for p in best["incoming"]
+                    if p["position"] == outgoing["position"]
+                )
 
                 print(
                     f"{outgoing['name']} "
@@ -858,10 +889,16 @@ if __name__ == "__main__":
             f"{'S' if best['transfers'] != 1 else ''}."
         )
 
-        for outgoing, incoming in zip(
+        for outgoing in sorted(
             best["outgoing"],
-            best["incoming"],
+            key=lambda p: p["position_id"],
         ):
+
+            incoming = next(
+                p
+                for p in best["incoming"]
+                if p["position"] == outgoing["position"]
+            )
 
             print(
                 f"{outgoing['name']} "
@@ -875,62 +912,106 @@ if __name__ == "__main__":
                 f"Points hit: "
                 f"-{best['hit_cost']}"
             )
+
+    #
+    # The mathematically best transfer path is
+    # not necessarily the recommended action.
+    #
+    # If the gain is below our threshold, HOLD
+    # is the actual recommendation.
+    #
+    recommended = (
+        hold
+        if roll_transfer
+        else best
+    )
+
+    free_transfers = max(
+        0,
+        transfers["limit"]
+        - transfers["made"]
+    )
+
     print()
     print("=" * 92)
-    print("SEASON BENCHMARK")
+    print(
+        f"GW{planning_gameweek} "
+        "WEEKLY SUMMARY"
+    )
     print("=" * 92)
 
-    ideal_squad = optimise_squad(
-        players
-    )
-
-    ideal_score = calculate_objective_score(
-        ideal_squad
-    )
-
-    current_score = next(
-        r["net_score"]
-        for r in results
-        if r["transfers"] == 0
-    )
-
-    gap_to_ideal = (
-        ideal_score
-        - current_score
+    print(
+        f"Current squad model score : "
+        f"{hold['net_score']:.2f}"
     )
 
     print(
-        f"Current squad score : "
-        f"{current_score:.2f}"
-    )
-
-    print(
-        f"Best transfer path  : "
+        f"Best available path       : "
         f"{best['net_score']:.2f}"
     )
 
     print(
-        f"Ideal fresh squad   : "
-        f"{ideal_score:.2f}"
+        f"Best path gain            : "
+        f"{transfer_gain:+.2f}"
+    )
+
+    if roll_transfer:
+
+        print(
+            "Recommended action        : "
+            "ROLL"
+        )
+
+    else:
+
+        print(
+            f"Recommended action        : "
+            f"{recommended['transfers']} "
+            f"TRANSFER"
+            f"{'S' if recommended['transfers'] != 1 else ''}"
+        )
+
+    print(
+        f"Bank now                  : "
+        f"£{transfers['bank'] / 10:.1f}m"
     )
 
     print(
-        f"Gap to ideal        : "
-        f"{gap_to_ideal:+.2f}"
+        f"Bank after recommendation : "
+        f"£{recommended['bank_after'] / 10:.1f}m"
     )
+
+    print(
+        f"Free transfers available  : "
+        f"{free_transfers}"
+    )
+
+    if recommended["hit_cost"]:
+
+        print(
+            f"Transfer hit              : "
+            f"-{recommended['hit_cost']} pts"
+        )
 
     save_season_history(
         gameweek=planning_gameweek,
-        current_score=current_score,
+        current_score=hold["net_score"],
         best_transfer_score=best["net_score"],
-        ideal_score=ideal_score,
-        gap_to_ideal=gap_to_ideal,
-        recommended_transfers=best["transfers"],
-        hit_cost=best["hit_cost"],
+        recommended_transfers=
+            recommended["transfers"],
+        hit_cost=
+            recommended["hit_cost"],
+        bank_before=
+            transfers["bank"],
+        bank_after=
+            recommended["bank_after"],
+        free_transfers=
+            free_transfers,
     )
 
     print()
     print(
-        "Season benchmark saved to "
+        "Weekly snapshot saved to "
         "data/season_history.csv"
     )
+
