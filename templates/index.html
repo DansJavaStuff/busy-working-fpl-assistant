@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1">
+
+    <title>
+        Fantasy EPL Manager
+    </title>
+
+    <link rel="stylesheet"
+          href="/static/style.css">
+</head>
+
+<body>
+
+<div class="page">
+
+    <header>
+        <h1>Fantasy EPL Manager</h1>
+        <div class="gw">
+            GW{{ report.gameweek }}
+        </div>
+    </header>
+
+    <section class="summary">
+
+        <div>
+            <span>Bank</span>
+            <strong>
+                £{{ "%.1f"|format(report.bank) }}m
+            </strong>
+        </div>
+
+        <div>
+            <span>Free transfers</span>
+            <strong>
+                {{ report.free_transfers }}
+            </strong>
+        </div>
+
+        <div>
+            <span>Current model score</span>
+            <strong>
+                {{ "%.2f"|format(report.hold_score) }}
+            </strong>
+        </div>
+
+    </section>
+
+
+    <section class="card recommendation">
+
+        <h2>Recommendation</h2>
+
+        {% if report.recommended.transfers == 0 %}
+
+            <h3>ROLL THE TRANSFER</h3>
+
+        {% else %}
+
+            <h3>
+                MAKE
+                {{ report.recommended.transfers }}
+                TRANSFER{% if report.recommended.transfers != 1 %}S{% endif %}
+            </h3>
+
+            {% for pair in report.recommended_pairs %}
+
+                <div class="transfer">
+
+                    <div>
+                        <strong>{{ pair.out.name }}</strong>
+                        <small>{{ pair.out.team }}</small>
+                    </div>
+
+                    <div class="arrow">→</div>
+
+                    <div>
+                        <strong>{{ pair.in.name }}</strong>
+                        <small>{{ pair.in.team }}</small>
+                    </div>
+
+                </div>
+
+            {% endfor %}
+
+        {% endif %}
+
+        <p>
+            Model gain:
+            <strong>
+                +{{ "%.2f"|format(report.transfer_gain) }}
+            </strong>
+        </p>
+
+        <p>
+            Hit:
+            <strong>
+                -{{ report.recommended.hit_cost }}
+            </strong>
+        </p>
+
+        <p>
+            Bank after:
+            <strong>
+                £{{ "%.1f"|format(report.recommended.bank_after / 10) }}m
+            </strong>
+        </p>
+
+<div class="approval">
+
+    {% if (
+        report.approval
+        and
+        report.approval.gameweek
+        == report.gameweek
+    ) %}
+
+        {% if (
+            report.approval.status
+            == "approved"
+        ) %}
+
+            <div class="status approved">
+                ✓ APPROVED
+            </div>
+
+            <p>
+                Recommendation approved.
+                No FPL changes have been
+                submitted yet.
+            </p>
+
+        {% elif (
+            report.approval.status
+            == "rejected"
+        ) %}
+
+            <div class="status rejected">
+                REJECTED — HOLD
+            </div>
+
+            <p>
+                No transfers will be made.
+            </p>
+
+        {% endif %}
+
+    {% else %}
+
+        <div class="buttons">
+
+            <form
+                method="post"
+                action="/approve"
+            >
+                <button
+                    class="approve-button"
+                    type="submit"
+                >
+                    APPROVE
+                </button>
+            </form>
+
+            <form
+                method="post"
+                action="/reject"
+            >
+                <button
+                    class="reject-button"
+                    type="submit"
+                >
+                    REJECT / HOLD
+                </button>
+            </form>
+
+        </div>
+
+        <p class="dry-run">
+            Dry-run only —
+            no FPL changes will be made.
+        </p>
+
+    {% endif %}
+
+</div>
+
+    </section>
+
+
+    <section class="card">
+
+        <h2>Transfer options</h2>
+
+        {% for scenario in report.scenarios %}
+
+            <div class="scenario">
+
+                <strong>
+                    {% if scenario.transfers == 0 %}
+                        HOLD
+                    {% else %}
+                        {{ scenario.transfers }}
+                        TRANSFER{% if scenario.transfers != 1 %}S{% endif %}
+                    {% endif %}
+                </strong>
+
+                <span>
+                    {{ "%.2f"|format(scenario.score) }}
+                </span>
+
+                <span>
+                    {% if scenario.gain >= 0 %}
+                        +{{ "%.2f"|format(scenario.gain) }}
+                    {% else %}
+                        {{ "%.2f"|format(scenario.gain) }}
+                    {% endif %}
+                </span>
+
+                {% if scenario.hit_cost %}
+                    <span>
+                        -{{ scenario.hit_cost }} hit
+                    </span>
+                {% endif %}
+
+            </div>
+
+        {% endfor %}
+
+    </section>
+
+
+    <section class="card">
+
+        <h2>Proposed XI</h2>
+
+        {% for player in report.starters %}
+
+            <div class="player">
+
+                <span>
+                    {{ player.name }}
+                </span>
+
+                <span>
+                    {{ player.position }}
+                </span>
+
+                {% if player.captain %}
+                    <strong>(C)</strong>
+                {% elif player.id == report.vice.id %}
+                    <strong>(VC)</strong>
+                {% endif %}
+
+            </div>
+
+        {% endfor %}
+
+<h3>Bench</h3>
+
+{% for player in report.bench %}
+
+    <div class="player bench">
+
+        <span>
+            {% if player.position == "GKP" %}
+                GK
+            {% else %}
+                {{ loop.index }}.
+            {% endif %}
+
+            {{ player.name }}
+        </span>
+
+        <span>
+            {{ player.position }}
+        </span>
+
+    </div>
+
+{% endfor %}
+
+    </section>
+
+</div>
+
+</body>
+</html>

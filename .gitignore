@@ -4,3 +4,4 @@ __pycache__/
 .env
 .venv/
 external/
+data/weekly_approval.json
