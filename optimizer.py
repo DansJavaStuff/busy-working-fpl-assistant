@@ -2,6 +2,11 @@ from collections import defaultdict
 
 import pulp
 
+from historical_players import (
+    load_historical_players,
+    get_historical_position_priors,
+)
+
 from fpl_api import (
     get_bootstrap,
     get_fixtures,
@@ -111,12 +116,67 @@ def project_gameweeks(
     #
     # Reliability based on historical minutes.
     #
-    historical_reliability = min(
+    historical_player = player.get(
+        "historical_player"
+    )
+
+    if historical_player:
+
+        historical_minutes = (
+            historical_player["minutes"]
+        )
+
+        historical_ppg = (
+            historical_player[
+                "points_per_game"
+            ]
+        )
+
+        historical_reliability = min(
+            historical_minutes / 1800,
+            1.0
+        )
+
+        #
+        # Even historical player performance is
+        # partially regressed when the previous
+        # season sample was small.
+        #
+        player_prior = (
+            historical_ppg
+            * historical_reliability
+            + position_prior
+            * (1.0 - historical_reliability)
+        )
+
+        historical_source = (
+            "player_history"
+        )
+
+    else:
+
+        historical_minutes = 0
+
+        historical_ppg = position_prior
+
+        historical_reliability = 0.0
+
+        player_prior = position_prior
+
+        historical_source = (
+            "position_prior"
+        )
+
+    #
+    # Current-season per-90 statistics still need
+    # their own sample-size protection.
+    #
+    current_reliability = min(
         minutes / 1800,
         1.0
     )
 
-    reliability = historical_reliability
+    reliability = current_reliability
 
     context = PLAYER_CONTEXT.get(
         player["name"],
@@ -159,16 +219,12 @@ def project_gameweeks(
     #
     # Historical baseline.
     #
+    historical_baseline = player_prior
+
     adjusted_ppg = (
         ppg * current_season_weight
-        + position_prior
+        + historical_baseline
         * (1.0 - current_season_weight)
-    )
-
-    historical_baseline = (
-        adjusted_ppg * reliability
-        + position_prior
-        * (1.0 - reliability)
     )
 
     #
@@ -210,7 +266,7 @@ def project_gameweeks(
     underlying_adjustment *= reliability
 
     projected_baseline = (
-        historical_baseline * 0.85
+        adjusted_ppg * 0.85
         + underlying_adjustment * 0.15
     )
 
@@ -315,6 +371,11 @@ def project_gameweeks(
         "expected_start_probability": expected_start_probability,
         "current_season_weight": current_season_weight,
         "adjusted_ppg": adjusted_ppg,
+        "historical_source": historical_source,
+        "historical_ppg": historical_ppg,
+        "historical_minutes": historical_minutes,
+        "historical_reliability": historical_reliability,
+        "player_prior": player_prior,
     }
 
     return projections
@@ -658,51 +719,35 @@ def load_players():
     }
 
     #
-    # Calculate positional PPG priors from players
-    # with a meaningful historical sample.
+    # Previous-season player history.
     #
-    position_samples = defaultdict(list)
+    historical_players = (
+        load_historical_players()
+    )
 
-    for p in data["elements"]:
-
-        minutes = safe_float(
-            p.get("minutes") 
+    position_priors = (
+        get_historical_position_priors(
+            historical_players
         )
+    )
 
-        ppg = safe_float(
-            p.get("points_per_game")
-        )
-
-        if minutes < 900:
-            continue
-
-        position = positions[
-            p["element_type"]
-        ]
-
-        position_samples[
-            position
-        ].append(ppg) 
-
-    position_priors = {}
-
-    for position, values in position_samples.items():
-
-        if values:
-            position_priors[position] = (
-                sum(values) / len(values)
-            )
     if DEBUG:
-        print() 
-        print("POSITIONAL PPG PRIORS")
+        print()
+        print(
+            "HISTORICAL POSITIONAL PPG PRIORS"
+        )
         print()
 
-        for position in ["GKP", "DEF", "MID", "FWD"]:
+        for position in [
+            "GKP",
+            "DEF",
+            "MID",
+            "FWD",
+        ]:
 
             print(
                 f"{position}: "
-                f"{position_priors.get(position, 3.5):.2f} "
-                f"({len(position_samples.get(position, []))} players)"
+                f"{position_priors.get(position, 3.5):.2f}"
             )
 
     players = []
@@ -774,6 +819,16 @@ def load_players():
         )
 
         position = positions[p["element_type"]]
+
+        player_code = p.get(
+            "code"
+        )
+
+        historical_player = (
+            historical_players.get(
+                player_code
+            )
+        )
 
         #
         # Base score shared by all positions
@@ -877,6 +932,9 @@ def load_players():
             "position_prior": position_priors.get(
                 position,
                 3.5
+            ),
+            "historical_player": (
+                historical_player
             ),
             "xgi90": xgi90,
             "clean_sheets90": clean_sheets90,

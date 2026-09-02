@@ -12,6 +12,7 @@ from pathlib import Path
 
 CBC_PATH = "/usr/bin/cbc"
 MINIMUM_FREE_TRANSFER_GAIN = 1.0
+MINIMUM_PAID_TRANSFER_GAIN = 3.0
 
 #
 # Same idea as the existing squad optimiser:
@@ -814,11 +815,36 @@ if __name__ == "__main__":
             planning_gameweek
         )
 
-    best = max(
+    best_overall = max(
         results,
         key=lambda r:
             r["net_score"]
     )
+
+    best_no_hit = max(
+        (
+            r
+            for r in results
+            if r["hit_cost"] == 0
+        ),
+        key=lambda r:
+            r["net_score"]
+    )
+
+    best = best_overall
+
+    if best_overall["hit_cost"] > 0:
+
+        paid_transfer_gain = (
+            best_overall["net_score"]
+            - best_no_hit["net_score"]
+        )
+
+        if (
+            paid_transfer_gain
+            < MINIMUM_PAID_TRANSFER_GAIN
+        ):
+            best = best_no_hit
 
     hold = next(
         r
@@ -863,6 +889,10 @@ if __name__ == "__main__":
 
             print("Best optional move:")
 
+            remaining_incoming = (
+                best["incoming"].copy()
+            )
+
             for outgoing in sorted(
                 best["outgoing"],
                 key=lambda p: p["position_id"],
@@ -870,8 +900,13 @@ if __name__ == "__main__":
 
                 incoming = next(
                     p
-                    for p in best["incoming"]
-                    if p["position"] == outgoing["position"]
+                    for p in remaining_incoming
+                    if p["position"]
+                    == outgoing["position"]
+                )
+
+                remaining_incoming.remove(
+                    incoming
                 )
 
                 print(
@@ -889,6 +924,10 @@ if __name__ == "__main__":
             f"{'S' if best['transfers'] != 1 else ''}."
         )
 
+        remaining_incoming = (
+            best["incoming"].copy()
+        )
+
         for outgoing in sorted(
             best["outgoing"],
             key=lambda p: p["position_id"],
@@ -896,8 +935,13 @@ if __name__ == "__main__":
 
             incoming = next(
                 p
-                for p in best["incoming"]
-                if p["position"] == outgoing["position"]
+                for p in remaining_incoming
+                if p["position"]
+                == outgoing["position"]
+            )
+
+            remaining_incoming.remove(
+                incoming
             )
 
             print(
