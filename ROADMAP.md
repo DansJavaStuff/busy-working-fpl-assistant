@@ -26,7 +26,32 @@ The assistant currently supports:
 - [x] Minimum free-transfer gain threshold so tiny numerical improvements do not automatically consume a transfer
 - [x] Season benchmark history in `data/season_history.csv`
 
-## Current Milestone — Budget Efficiency
+CURRENT MILESTONE — HOSTED WEEKLY MANAGER
+
+[ ] Build local Flask dashboard
+[ ] Display current FPL squad
+[ ] Display transfer scenarios
+[ ] Display recommended transfers
+[ ] Show proposed XI / bench / captain
+[ ] Add Approve / Reject workflow
+[ ] Add dry-run FPL write layer
+[ ] Test team-selection API write
+[ ] Test transfer API write
+[ ] Add authentication
+[ ] Add scheduled Friday optimiser run
+[ ] Deploy to hosted service
+
+ONGOING — OPTIMISER REFINEMENT
+
+[✓] Previous-season player baselines
+[✓] Historical positional priors
+[✓] Rolling fixture horizon
+[✓] Safer transfer-hit decisions
+[ ] Refine early-season projections
+[ ] Review captaincy model
+[ ] Add price-change awareness
+[ ] Improve transfer value / budget flexibility
+[ ] Track recommendation accuracy through season
 
 ### Goal
 
@@ -44,7 +69,6 @@ The highest projected squad may cost £100.0m while a squad costing several mill
 
 Example target output:
 
-```text
 Maximum projection:
 £100.0m -> 71.68
 
@@ -52,7 +76,6 @@ Near-optimal:
 £97.5m -> 71.51
 
 Saving £2.5m costs only 0.17 projected points.
-```
 
 The cheaper squad may be strategically preferable even though it is not the mathematical maximum for the current projection window.
 
