@@ -8,8 +8,10 @@ sys.path.insert(
     str(PROJECT_ROOT),
 )
 
-from optimizer import load_players
-
+from optimizer import (
+    load_players,
+    calculate_captain_score,
+)
 
 PLAYER_NAMES = [
     "Tzolakis",
@@ -168,6 +170,67 @@ def print_player(player):
         f"{player['proj_5gw']:.2f}"
     )
 
+def print_captaincy_ranking(players):
+    print()
+    print()
+    print("=" * 78)
+    print("CAPTAINCY RANKING")
+    print("=" * 78)
+
+    ranked = sorted(
+        players,
+        key=calculate_captain_score,
+        reverse=True,
+    )
+
+    print(
+        f"{'Rank':<5} "
+        f"{'Player':<20} "
+        f"{'Pos':<5} "
+        f"{'GW':>6} "
+        f"{'Mult':>6} "
+        f"{'Captain':>9}"
+    )
+
+    print("-" * 78)
+
+    multipliers = {
+        "FWD": 1.15,
+        "MID": 1.12,
+        "DEF": 1.03,
+        "GKP": 0.95,
+    }
+
+    for rank, player in enumerate(
+        ranked[:20],
+        start=1,
+    ):
+        gw = player["planning_gameweek"]
+
+        projection = player.get(
+            f"proj_gw{gw}",
+            0.0,
+        )
+
+        multiplier = multipliers.get(
+            player["position"],
+            1.0,
+        )
+
+        captain_score = (
+            calculate_captain_score(
+                player
+            )
+        )
+
+        print(
+            f"{rank:<5} "
+            f"{player['name']:<20} "
+            f"{player['position']:<5} "
+            f"{projection:>6.2f} "
+            f"{multiplier:>6.2f} "
+            f"{captain_score:>9.2f}"
+        )
 
 if __name__ == "__main__":
 
@@ -199,3 +262,4 @@ if __name__ == "__main__":
             continue
 
         print_player(player)
+    print_captaincy_ranking(players)
