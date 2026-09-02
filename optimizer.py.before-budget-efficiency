@@ -1062,20 +1062,14 @@ def calculate_captain_score(player):
     return score
 
 def optimise_squad(
-    players,
-    force_player_id=None,
+    players, 
+    force_player_id=None, 
     force_formation=None,
-    minimum_objective_score=None,
-    minimise_cost=False,
 ):
 
     problem = pulp.LpProblem(
         "FPL_Squad",
-        (
-            pulp.LpMinimize
-            if minimise_cost
-            else pulp.LpMaximize
-        )
+        pulp.LpMaximize
     )
 
     selected = {
@@ -1116,7 +1110,7 @@ def optimise_squad(
 
     SQUAD_HORIZON_WEIGHT = 0.15
 
-    projection_objective = pulp.lpSum(
+    problem += pulp.lpSum(
         (
             starter[p["id"]] * p["proj_next"]
             +
@@ -1128,22 +1122,6 @@ def optimise_squad(
         )
         for p in players
     )
-
-    squad_cost = pulp.lpSum(
-        selected[p["id"]] * p["cost"]
-        for p in players
-    )
-
-    if minimise_cost:
-        problem += squad_cost
-    else:
-        problem += projection_objective
-
-    if minimum_objective_score is not None:
-        problem += (
-            projection_objective
-            >= minimum_objective_score
-        )
     
     #
     # SQUAD RULES
@@ -1156,7 +1134,10 @@ def optimise_squad(
     ) == 15
 
     # £100.0m budget
-    problem += squad_cost <= BUDGET
+    problem += pulp.lpSum(
+        selected[p["id"]] * p["cost"]
+        for p in players
+    ) <= BUDGET
 
     # Squad position requirements
     squad_positions = {
@@ -1383,106 +1364,6 @@ def calculate_objective_score(squad):
         )
 
     return score
-
-def analyse_budget_efficiency(
-    players,
-    maximum_squad,
-    tolerances=(0.10, 0.25, 0.50, 1.00),
-):
-    """Find the cheapest legal squad within each score tolerance."""
-
-    maximum_score = calculate_objective_score(maximum_squad)
-    maximum_cost = sum(p["cost"] for p in maximum_squad)
-    results = []
-
-    for tolerance in tolerances:
-        minimum_score = maximum_score - tolerance
-        value_squad = optimise_squad(
-            players,
-            minimum_objective_score=minimum_score,
-            minimise_cost=True,
-        )
-        value_score = calculate_objective_score(value_squad)
-        value_cost = sum(p["cost"] for p in value_squad)
-
-        results.append({
-            "tolerance": tolerance,
-            "squad": value_squad,
-            "score": value_score,
-            "cost": value_cost,
-            "saved": maximum_cost - value_cost,
-            "score_lost": maximum_score - value_score,
-        })
-
-    print()
-    print("=" * 92)
-    print("BUDGET EFFICIENCY")
-    print("=" * 92)
-    print(
-        f"Maximum projection : £{maximum_cost / 10:.1f}m "
-        f"-> {maximum_score:.2f}"
-    )
-
-    print()
-    print(
-        f"{'Tolerance':>10} "
-        f"{'Cost':>9} "
-        f"{'Bank':>9} "
-        f"{'Score':>9} "
-        f"{'Lost':>9}"
-    )
-    print("-" * 52)
-
-    for result in results:
-        print(
-            f"{result['tolerance']:9.2f} "
-            f"£{result['cost'] / 10:7.1f}m "
-            f"£{(BUDGET - result['cost']) / 10:7.1f}m "
-            f"{result['score']:9.2f} "
-            f"{result['score_lost']:9.2f}"
-        )
-
-    preferred = next(
-        result for result in results
-        if abs(result["tolerance"] - 0.25) < 0.001
-    )
-
-    print()
-    print("0.25-POINT NEAR-OPTIMAL SQUAD")
-    print("-" * 92)
-    print(f"Cost              : £{preferred['cost'] / 10:.1f}m")
-    print(f"In bank           : £{(BUDGET - preferred['cost']) / 10:.1f}m")
-    print(f"Projection        : {preferred['score']:.2f}")
-    print(f"Projection lost   : {preferred['score_lost']:.2f}")
-    print(f"Budget saved      : £{preferred['saved'] / 10:.1f}m")
-
-    maximum_ids = {p["id"] for p in maximum_squad}
-    preferred_ids = {p["id"] for p in preferred["squad"]}
-
-    removed = [p for p in maximum_squad if p["id"] not in preferred_ids]
-    added = [p for p in preferred["squad"] if p["id"] not in maximum_ids]
-
-    if removed or added:
-        print()
-        print("SQUAD CHANGES")
-        print("-" * 92)
-
-        for p in removed:
-            print(
-                f"OUT  {p['name']:18} "
-                f"{p['position']:3} "
-                f"£{p['price']:4.1f}m"
-            )
-
-        for p in added:
-            print(
-                f"IN   {p['name']:18} "
-                f"{p['position']:3} "
-                f"£{p['price']:4.1f}m"
-            )
-
-    return results
-
 
 def compare_formations(players):
 
@@ -2108,11 +1989,6 @@ if __name__ == "__main__":
     squad = optimise_squad(players)
 
     print_squad(squad)
-
-    analyse_budget_efficiency(
-        players,
-        squad,
-    )
 
     #
     # Premium player comparisons
