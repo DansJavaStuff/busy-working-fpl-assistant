@@ -270,15 +270,17 @@ def project_gameweeks(
         ):
 
             baseline = (
-                ep_next * 0.65
-                + projected_baseline * 0.35
+                ep_next * 0.40
+                + projected_baseline * 0.60
             )
 
             #
             # ep_next is already fixture-aware.
             # Apply only 35% of our own fixture adjustment
-            # in GW1 to avoid double-counting the fixture.
+            # in the planning gameweek to avoid
+            # double-counting the fixture.
             #
+
             gw1_multiplier = 1.0 + (
                 (multiplier - 1.0) * 0.35
             )
