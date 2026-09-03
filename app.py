@@ -15,6 +15,8 @@ from transfer_optimizer import (
 
 import json
 from pathlib import Path
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from flask import (
     Flask,
@@ -28,7 +30,15 @@ app = Flask(__name__)
 APPROVAL_FILE = Path(
     "data/weekly_approval.json"
 )
-
+RECOMMENDATION_FILE = Path(
+    "data/weekly_recommendation.json"
+)
+REPORT_FILE = Path(
+    "data/weekly_report.json"
+)
+UK_TIMEZONE = ZoneInfo(
+    "Europe/London"
+)
 
 def load_approval():
 
@@ -297,15 +307,180 @@ def build_weekly_report():
             approval,
     }
 
+def save_recommendation_snapshot(
+    report,
+):
+
+    recommendation = report[
+        "recommended"
+    ]
+
+    snapshot = {
+        "created_at":
+            datetime.now(
+                UK_TIMEZONE
+            ).isoformat(),
+
+        "gameweek":
+            report[
+                "gameweek"
+            ],
+
+        "model_score":
+            recommendation[
+                "net_score"
+            ],
+
+        "hit_cost":
+            recommendation[
+                "hit_cost"
+            ],
+
+        "bank_after":
+            recommendation.get(
+                "bank_after"
+            ),
+
+        "transfers": [],
+    }
+
+    remaining_incoming = (
+        recommendation[
+            "incoming"
+        ].copy()
+    )
+
+    for outgoing in sorted(
+        recommendation["outgoing"],
+        key=lambda p:
+            p["position_id"],
+    ):
+
+        incoming = next(
+            p
+            for p
+            in remaining_incoming
+            if p["position"]
+            == outgoing["position"]
+        )
+
+        remaining_incoming.remove(
+            incoming
+        )
+
+        snapshot[
+            "transfers"
+        ].append({
+            "element_out":
+                outgoing["id"],
+
+            "element_out_name":
+                outgoing["name"],
+
+            "element_in":
+                incoming["id"],
+
+            "element_in_name":
+                incoming["name"],
+        })
+
+    RECOMMENDATION_FILE.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    RECOMMENDATION_FILE.write_text(
+        json.dumps(
+            snapshot,
+            indent=2,
+        )
+    )
+
+    return snapshot
+
+
+def load_recommendation_snapshot():
+
+    if not RECOMMENDATION_FILE.exists():
+        return None
+
+    return json.loads(
+        RECOMMENDATION_FILE.read_text()
+    )
+
+def save_weekly_report(
+    report,
+):
+
+    REPORT_FILE.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    REPORT_FILE.write_text(
+        json.dumps(
+            report,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+def load_weekly_report():
+
+    if not REPORT_FILE.exists():
+        return None
+
+    return json.loads(
+        REPORT_FILE.read_text(
+            encoding="utf-8"
+        )
+    )
 
 @app.route("/")
 def index():
 
-    report = build_weekly_report()
+    report = load_weekly_report()
+
+    if report is None:
+
+        report = build_weekly_report()
+
+        save_recommendation_snapshot(
+            report
+        )
+
+        save_weekly_report(
+            report
+        )
+
+    report["approval"] = (
+        load_approval()
+    )
 
     return render_template(
         "index.html",
         report=report,
+    )
+
+@app.route(
+    "/refresh",
+    methods=["POST"],
+)
+def refresh_analysis():
+
+    report = build_weekly_report()
+
+    save_recommendation_snapshot(
+        report
+    )
+
+    save_weekly_report(
+        report
+    )
+
+    return redirect(
+        url_for("index")
     )
 
 @app.route(
@@ -314,47 +489,38 @@ def index():
 )
 def approve():
 
-    report = build_weekly_report()
-
-    recommendation = (
-        report["recommended"]
+    snapshot = (
+        load_recommendation_snapshot()
     )
 
+    if snapshot is None:
+        return (
+            "No recommendation snapshot "
+            "exists to approve.",
+            409,
+        )
+
     approval = {
+        "approved_at":
+            datetime.now(
+                UK_TIMEZONE
+            ).isoformat(),
+
         "gameweek":
-            report["gameweek"],
+            snapshot["gameweek"],
+
         "status":
             "approved",
-        "transfers":
-            [],
+
         "model_score":
-            recommendation[
-                "net_score"
-            ],
+            snapshot["model_score"],
+
         "hit_cost":
-            recommendation[
-                "hit_cost"
-            ],
+            snapshot["hit_cost"],
+
+        "transfers":
+            snapshot["transfers"],
     }
-
-    for pair in (
-        report[
-            "recommended_pairs"
-        ]
-    ):
-
-        approval[
-            "transfers"
-        ].append({
-            "out_id":
-                pair["out"]["id"],
-            "out":
-                pair["out"]["name"],
-            "in_id":
-                pair["in"]["id"],
-            "in":
-                pair["in"]["name"],
-        })
 
     save_approval(
         approval

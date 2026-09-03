@@ -5,3 +5,6 @@ __pycache__/
 .venv/
 external/
 data/weekly_approval.json
+data/weekly_recommendation.json
+data/weekly_report.json
+
