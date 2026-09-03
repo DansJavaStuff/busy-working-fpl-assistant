@@ -377,6 +377,56 @@ def set_my_team(
 
     return None
 
+def make_transfers(
+    transfers,
+    event,
+    chip=None,
+    entry_id=ENTRY_ID,
+    access_token=None,
+):
+
+    if access_token is None:
+        access_token = (
+            get_access_token()
+        )
+
+    url = (
+        "https://fantasy.premierleague.com/"
+        "api/transfers/"
+    )
+
+    payload = {
+        "chip": chip,
+        "entry": entry_id,
+        "event": event,
+        "transfers": transfers,
+    }
+
+    response = requests.post(
+        url,
+        headers={
+            "X-API-Authorization":
+                f"Bearer {access_token}",
+            "Content-Type":
+                "application/json",
+        },
+        json=payload,
+        timeout=30,
+    )
+
+    if not response.ok:
+        print(
+            "FPL transfer failed:",
+            response.status_code,
+        )
+        print(response.text[:1000])
+        response.raise_for_status()
+
+    if response.content:
+        return response.json()
+
+    return None
+
 if __name__ == "__main__":
     players = get_players()
 
