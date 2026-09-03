@@ -530,18 +530,32 @@ def approve():
         url_for("index")
     )
 
-
 @app.route(
     "/reject",
     methods=["POST"],
 )
 def reject():
 
-    report = build_weekly_report()
+    snapshot = (
+        load_recommendation_snapshot()
+    )
+
+    if snapshot is None:
+        return (
+            "No recommendation snapshot "
+            "exists to reject.",
+            409,
+        )
 
     save_approval({
+        "rejected_at":
+            datetime.now(
+                UK_TIMEZONE
+            ).isoformat(),
+
         "gameweek":
-            report["gameweek"],
+            snapshot["gameweek"],
+
         "status":
             "rejected",
     })
