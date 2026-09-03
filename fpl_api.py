@@ -300,12 +300,14 @@ def get_access_token():
     return access_token
 
 def get_my_team(
-    entry_id=ENTRY_ID
+    entry_id=ENTRY_ID,
+    access_token=None,
 ):
 
-    access_token = (
-        get_access_token()
-    )
+    if access_token is None:
+        access_token = (
+            get_access_token()
+        )
 
     url = (
         "https://fantasy.premierleague.com/"
@@ -324,6 +326,56 @@ def get_my_team(
     response.raise_for_status()
 
     return response.json()
+
+def set_my_team(
+    picks,
+    chip=None,
+    entry_id=ENTRY_ID,
+    access_token=None,
+):
+
+    if access_token is None:
+        access_token = (
+            get_access_token()
+        )
+
+    url = (
+        "https://fantasy.premierleague.com/"
+        f"api/my-team/{entry_id}/"
+    )
+
+    response = requests.post(
+        url,
+        headers={
+            "X-API-Authorization":
+                f"Bearer {access_token}",
+            "Content-Type":
+                "application/json",
+        },
+        json={
+            "chip": chip,
+            "picks": picks,
+        },
+        timeout=30,
+    )
+
+    if not response.ok:
+
+        print(
+            "FPL team update failed:",
+            response.status_code,
+        )
+
+        print(
+            response.text[:1000]
+        )
+
+        response.raise_for_status()
+
+    if response.content:
+        return response.json()
+
+    return None
 
 if __name__ == "__main__":
     players = get_players()
