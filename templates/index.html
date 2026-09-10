@@ -86,14 +86,20 @@
 
                     <div>
                         <strong>{{ pair.out.name }}</strong>
-                        <small>{{ pair.out.team }}</small>
+                        <small>
+                            {{ pair.out.team }}
+                            · £{{ "%.1f"|format(pair.out.price) }}m
+                        </small>
                     </div>
 
                     <div class="arrow">→</div>
 
                     <div>
                         <strong>{{ pair.in.name }}</strong>
-                        <small>{{ pair.in.team }}</small>
+                        <small>
+                            {{ pair.in.team }}
+                            · £{{ "%.1f"|format(pair.in.price) }}m
+                        </small>
                     </div>
 
                 </div>
@@ -260,8 +266,12 @@
 
                 <span>
                     {{ player.position }}
+                    · £{{ "%.1f"|format(player.price) }}m
                 </span>
 
+                {% if not player.can_select %}
+                    <strong>UNAVAILABLE</strong>
+                {% endif %}
                 {% if player.captain %}
                     <strong>(C)</strong>
                 {% elif player.id == report.vice.id %}
@@ -290,8 +300,11 @@
 
         <span>
             {{ player.position }}
+            · £{{ "%.1f"|format(player.price) }}m
         </span>
-
+        {% if not player.can_select %}
+            <strong>UNAVAILABLE</strong>
+        {% endif %}
     </div>
 
 {% endfor %}
