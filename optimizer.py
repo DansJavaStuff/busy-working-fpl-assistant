@@ -754,10 +754,6 @@ def load_players():
 
     for p in data["elements"]:
 
-        # Ignore players FPL says cannot currently be selected
-        if not p.get("can_select", True):
-            continue
-
         # A very simple first-pass GW1 rating.
         #
         # ep_next gets most of the weight because it is FPL's current
@@ -970,6 +966,21 @@ def load_players():
             f"proj_gw{planning_gameweek}"
         ] *= availability_factor
 
+        #
+        # A player who FPL says cannot be selected
+        # is not merely a short-term injury doubt.
+        #
+        # We may still own them and need to transfer
+        # them out, but they should have no projected
+        # value anywhere in the planning horizon.
+        #
+        if not p.get("can_select", True):
+
+            for gw in projected_gameweeks:
+                projection_fields[
+                    f"proj_gw{gw}"
+                ] = 0.0
+
         # For now only heavily penalise GW1.
         # Longer-term projections retain most of their value because
         # an injury/doubt may clear before later gameweeks.
@@ -996,6 +1007,10 @@ def load_players():
             "starts": int(starts),
             "ownership": ownership,
             "status": status,
+            "can_select": p.get(
+                "can_select",
+                True,
+            ),
             "fixture_score": fixture_score,
             "fixtures": player_fixture_details,
             "rating": rating,

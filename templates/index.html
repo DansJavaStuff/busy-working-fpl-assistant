@@ -51,8 +51,12 @@
         <form
             method="post"
             action="{{ url_for('refresh_analysis') }}"
+            id="refresh-form"
         >
-            <button type="submit">
+            <button
+                type="submit"
+                id="refresh-button"
+            >
                 REFRESH ANALYSIS
             </button>
         </form>
@@ -295,6 +299,22 @@
     </section>
 
 </div>
+
+<script>
+document
+    .getElementById("refresh-form")
+    .addEventListener("submit", function () {
+
+        const button =
+            document.getElementById(
+                "refresh-button"
+            );
+
+        button.disabled = true;
+        button.textContent =
+            "REFRESHING…";
+    });
+</script>
 
 </body>
 </html>

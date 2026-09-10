@@ -216,6 +216,20 @@ def optimise_transfers(
         )
         for p in players
     }
+    #
+    # Players FPL says cannot currently be selected
+    # may remain in an existing squad, but cannot
+    # be transferred in.
+    #
+    for p in players:
+
+        if (
+            not p.get("can_select", True)
+            and p["id"] not in current_ids
+        ):
+            problem += (
+                selected[p["id"]] == 0
+            )
 
     #
     # OBJECTIVE
