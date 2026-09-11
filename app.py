@@ -71,6 +71,11 @@ def save_approval(data):
             indent=2,
         )
 
+def clear_approval():
+
+    if APPROVAL_FILE.exists():
+        APPROVAL_FILE.unlink()
+
 def pair_transfers(result):
 
     remaining_incoming = (
@@ -468,6 +473,8 @@ def index():
     methods=["POST"],
 )
 def refresh_analysis():
+
+    clear_approval()
 
     report = build_weekly_report()
 
