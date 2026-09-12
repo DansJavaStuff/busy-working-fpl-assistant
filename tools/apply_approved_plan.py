@@ -6,8 +6,8 @@ from fpl_api import (
     get_planning_gameweek,
     make_transfers,
     set_my_team,
+    get_gameweek_deadline
 )
-
 
 class PlanApplyError(RuntimeError):
     pass
@@ -131,6 +131,18 @@ def apply_approved_plan(snapshot):
     planning_gameweek = (
         get_planning_gameweek()
     )
+
+    deadline_info = (
+        get_gameweek_deadline(
+            planning_gameweek
+        )
+    )
+
+    if deadline_info["locked"]:
+        raise PlanApplyError(
+            f"GW{planning_gameweek} is locked. "
+            "No FPL changes can be submitted."
+        )
 
     if (
         snapshot["gameweek"]

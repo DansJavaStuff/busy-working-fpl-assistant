@@ -10,6 +10,18 @@ body {
     color: #222;
 }
 
+.deadline-card.deadline-test::after {
+    content: "TEST MODE";
+    margin-left: 14px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: #ffcf33;
+    color: #222;
+    font-size: .65rem;
+    font-weight: 900;
+    letter-spacing: .08em;
+}
+
 .page {
     max-width: 850px;
     margin: 0 auto;
@@ -556,6 +568,77 @@ button {
 
 .change-in {
     color: #17713e;
+}
+
+.deadline-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+
+    margin: 18px 0;
+    padding: 18px 22px;
+
+    background: #24152c;
+    color: white;
+
+    border-radius: 14px;
+}
+
+.deadline-label {
+    display: block;
+
+    margin-bottom: 3px;
+
+    font-size: .7rem;
+    font-weight: 900;
+    letter-spacing: .1em;
+
+    opacity: .7;
+}
+
+.deadline-card strong {
+    font-size: 1.15rem;
+}
+
+.deadline-countdown {
+    text-align: right;
+}
+
+.deadline-countdown span {
+    display: block;
+
+    font-size: .7rem;
+
+    opacity: .65;
+}
+
+.deadline-countdown strong {
+    display: block;
+
+    font-size: 1.4rem;
+    font-variant-numeric:
+        tabular-nums;
+}
+
+.deadline-card.locked {
+    background: #722828;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: .5;
+}
+
+@media (max-width: 600px) {
+
+    .deadline-card {
+        align-items: flex-start;
+    }
+
+    .deadline-countdown strong {
+        font-size: 1.05rem;
+    }
 }
 
 

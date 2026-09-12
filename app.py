@@ -3,6 +3,7 @@ from flask import Flask, render_template
 from fpl_api import (
     get_my_team,
     get_planning_gameweek,
+    get_gameweek_deadline
 )
 
 from optimizer import load_players
@@ -117,6 +118,19 @@ def build_weekly_report():
 
     planning_gameweek = (
         get_planning_gameweek()
+    )
+    
+    deadline_info = (
+        get_gameweek_deadline(
+            planning_gameweek
+        )
+    )
+
+    deadline_local = (
+        deadline_info["deadline"]
+        .astimezone(
+            UK_TIMEZONE
+        )
     )
 
     current_team = get_my_team()
@@ -424,6 +438,20 @@ def build_weekly_report():
             selection_changes,
         "approval":
             approval,
+        "deadline_iso":
+            deadline_info[
+                "deadline_iso"
+            ],
+
+        "deadline_display":
+            deadline_local.strftime(
+                "%a %d %b, %H:%M"
+            ),
+
+        "deadline_locked":
+            deadline_info[
+                "locked"
+            ],
     }
 
 def save_recommendation_snapshot(

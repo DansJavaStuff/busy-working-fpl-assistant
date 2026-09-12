@@ -2,6 +2,7 @@ import requests
 import os
 import requests
 from dotenv import load_dotenv
+from datetime import datetime, timezone
 
 BASE_URL = "https://fantasy.premierleague.com/api"
 ENTRY_ID = 5710014
@@ -376,6 +377,68 @@ def set_my_team(
         return response.json()
 
     return None
+
+def get_gameweek_deadline(gameweek):
+
+    data = get_bootstrap()
+
+    event = next(
+        (
+            event
+            for event in data["events"]
+            if event["id"] == gameweek
+        ),
+        None,
+    )
+
+    if event is None:
+        raise RuntimeError(
+            f"Unable to find FPL GW{gameweek}"
+        )
+
+    deadline_text = event.get(
+        "deadline_time"
+    )
+
+    if not deadline_text:
+        raise RuntimeError(
+            f"GW{gameweek} has no deadline"
+        )
+
+    deadline = datetime.fromisoformat(
+        deadline_text.replace(
+            "Z",
+            "+00:00",
+        )
+    )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    return {
+        "gameweek":
+            gameweek,
+
+        "deadline":
+            deadline,
+
+        "deadline_iso":
+            deadline.isoformat(),
+
+        "locked":
+            now >= deadline,
+
+        "seconds_remaining":
+            max(
+                0,
+                int(
+                    (
+                        deadline - now
+                    ).total_seconds()
+                ),
+            ),
+    }
 
 def make_transfers(
     transfers,

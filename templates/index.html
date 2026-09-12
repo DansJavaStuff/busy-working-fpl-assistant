@@ -25,6 +25,53 @@
         </div>
     </header>
 
+<section
+    class="
+        deadline-card
+        {% if report.deadline_locked %}
+            locked
+        {% endif %}
+    "
+    data-deadline="{{ report.deadline_iso }}"
+    id="deadline-card"
+>
+
+    <div>
+
+        <span class="deadline-label">
+            GW{{ report.gameweek }} DEADLINE
+        </span>
+
+        <strong>
+            {{ report.deadline_display }}
+        </strong>
+
+    </div>
+
+    <div class="deadline-countdown">
+
+        {% if report.deadline_locked %}
+
+            <strong>
+                LOCKED
+            </strong>
+
+        {% else %}
+
+            <span>
+                Time remaining
+            </span>
+
+            <strong id="deadline-countdown">
+                —
+            </strong>
+
+        {% endif %}
+
+    </div>
+
+</section>
+
     <section class="summary">
 
         <div>
@@ -173,24 +220,21 @@
             <form
                 method="post"
                 action="/approve"
+                id="approve-form"
             >
                 <button
                     class="approve-button"
                     type="submit"
+                    id="approve-button"
+                    {% if report.deadline_locked %}
+                        disabled
+                    {% endif %}
                 >
-                    APPROVE & APPLY
-                </button>
-            </form>
-
-            <form
-                method="post"
-                action="/reject"
-            >
-                <button
-                    class="reject-button"
-                    type="submit"
-                >
-                    REJECT / HOLD
+                    {% if report.deadline_locked %}
+                        GW{{ report.gameweek }} LOCKED
+                    {% else %}
+                        APPROVE & APPLY
+                    {% endif %}
                 </button>
             </form>
 
@@ -937,19 +981,240 @@
 </div>
 
 <script>
-document
-    .getElementById("refresh-form")
-    .addEventListener("submit", function () {
+const refreshForm =
+    document.getElementById(
+        "refresh-form"
+    );
 
-        const button =
-            document.getElementById(
-                "refresh-button"
+const approveForm =
+    document.getElementById(
+        "approve-form"
+    );
+
+const approveButton =
+    document.getElementById(
+        "approve-button"
+    );
+
+const deadlineCard =
+    document.getElementById(
+        "deadline-card"
+    );
+
+const countdown =
+    document.getElementById(
+        "deadline-countdown"
+    );
+
+const params =
+    new URLSearchParams(
+        window.location.search
+    );
+
+const testSeconds =
+    params.get(
+        "deadline_test"
+    );
+
+const deadlineTestMode =
+    testSeconds !== null;
+
+
+/*
+ * Refresh Analysis button feedback
+ */
+if (refreshForm) {
+
+    refreshForm.addEventListener(
+        "submit",
+        function () {
+
+            const button =
+                document.getElementById(
+                    "refresh-button"
+                );
+
+            if (button) {
+
+                button.disabled = true;
+
+                button.textContent =
+                    "REFRESHING…";
+            }
+        }
+    );
+}
+
+
+/*
+ * Approve & Apply button feedback.
+ *
+ * In deadline test mode we NEVER submit
+ * anything to FPL.
+ */
+if (approveForm) {
+
+    approveForm.addEventListener(
+        "submit",
+        function (event) {
+
+            if (deadlineTestMode) {
+
+                event.preventDefault();
+
+                alert(
+                    "Deadline test mode — "
+                    + "nothing submitted to FPL."
+                );
+
+                return;
+            }
+
+            if (approveButton) {
+
+                approveButton.disabled = true;
+
+                approveButton.textContent =
+                    "APPLYING…";
+            }
+        }
+    );
+}
+
+
+/*
+ * Deadline countdown
+ */
+if (
+    deadlineCard
+    &&
+    countdown
+) {
+
+    let deadline;
+
+    if (deadlineTestMode) {
+
+        const seconds =
+            Number(testSeconds);
+
+        deadline =
+            new Date(
+                Date.now()
+                + (
+                    seconds
+                    * 1000
+                )
             );
 
-        button.disabled = true;
-        button.textContent =
-            "REFRESHING…";
-    });
+        deadlineCard.classList.add(
+            "deadline-test"
+        );
+
+    } else {
+
+        deadline =
+            new Date(
+                deadlineCard.dataset.deadline
+            );
+    }
+
+
+    function updateDeadline() {
+
+        const now =
+            new Date();
+
+        const remaining =
+            deadline - now;
+
+        if (remaining <= 0) {
+
+            countdown.textContent =
+                "LOCKED";
+
+            deadlineCard.classList.add(
+                "locked"
+            );
+
+            if (approveButton) {
+
+                approveButton.disabled = true;
+
+                approveButton.textContent =
+                    "GAMEWEEK LOCKED";
+            }
+
+            return;
+        }
+
+
+        const totalSeconds =
+            Math.floor(
+                remaining / 1000
+            );
+
+        const days =
+            Math.floor(
+                totalSeconds / 86400
+            );
+
+        const hours =
+            Math.floor(
+                (
+                    totalSeconds % 86400
+                ) / 3600
+            );
+
+        const minutes =
+            Math.floor(
+                (
+                    totalSeconds % 3600
+                ) / 60
+            );
+
+        const seconds =
+            totalSeconds % 60;
+
+
+        if (days > 0) {
+
+            countdown.textContent =
+                `${days}d `
+                + `${hours}h `
+                + `${minutes}m`;
+
+        } else {
+
+            countdown.textContent =
+                String(hours)
+                    .padStart(
+                        2,
+                        "0"
+                    )
+                + ":"
+                + String(minutes)
+                    .padStart(
+                        2,
+                        "0"
+                    )
+                + ":"
+                + String(seconds)
+                    .padStart(
+                        2,
+                        "0"
+                    );
+        }
+    }
+
+
+    updateDeadline();
+
+    setInterval(
+        updateDeadline,
+        1000
+    );
+}
 </script>
 
 </body>
