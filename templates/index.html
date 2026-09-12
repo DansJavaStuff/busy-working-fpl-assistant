@@ -16,6 +16,24 @@
 
 <body>
 
+<div
+    id="busy-overlay"
+    class="busy-overlay"
+    hidden
+>
+    <div class="busy-panel">
+        <div class="busy-spinner"></div>
+
+        <strong id="busy-message">
+            Working…
+        </strong>
+
+        <span>
+            Please wait
+        </span>
+    </div>
+</div>
+
 <div class="page">
 
     <header>
@@ -981,6 +999,33 @@
 </div>
 
 <script>
+const busyOverlay =
+    document.getElementById(
+        "busy-overlay"
+    );
+
+const busyMessage =
+    document.getElementById(
+        "busy-message"
+    );
+
+function showBusy(message) {
+
+    if (busyMessage) {
+        busyMessage.textContent =
+            message;
+    }
+
+    if (busyOverlay) {
+        busyOverlay.hidden = false;
+    }
+}
+function hideBusy() {
+
+    if (busyOverlay) {
+        busyOverlay.hidden = true;
+    }
+}
 const refreshForm =
     document.getElementById(
         "refresh-form"
@@ -1027,7 +1072,9 @@ if (refreshForm) {
 
     refreshForm.addEventListener(
         "submit",
-        function () {
+        async function (event) {
+
+            event.preventDefault();
 
             const button =
                 document.getElementById(
@@ -1041,10 +1088,56 @@ if (refreshForm) {
                 button.textContent =
                     "REFRESHING…";
             }
+
+            showBusy(
+                "Refreshing analysis…"
+            );
+
+            try {
+
+                const response =
+                    await fetch(
+                        refreshForm.action,
+                        {
+                            method: "POST",
+                            body:
+                                new FormData(
+                                    refreshForm
+                                ),
+                        }
+                    );
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        await response.text()
+                    );
+                }
+
+                window.location.href =
+                    response.url;
+
+            } catch (error) {
+
+                hideBusy();
+
+                if (button) {
+
+                    button.disabled =
+                        false;
+
+                    button.textContent =
+                        "REFRESH ANALYSIS";
+                }
+
+                alert(
+                    "Refresh failed:\n\n"
+                    + error.message
+                );
+            }
         }
     );
 }
-
 
 /*
  * Approve & Apply button feedback.
@@ -1077,10 +1170,13 @@ if (approveForm) {
                 approveButton.textContent =
                     "APPLYING…";
             }
+
+            showBusy(
+                "Applying team to FPL…"
+            );
         }
     );
 }
-
 
 /*
  * Deadline countdown

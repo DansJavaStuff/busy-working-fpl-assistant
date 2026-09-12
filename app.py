@@ -1,5 +1,3 @@
-from flask import Flask, render_template
-
 from fpl_api import (
     get_my_team,
     get_planning_gameweek,
@@ -29,6 +27,8 @@ from flask import (
     render_template,
     redirect,
     url_for,
+    request,
+    jsonify,
 )
 
 app = Flask(__name__)
@@ -42,7 +42,7 @@ RECOMMENDATION_FILE = Path(
 REPORT_FILE = Path(
     "data/weekly_report.json"
 )
-REPORT_SCHEMA_VERSION = 1
+REPORT_SCHEMA_VERSION = 3
 UK_TIMEZONE = ZoneInfo(
     "Europe/London"
 )
@@ -645,6 +645,147 @@ def load_weekly_report():
 
     return report
 
+def validate_proposed_team(
+    report,
+    starter_ids,
+    bench_ids,
+    captain_id,
+    vice_id,
+):
+
+    if len(starter_ids) != 11:
+        raise ValueError(
+            "Proposal must contain 11 starters."
+        )
+
+    if len(bench_ids) != 4:
+        raise ValueError(
+            "Proposal must contain 4 bench players."
+        )
+
+    all_ids = (
+        starter_ids
+        + bench_ids
+    )
+
+    if len(all_ids) != len(set(all_ids)):
+        raise ValueError(
+            "Proposal contains duplicate players."
+        )
+
+    squad_by_id = {
+        player["id"]: player
+        for player
+        in report["recommended"]["squad"]
+    }
+
+    expected_ids = set(
+        squad_by_id
+    )
+
+    if set(all_ids) != expected_ids:
+        raise ValueError(
+            "Proposal does not match "
+            "the recommended 15-player squad."
+        )
+
+    starters = [
+        squad_by_id[player_id]
+        for player_id
+        in starter_ids
+    ]
+
+    bench = [
+        squad_by_id[player_id]
+        for player_id
+        in bench_ids
+    ]
+
+    position_counts = {
+        "GKP": 0,
+        "DEF": 0,
+        "MID": 0,
+        "FWD": 0,
+    }
+
+    for player in starters:
+
+        position_counts[
+            player["position"]
+        ] += 1
+
+    if position_counts["GKP"] != 1:
+        raise ValueError(
+            "Starting XI must contain "
+            "exactly one goalkeeper."
+        )
+
+    if not (
+        3
+        <= position_counts["DEF"]
+        <= 5
+    ):
+        raise ValueError(
+            "Starting XI must contain "
+            "3-5 defenders."
+        )
+
+    if not (
+        2
+        <= position_counts["MID"]
+        <= 5
+    ):
+        raise ValueError(
+            "Starting XI must contain "
+            "2-5 midfielders."
+        )
+
+    if not (
+        1
+        <= position_counts["FWD"]
+        <= 3
+    ):
+        raise ValueError(
+            "Starting XI must contain "
+            "1-3 forwards."
+        )
+
+    bench_goalkeepers = [
+        player
+        for player in bench
+        if player["position"] == "GKP"
+    ]
+
+    if len(bench_goalkeepers) != 1:
+        raise ValueError(
+            "Bench must contain "
+            "exactly one goalkeeper."
+        )
+
+    if captain_id not in starter_ids:
+        raise ValueError(
+            "Captain must be in "
+            "the starting XI."
+        )
+
+    if vice_id not in starter_ids:
+        raise ValueError(
+            "Vice-captain must be in "
+            "the starting XI."
+        )
+
+    if captain_id == vice_id:
+        raise ValueError(
+            "Captain and vice-captain "
+            "must be different players."
+        )
+
+    return (
+        starters,
+        bench,
+        squad_by_id,
+    )
+
 @app.route("/")
 def index():
 
@@ -692,6 +833,210 @@ def refresh_analysis():
     return redirect(
         url_for("index")
     )
+
+@app.route(
+    "/proposal",
+    methods=["POST"],
+)
+def update_proposal():
+
+    report = load_weekly_report()
+
+    if report is None:
+        return jsonify({
+            "ok": False,
+            "error":
+                "No current weekly report exists.",
+        }), 409
+
+    if report.get(
+        "deadline_locked"
+    ):
+        return jsonify({
+            "ok": False,
+            "error":
+                "The gameweek is locked.",
+        }), 409
+
+    data = (
+        request.get_json(
+            silent=True
+        )
+        or {}
+    )
+
+    try:
+
+        starter_ids = [
+            int(player_id)
+            for player_id
+            in data["starters"]
+        ]
+
+        bench_ids = [
+            int(player_id)
+            for player_id
+            in data["bench"]
+        ]
+
+        captain_id = int(
+            data["captain_id"]
+        )
+
+        vice_id = int(
+            data["vice_id"]
+        )
+
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+    ):
+
+        return jsonify({
+            "ok": False,
+            "error":
+                "Invalid proposal payload.",
+        }), 400
+
+    try:
+
+        (
+            starters,
+            bench,
+            squad_by_id,
+        ) = validate_proposed_team(
+            report,
+            starter_ids,
+            bench_ids,
+            captain_id,
+            vice_id,
+        )
+
+    except ValueError as exc:
+
+        return jsonify({
+            "ok": False,
+            "error":
+                str(exc),
+        }), 400
+
+
+    #
+    # Reset selection flags across
+    # the full proposed squad.
+    #
+    for player in (
+        report["recommended"]["squad"]
+    ):
+
+        player["starter"] = (
+            player["id"]
+            in starter_ids
+        )
+
+        player["captain"] = (
+            player["id"]
+            == captain_id
+        )
+
+
+    report["starters"] = (
+        starters
+    )
+
+    report["bench"] = (
+        bench
+    )
+
+    report["captain"] = (
+        squad_by_id[
+            captain_id
+        ]
+    )
+
+    report["vice"] = (
+        squad_by_id[
+            vice_id
+        ]
+    )
+
+    report["recommended"][
+        "vice_captain"
+    ] = (
+        squad_by_id[
+            vice_id
+        ]
+    )
+
+
+    #
+    # Recalculate comparison against
+    # the actual live FPL setup.
+    #
+    current_starter_ids = {
+        player["id"]
+        for player
+        in report[
+            "current_starters"
+        ]
+    }
+
+    proposed_starter_ids = set(
+        starter_ids
+    )
+
+    report["selection_changes"] = {
+
+        "xi_out": [
+            player
+            for player
+            in report[
+                "current_starters"
+            ]
+            if player["id"]
+            not in proposed_starter_ids
+        ],
+
+        "xi_in": [
+            player
+            for player
+            in starters
+            if player["id"]
+            not in current_starter_ids
+        ],
+
+        "captain_changed":
+            (
+                report[
+                    "current_captain"
+                ]["id"]
+                != captain_id
+            ),
+
+        "vice_changed":
+            (
+                report[
+                    "current_vice"
+                ]["id"]
+                != vice_id
+            ),
+    }
+
+
+    clear_approval()
+
+    save_weekly_report(
+        report
+    )
+
+    save_recommendation_snapshot(
+        report
+    )
+
+    return jsonify({
+        "ok": True,
+    })
 
 @app.route(
     "/approve",
