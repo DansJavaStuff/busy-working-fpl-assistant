@@ -42,6 +42,7 @@ RECOMMENDATION_FILE = Path(
 REPORT_FILE = Path(
     "data/weekly_report.json"
 )
+REPORT_SCHEMA_VERSION = 1
 UK_TIMEZONE = ZoneInfo(
     "Europe/London"
 )
@@ -397,6 +398,8 @@ def build_weekly_report():
     approval = load_approval()
 
     return {
+        "schema_version":
+            REPORT_SCHEMA_VERSION,
         "gameweek":
             planning_gameweek,
         "bank":
@@ -620,11 +623,27 @@ def load_weekly_report():
     if not REPORT_FILE.exists():
         return None
 
-    return json.loads(
-        REPORT_FILE.read_text(
-            encoding="utf-8"
+    try:
+
+        report = json.loads(
+            REPORT_FILE.read_text(
+                encoding="utf-8"
+            )
         )
-    )
+
+    except (
+        json.JSONDecodeError,
+        OSError,
+    ):
+        return None
+
+    if (
+        report.get("schema_version")
+        != REPORT_SCHEMA_VERSION
+    ):
+        return None
+
+    return report
 
 @app.route("/")
 def index():
