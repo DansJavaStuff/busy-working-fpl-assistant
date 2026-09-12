@@ -170,3 +170,416 @@ button {
             1.5fr 1fr 1fr;
     }
 }
+.teams-section {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.team-card {
+    background: white;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid #e3e7ea;
+}
+
+.team-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 20px;
+    border-bottom: 1px solid #edf0f2;
+}
+
+.team-card-header h2 {
+    margin: 2px 0 0;
+}
+
+.team-label {
+    display: block;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .1em;
+    opacity: .55;
+}
+
+.team-status {
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .06em;
+}
+
+.team-status.live {
+    background: #eef1f3;
+}
+
+.team-status.recommended {
+    background: #dff7e8;
+    color: #176b3a;
+}
+
+.team-list {
+    padding: 12px 20px 20px;
+}
+
+.team-list h3 {
+    margin: 10px 0 6px;
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    opacity: .55;
+}
+
+.bench-heading {
+    margin-top: 20px !important;
+}
+
+.player-row {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid #f0f2f4;
+}
+
+.player-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.player-main strong,
+.player-main small {
+    display: block;
+}
+
+.player-main small {
+    margin-top: 2px;
+    opacity: .6;
+    font-size: .75rem;
+}
+
+.player-badges {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    font-size: .68rem;
+    font-weight: 900;
+    padding: 0 6px;
+}
+
+.badge.captain {
+    background: #292929;
+    color: white;
+}
+
+.badge.vice {
+    background: #e2e5e8;
+    color: #222;
+}
+
+.badge.unavailable {
+    background: #fde7e7;
+    color: #a31d1d;
+    border-radius: 6px;
+}
+
+.bench-row {
+    opacity: .75;
+}
+
+.bench-number {
+    width: 24px;
+    font-size: .75rem;
+    font-weight: bold;
+    opacity: .6;
+}
+
+.pitch {
+    position: relative;
+    min-height: 500px;
+    padding: 28px 12px;
+    display: grid;
+    grid-template-rows:
+        repeat(4, 1fr);
+    align-items: center;
+    overflow: hidden;
+
+    background:
+        repeating-linear-gradient(
+            to bottom,
+            #169b50 0,
+            #169b50 62px,
+            #159249 62px,
+            #159249 124px
+        );
+}
+
+.pitch-markings {
+    position: absolute;
+    inset: 16px;
+    border: 2px solid
+        rgba(255,255,255,.7);
+    pointer-events: none;
+}
+
+.pitch-markings::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    border-top: 2px solid
+        rgba(255,255,255,.7);
+}
+
+.centre-circle {
+    position: absolute;
+    width: 110px;
+    height: 110px;
+    border: 2px solid
+        rgba(255,255,255,.7);
+    border-radius: 50%;
+    left: 50%;
+    top: 50%;
+    transform:
+        translate(-50%, -50%);
+}
+
+.penalty-box {
+    position: absolute;
+    width: 42%;
+    height: 65px;
+    border: 2px solid
+        rgba(255,255,255,.7);
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.penalty-box.top {
+    top: -2px;
+    border-top: 0;
+}
+
+.penalty-box.bottom {
+    bottom: -2px;
+    border-bottom: 0;
+}
+
+.pitch-row {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    gap: 5px;
+}
+
+.pitch-player {
+    position: relative;
+    background: rgba(255,255,255,.96);
+    border-radius: 8px;
+    min-width: 58px;
+    max-width: 86px;
+    padding: 7px 5px;
+    text-align: center;
+    box-shadow:
+        0 2px 7px
+        rgba(0,0,0,.18);
+}
+
+.pitch-player strong {
+    display: block;
+    font-size: .68rem;
+    line-height: 1.05;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.pitch-player small {
+    display: block;
+    margin-top: 2px;
+    font-size: .58rem;
+    opacity: .6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pitch-badges {
+    position: absolute;
+    top: -9px;
+    right: -6px;
+    display: flex;
+}
+
+.pitch-player .badge {
+    min-width: 18px;
+    height: 18px;
+    font-size: .58rem;
+    padding: 0 4px;
+}
+
+.recommended-pitch {
+    background:
+        repeating-linear-gradient(
+            to bottom,
+            #147f47 0,
+            #147f47 62px,
+            #137842 62px,
+            #137842 124px
+        );
+}
+
+.pitch-bench {
+    display: grid;
+    grid-template-columns:
+        repeat(4, minmax(0,1fr));
+    gap: 7px;
+    padding: 12px;
+    background: #eef1f2;
+}
+
+.bench-player {
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    padding: 8px 5px;
+    min-width: 0;
+    text-align: center;
+}
+
+.bench-player strong {
+    display: block;
+    font-size: .7rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.bench-player small {
+    display: block;
+    margin-top: 2px;
+    font-size: .6rem;
+    opacity: .55;
+}
+
+.bench-slot {
+    display: block;
+    margin-bottom: 3px;
+    font-size: .58rem;
+    font-weight: 800;
+    opacity: .5;
+}
+
+.unavailable-player {
+    background: #fff0f0;
+    color: #a62626;
+}
+
+.warning {
+    position: absolute;
+    right: 4px;
+    top: 4px;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #c62828;
+    color: white;
+    font-size: .65rem;
+    font-weight: 900;
+}
+
+
+.changes-card {
+    border-left: 5px solid #159249;
+}
+
+.changes-header h2 {
+    margin: 2px 0 16px;
+}
+
+.change-list {
+    border-top: 1px solid #eceff1;
+}
+
+.change-row {
+    display: grid;
+    grid-template-columns:
+        130px 1fr;
+    gap: 20px;
+    padding: 13px 0;
+    border-bottom:
+        1px solid #eceff1;
+}
+
+.change-name {
+    font-weight: 700;
+    opacity: .65;
+}
+
+.change-value {
+    text-align: right;
+}
+
+.change-arrow {
+    display: inline-block;
+    padding: 0 6px;
+    opacity: .45;
+}
+
+.no-change {
+    color: #257347;
+    font-weight: 700;
+}
+
+.change-out {
+    color: #a12b2b;
+    text-decoration:
+        line-through;
+}
+
+.change-in {
+    color: #17713e;
+}
+
+
+@media (max-width: 750px) {
+
+    .pitch {
+        min-height: 440px;
+    }
+
+    .pitch-player {
+        max-width: 65px;
+    }
+
+    .pitch-player strong {
+        font-size: .66rem;
+    }
+
+    .change-row {
+        grid-template-columns:
+            100px 1fr;
+    }
+
+    .teams-section {
+        grid-template-columns: 1fr;
+    }
+}
+

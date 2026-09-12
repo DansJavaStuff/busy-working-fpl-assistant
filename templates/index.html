@@ -147,10 +147,8 @@
                 ✓ APPROVED
             </div>
 
-            <p>
-                Recommendation approved.
-                No FPL changes have been
-                submitted yet.
+            <p class="muted">
+                Approval will apply this setup to your live FPL team.
             </p>
 
         {% elif (
@@ -180,7 +178,7 @@
                     class="approve-button"
                     type="submit"
                 >
-                    APPROVE
+                    APPROVE & APPLY
                 </button>
             </form>
 
@@ -198,9 +196,8 @@
 
         </div>
 
-        <p class="dry-run">
-            Dry-run only —
-            no FPL changes will be made.
+        <p class="muted">
+            Approval will apply this setup to your live FPL team.
         </p>
 
     {% endif %}
@@ -251,65 +248,691 @@
 
     </section>
 
+<section class="teams-section">
 
-    <section class="card">
+    <!-- CURRENT LIVE TEAM -->
 
-        <h2>Proposed XI</h2>
+    <div class="team-card">
 
-        {% for player in report.starters %}
+        <div class="team-card-header">
 
-            <div class="player">
-
-                <span>
-                    {{ player.name }}
+            <div>
+                <span class="team-label">
+                    LIVE FPL
                 </span>
 
-                <span>
-                    {{ player.position }}
-                    · £{{ "%.1f"|format(player.price) }}m
+                <h2>
+                    Current Team
+                </h2>
+            </div>
+
+            <span class="team-status live">
+                CURRENT
+            </span>
+
+        </div>
+
+
+        <div class="pitch">
+
+            <div class="pitch-markings">
+                <div class="centre-circle"></div>
+                <div class="penalty-box top"></div>
+                <div class="penalty-box bottom"></div>
+            </div>
+
+
+            <div class="pitch-row goalkeeper">
+
+                {% for player in report.current_starters %}
+
+                    {% if player.position == "GKP" %}
+
+                        <div class="pitch-player">
+
+                            <strong>
+                                {{ player.name }}
+                            </strong>
+
+                            <small>
+                                {{ player.team }}
+                            </small>
+
+                            <div class="pitch-badges">
+
+                                {% if player.live_captain %}
+                                    <span class="badge captain">
+                                        C
+                                    </span>
+                                {% endif %}
+
+                                {% if player.live_vice %}
+                                    <span class="badge vice">
+                                        VC
+                                    </span>
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    {% endif %}
+
+                {% endfor %}
+
+            </div>
+
+
+            <div class="pitch-row defenders">
+
+                {% for player in report.current_starters %}
+
+                    {% if player.position == "DEF" %}
+
+                        <div class="pitch-player">
+
+                            <strong>
+                                {{ player.name }}
+                            </strong>
+
+                            <small>
+                                {{ player.team }}
+                            </small>
+
+                            <div class="pitch-badges">
+
+                                {% if player.live_captain %}
+                                    <span class="badge captain">
+                                        C
+                                    </span>
+                                {% endif %}
+
+                                {% if player.live_vice %}
+                                    <span class="badge vice">
+                                        VC
+                                    </span>
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    {% endif %}
+
+                {% endfor %}
+
+            </div>
+
+
+            <div class="pitch-row midfielders">
+
+                {% for player in report.current_starters %}
+
+                    {% if player.position == "MID" %}
+
+                        <div class="pitch-player">
+
+                            <strong>
+                                {{ player.name }}
+                            </strong>
+
+                            <small>
+                                {{ player.team }}
+                            </small>
+
+                            <div class="pitch-badges">
+
+                                {% if player.live_captain %}
+                                    <span class="badge captain">
+                                        C
+                                    </span>
+                                {% endif %}
+
+                                {% if player.live_vice %}
+                                    <span class="badge vice">
+                                        VC
+                                    </span>
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    {% endif %}
+
+                {% endfor %}
+
+            </div>
+
+
+            <div class="pitch-row forwards">
+
+                {% for player in report.current_starters %}
+
+                    {% if player.position == "FWD" %}
+
+                        <div class="pitch-player">
+
+                            <strong>
+                                {{ player.name }}
+                            </strong>
+
+                            <small>
+                                {{ player.team }}
+                            </small>
+
+                            <div class="pitch-badges">
+
+                                {% if player.live_captain %}
+                                    <span class="badge captain">
+                                        C
+                                    </span>
+                                {% endif %}
+
+                                {% if player.live_vice %}
+                                    <span class="badge vice">
+                                        VC
+                                    </span>
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    {% endif %}
+
+                {% endfor %}
+
+            </div>
+
+        </div>
+
+
+        <div class="pitch-bench">
+
+            {% for player in report.current_bench %}
+
+                <div
+                    class="
+                        bench-player
+                        {% if not player.can_select %}
+                            unavailable-player
+                        {% endif %}
+                    "
+                >
+
+                    <span class="bench-slot">
+
+                        {% if player.position == "GKP" %}
+                            GK
+                        {% else %}
+                            {{ player.live_position - 12 }}
+                        {% endif %}
+
+                    </span>
+
+                    <strong>
+                        {{ player.name }}
+                    </strong>
+
+                    <small>
+                        {{ player.position }}
+                    </small>
+
+                    {% if not player.can_select %}
+
+                        <span class="warning">
+                            !
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+
+    <!-- RECOMMENDED TEAM -->
+
+    <div class="team-card recommended-team">
+
+        <div class="team-card-header">
+
+            <div>
+                <span class="team-label">
+                    OPTIMISER
                 </span>
 
+                <h2>
+                    Recommended Team
+                </h2>
+            </div>
+
+            <span class="team-status recommended">
+                PROPOSED
+            </span>
+
+        </div>
+
+
+        <div class="pitch recommended-pitch">
+
+            <div class="pitch-markings">
+                <div class="centre-circle"></div>
+                <div class="penalty-box top"></div>
+                <div class="penalty-box bottom"></div>
+            </div>
+
+
+            <div class="pitch-row goalkeeper">
+
+                {% for player in report.starters %}
+
+                    {% if player.position == "GKP" %}
+
+                        <div class="pitch-player">
+
+                            <strong>
+                                {{ player.name }}
+                            </strong>
+
+                            <small>
+                                {{ player.team }}
+                            </small>
+
+                            <div class="pitch-badges">
+
+                                {% if player.captain %}
+                                    <span class="badge captain">
+                                        C
+                                    </span>
+
+                                {% elif player.id == report.vice.id %}
+                                    <span class="badge vice">
+                                        VC
+                                    </span>
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    {% endif %}
+
+                {% endfor %}
+
+            </div>
+
+
+            <div class="pitch-row defenders">
+
+                {% for player in report.starters %}
+
+                    {% if player.position == "DEF" %}
+
+                        <div class="pitch-player">
+
+                            <strong>
+                                {{ player.name }}
+                            </strong>
+
+                            <small>
+                                {{ player.team }}
+                            </small>
+
+                            <div class="pitch-badges">
+
+                                {% if player.captain %}
+                                    <span class="badge captain">
+                                        C
+                                    </span>
+
+                                {% elif player.id == report.vice.id %}
+                                    <span class="badge vice">
+                                        VC
+                                    </span>
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    {% endif %}
+
+                {% endfor %}
+
+            </div>
+
+
+            <div class="pitch-row midfielders">
+
+                {% for player in report.starters %}
+
+                    {% if player.position == "MID" %}
+
+                        <div class="pitch-player">
+
+                            <strong>
+                                {{ player.name }}
+                            </strong>
+
+                            <small>
+                                {{ player.team }}
+                            </small>
+
+                            <div class="pitch-badges">
+
+                                {% if player.captain %}
+                                    <span class="badge captain">
+                                        C
+                                    </span>
+
+                                {% elif player.id == report.vice.id %}
+                                    <span class="badge vice">
+                                        VC
+                                    </span>
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    {% endif %}
+
+                {% endfor %}
+
+            </div>
+
+
+            <div class="pitch-row forwards">
+
+                {% for player in report.starters %}
+
+                    {% if player.position == "FWD" %}
+
+                        <div class="pitch-player">
+
+                            <strong>
+                                {{ player.name }}
+                            </strong>
+
+                            <small>
+                                {{ player.team }}
+                            </small>
+
+                            <div class="pitch-badges">
+
+                                {% if player.captain %}
+                                    <span class="badge captain">
+                                        C
+                                    </span>
+
+                                {% elif player.id == report.vice.id %}
+                                    <span class="badge vice">
+                                        VC
+                                    </span>
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    {% endif %}
+
+                {% endfor %}
+
+            </div>
+
+        </div>
+
+<div class="pitch-bench">
+
+    {% set bench_gk = (
+        report.bench
+        | selectattr("position", "equalto", "GKP")
+        | list
+    ) %}
+
+    {% set bench_outfield = (
+        report.bench
+        | rejectattr("position", "equalto", "GKP")
+        | list
+    ) %}
+
+    {% for player in bench_gk %}
+
+        <div class="bench-player">
+
+            <span class="bench-slot">
+                GK
+            </span>
+
+            <strong>
+                {{ player.name }}
+            </strong>
+
+            <small>
+                {{ player.position }}
+            </small>
+
+        </div>
+
+    {% endfor %}
+
+    {% for player in bench_outfield %}
+
+        <div
+            class="
+                bench-player
                 {% if not player.can_select %}
-                    <strong>UNAVAILABLE</strong>
+                    unavailable-player
                 {% endif %}
-                {% if player.captain %}
-                    <strong>(C)</strong>
-                {% elif player.id == report.vice.id %}
-                    <strong>(VC)</strong>
+            "
+        >
+
+            <span class="bench-slot">
+                {{ loop.index }}
+            </span>
+
+            <strong>
+                {{ player.name }}
+            </strong>
+
+            <small>
+                {{ player.position }}
+            </small>
+
+            {% if not player.can_select %}
+                <span class="warning">
+                    !
+                </span>
+            {% endif %}
+
+        </div>
+
+    {% endfor %}
+
+</div>
+
+    </div>
+
+</section>
+
+<section class="card changes-card">
+
+    <div class="changes-header">
+
+        <div>
+            <span class="team-label">
+                COMPARISON
+            </span>
+
+            <h2>
+                Changes from Current
+            </h2>
+        </div>
+
+    </div>
+
+
+    <div class="change-list">
+
+        <div class="change-row">
+
+            <span class="change-name">
+                Transfers
+            </span>
+
+            <div class="change-value">
+
+                {% if report.recommended_pairs %}
+
+                    {% for pair in report.recommended_pairs %}
+
+                        <div>
+                            {{ pair.out.name }}
+                            <span class="change-arrow">
+                                →
+                            </span>
+                            <strong>
+                                {{ pair.in.name }}
+                            </strong>
+                        </div>
+
+                    {% endfor %}
+
+                {% else %}
+
+                    <span class="no-change">
+                        ✓ None
+                    </span>
+
                 {% endif %}
 
             </div>
 
-        {% endfor %}
+        </div>
 
-<h3>Bench</h3>
 
-{% for player in report.bench %}
+        <div class="change-row">
 
-    <div class="player bench">
+            <span class="change-name">
+                Starting XI
+            </span>
 
-        <span>
-            {% if player.position == "GKP" %}
-                GK
-            {% else %}
-                {{ loop.index }}.
-            {% endif %}
+            <div class="change-value">
 
-            {{ player.name }}
-        </span>
+                {% if (
+                    report.selection_changes.xi_out
+                    or
+                    report.selection_changes.xi_in
+                ) %}
 
-        <span>
-            {{ player.position }}
-            · £{{ "%.1f"|format(player.price) }}m
-        </span>
-        {% if not player.can_select %}
-            <strong>UNAVAILABLE</strong>
-        {% endif %}
+                    {% for player in report.selection_changes.xi_out %}
+
+                        <span class="change-out">
+                            {{ player.name }}
+                        </span>
+
+                    {% endfor %}
+
+                    <span class="change-arrow">
+                        →
+                    </span>
+
+                    {% for player in report.selection_changes.xi_in %}
+
+                        <strong class="change-in">
+                            {{ player.name }}
+                        </strong>
+
+                    {% endfor %}
+
+                {% else %}
+
+                    <span class="no-change">
+                        ✓ Unchanged
+                    </span>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+
+        <div class="change-row">
+
+            <span class="change-name">
+                Captain
+            </span>
+
+            <div class="change-value">
+
+                {% if report.selection_changes.captain_changed %}
+
+                    {{ report.current_captain.name }}
+
+                    <span class="change-arrow">
+                        →
+                    </span>
+
+                    <strong>
+                        {{ report.captain.name }}
+                    </strong>
+
+                {% else %}
+
+                    <span class="no-change">
+                        ✓ {{ report.captain.name }}
+                    </span>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+
+        <div class="change-row">
+
+            <span class="change-name">
+                Vice-captain
+            </span>
+
+            <div class="change-value">
+
+                {% if report.selection_changes.vice_changed %}
+
+                    {{ report.current_vice.name }}
+
+                    <span class="change-arrow">
+                        →
+                    </span>
+
+                    <strong>
+                        {{ report.vice.name }}
+                    </strong>
+
+                {% else %}
+
+                    <span class="no-change">
+                        ✓ {{ report.vice.name }}
+                    </span>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
     </div>
 
-{% endfor %}
-
-    </section>
+</section>
 
 </div>
 

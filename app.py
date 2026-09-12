@@ -13,6 +13,11 @@ from transfer_optimizer import (
     MINIMUM_PAID_TRANSFER_GAIN,
 )
 
+from tools.apply_approved_plan import (
+    apply_approved_plan,
+    PlanApplyError,
+)
+
 import json
 from pathlib import Path
 from datetime import datetime
@@ -117,6 +122,55 @@ def build_weekly_report():
     current_team = get_my_team()
 
     players = load_players()
+
+    players_by_id = {
+        p["id"]: p
+        for p in players
+    }
+
+    current_starters = []
+    current_bench = []
+
+    current_captain = None
+    current_vice = None
+
+    for pick in sorted(
+        current_team["picks"],
+        key=lambda p: p["position"],
+    ):
+
+        player = dict(
+            players_by_id[
+                pick["element"]
+            ]
+        )
+
+        player["live_position"] = (
+            pick["position"]
+        )
+
+        player["live_captain"] = (
+            pick["is_captain"]
+        )
+
+        player["live_vice"] = (
+            pick["is_vice_captain"]
+        )
+
+        if pick["position"] <= 11:
+            current_starters.append(
+                player
+            )
+        else:
+            current_bench.append(
+                player
+            )
+
+        if pick["is_captain"]:
+            current_captain = player
+
+        if pick["is_vice_captain"]:
+            current_vice = player
 
     transfers = current_team[
         "transfers"
@@ -276,6 +330,56 @@ def build_weekly_report():
         if p["captain"]
     )
 
+    current_starter_ids = {
+        p["id"]
+        for p in current_starters
+    }
+
+    recommended_starter_ids = {
+        p["id"]
+        for p in starters
+    }
+
+    xi_out = [
+        p
+        for p in current_starters
+        if p["id"]
+        not in recommended_starter_ids
+    ]
+
+    xi_in = [
+        p
+        for p in starters
+        if p["id"]
+        not in current_starter_ids
+    ]
+
+    selection_changes = {
+        "xi_out":
+            xi_out,
+
+        "xi_in":
+            xi_in,
+
+        "captain_changed":
+            (
+                current_captain
+                and
+                current_captain["id"]
+                != captain["id"]
+            ),
+
+        "vice_changed":
+            (
+                current_vice
+                and
+                current_vice["id"]
+                != recommended[
+                    "vice_captain"
+                ]["id"]
+            ),
+    }
+
     approval = load_approval()
 
     return {
@@ -300,6 +404,14 @@ def build_weekly_report():
             paid_transfer_gain,
         "scenarios":
             scenarios,
+        "current_starters":
+            current_starters,
+        "current_bench":
+            current_bench,
+        "current_captain":
+            current_captain,
+        "current_vice":
+            current_vice,
         "starters":
             starters,
         "bench":
@@ -308,6 +420,8 @@ def build_weekly_report():
             captain,
         "vice":
             recommended["vice_captain"],
+        "selection_changes":
+            selection_changes,
         "approval":
             approval,
     }
@@ -347,6 +461,48 @@ def save_recommendation_snapshot(
             ),
 
         "transfers": [],
+
+        "source_squad_ids": [
+            p["id"]
+            for p in (
+                report["starters"]
+                + report["bench"]
+            )
+            if p["id"] not in {
+                incoming["id"]
+                for incoming
+                in recommendation["incoming"]
+            }
+        ]
+        + [
+            outgoing["id"]
+            for outgoing
+            in recommendation["outgoing"]
+        ],
+
+        "starters": [
+            {
+                "id": p["id"],
+                "name": p["name"],
+                "position": p["position"],
+            }
+            for p in report["starters"]
+        ],
+
+        "bench": [
+            {
+                "id": p["id"],
+                "name": p["name"],
+                "position": p["position"],
+            }
+            for p in report["bench"]
+        ],
+
+        "captain_id":
+            report["captain"]["id"],
+
+        "vice_id":
+            report["vice"]["id"],
     }
 
     remaining_incoming = (
@@ -507,30 +663,35 @@ def approve():
             409,
         )
 
-    approval = {
-        "approved_at":
-            datetime.now(
-                UK_TIMEZONE
-            ).isoformat(),
+    try:
+        apply_approved_plan(
+            snapshot
+        )
 
-        "gameweek":
-            snapshot["gameweek"],
+    except PlanApplyError as exc:
+        return (
+            f"FPL changes were not applied: {exc}",
+            409,
+        )
 
-        "status":
-            "approved",
+    #
+    # The approved setup has now been applied
+    # and verified against live FPL.
+    #
+    # Immediately build a fresh analysis from
+    # the resulting live squad. This also means
+    # the page returns to an unapproved state.
+    #
+    clear_approval()
 
-        "model_score":
-            snapshot["model_score"],
+    report = build_weekly_report()
 
-        "hit_cost":
-            snapshot["hit_cost"],
+    save_recommendation_snapshot(
+        report
+    )
 
-        "transfers":
-            snapshot["transfers"],
-    }
-
-    save_approval(
-        approval
+    save_weekly_report(
+        report
     )
 
     return redirect(
