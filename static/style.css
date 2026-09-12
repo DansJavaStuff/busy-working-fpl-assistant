@@ -688,6 +688,77 @@ button:disabled {
         busy-spin .8s linear infinite;
 }
 
+.proposal-player {
+    cursor: pointer;
+    transition:
+        transform .12s ease,
+        box-shadow .12s ease,
+        outline .12s ease;
+}
+
+.proposal-player:hover {
+    transform: translateY(-2px);
+}
+
+.proposal-player.selected {
+    outline: 3px solid #ffcf33;
+    outline-offset: 2px;
+    box-shadow:
+        0 5px 16px
+        rgba(0,0,0,.28);
+}
+
+.proposal-actions {
+    margin: 12px;
+    padding: 14px;
+    border-radius: 10px;
+    background: #f4f1f6;
+    border: 1px solid #ddd4e2;
+}
+
+.proposal-actions[hidden] {
+    display: none;
+}
+
+.proposal-action-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.proposal-action-header strong {
+    display: block;
+    margin-top: 2px;
+}
+
+.proposal-close {
+    border: 0;
+    background: transparent;
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.proposal-action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.proposal-action-buttons button {
+    border: 0;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.proposal-action-buttons button:hover {
+    transform: translateY(-1px);
+}
+
 @keyframes busy-spin {
     to {
         transform:

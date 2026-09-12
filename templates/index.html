@@ -596,8 +596,13 @@
 
                     {% if player.position == "GKP" %}
 
-                        <div class="pitch-player">
-
+                        <div
+                            class="pitch-player proposal-player"
+                            data-player-id="{{ player.id }}"
+                            data-player-name="{{ player.name }}"
+                            data-position="{{ player.position }}"
+                            data-role="starter"
+                        >
                             <strong>
                                 {{ player.name }}
                             </strong>
@@ -636,7 +641,13 @@
 
                     {% if player.position == "DEF" %}
 
-                        <div class="pitch-player">
+                        <div 
+                            class="pitch-player proposal-player"
+                            data-player-id="{{ player.id }}"
+                            data-player-name="{{ player.name }}"
+                            data-position="{{ player.position }}"
+                            data-role="starter"
+                        >
 
                             <strong>
                                 {{ player.name }}
@@ -676,7 +687,13 @@
 
                     {% if player.position == "MID" %}
 
-                        <div class="pitch-player">
+                        <div 
+                            class="pitch-player proposal-player"
+                            data-player-id="{{ player.id }}"
+                            data-player-name="{{ player.name }}"
+                            data-position="{{ player.position }}"
+                            data-role="starter"
+                        >
 
                             <strong>
                                 {{ player.name }}
@@ -716,7 +733,13 @@
 
                     {% if player.position == "FWD" %}
 
-                        <div class="pitch-player">
+                        <div 
+                            class="pitch-player proposal-player"
+                            data-player-id="{{ player.id }}"
+                            data-player-name="{{ player.name }}"
+                            data-position="{{ player.position }}"
+                            data-role="starter"
+                        >
 
                             <strong>
                                 {{ player.name }}
@@ -767,8 +790,13 @@
 
     {% for player in bench_gk %}
 
-        <div class="bench-player">
-
+        <div
+            class="bench-player proposal-player"
+            data-player-id="{{ player.id }}"
+            data-player-name="{{ player.name }}"
+            data-position="{{ player.position }}"
+            data-role="bench"
+        >
             <span class="bench-slot">
                 GK
             </span>
@@ -790,12 +818,16 @@
         <div
             class="
                 bench-player
+                proposal-player
                 {% if not player.can_select %}
                     unavailable-player
                 {% endif %}
             "
+            data-player-id="{{ player.id }}"
+            data-player-name="{{ player.name }}"
+            data-position="{{ player.position }}"
+            data-role="bench"
         >
-
             <span class="bench-slot">
                 {{ loop.index }}
             </span>
@@ -820,6 +852,36 @@
 
 </div>
 
+<div
+    id="proposal-actions"
+    class="proposal-actions"
+    hidden
+>
+    <div class="proposal-action-header">
+        <div>
+            <span class="team-label">
+                EDIT PROPOSAL
+            </span>
+
+            <strong id="proposal-player-name">
+                Player
+            </strong>
+        </div>
+
+        <button
+            type="button"
+            id="proposal-close"
+            class="proposal-close"
+        >
+            ×
+        </button>
+    </div>
+
+    <div
+        id="proposal-action-buttons"
+        class="proposal-action-buttons"
+    ></div>
+</div>
     </div>
 
 </section>
@@ -1311,6 +1373,89 @@ if (
         1000
     );
 }
+const proposalPlayers =
+    document.querySelectorAll(
+        ".proposal-player"
+    );
+
+const proposalActions =
+    document.getElementById(
+        "proposal-actions"
+    );
+
+const proposalPlayerName =
+    document.getElementById(
+        "proposal-player-name"
+    );
+
+const proposalActionButtons =
+    document.getElementById(
+        "proposal-action-buttons"
+    );
+
+const proposalClose =
+    document.getElementById(
+        "proposal-close"
+    );
+
+function clearProposalSelection() {
+
+    proposalPlayers.forEach(
+        function (player) {
+            player.classList.remove(
+                "selected"
+            );
+        }
+    );
+
+    if (proposalActions) {
+        proposalActions.hidden = true;
+    }
+}
+
+proposalPlayers.forEach(
+    function (player) {
+
+        player.addEventListener(
+            "click",
+            function () {
+
+                clearProposalSelection();
+
+                player.classList.add(
+                    "selected"
+                );
+
+                if (proposalPlayerName) {
+
+                    proposalPlayerName.textContent =
+                        player.dataset.playerName;
+                }
+
+                if (proposalActionButtons) {
+
+                    proposalActionButtons.innerHTML =
+                        "";
+                }
+
+                if (proposalActions) {
+
+                    proposalActions.hidden =
+                        false;
+                }
+            }
+        );
+    }
+);
+
+if (proposalClose) {
+
+    proposalClose.addEventListener(
+        "click",
+        clearProposalSelection
+    );
+}
+
 </script>
 
 </body>
