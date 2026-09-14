@@ -126,7 +126,10 @@ def build_picks(snapshot):
     return picks
 
 
-def apply_approved_plan(snapshot):
+def apply_approved_plan(
+    snapshot,
+    confirmed_hit_cost=0,
+):
 
     planning_gameweek = (
         get_planning_gameweek()
@@ -153,12 +156,6 @@ def apply_approved_plan(snapshot):
             f"{snapshot['gameweek']}, "
             f"but FPL is currently planning "
             f"GW{planning_gameweek}."
-        )
-
-    if snapshot["hit_cost"] != 0:
-        raise PlanApplyError(
-            "Automatic approval currently refuses "
-            "plans containing a points hit."
         )
 
     access_token = (
@@ -202,13 +199,35 @@ def apply_approved_plan(snapshot):
             - transfer_state["made"]
         )
 
+        expected_hit_cost = (
+            max(
+                0,
+                len(approved_transfers)
+                - free_transfers,
+            )
+            * 4
+        )
+
         if (
-            len(approved_transfers)
-            > free_transfers
+            expected_hit_cost
+            != snapshot["hit_cost"]
         ):
             raise PlanApplyError(
-                "Not enough free transfers remain "
-                "for the approved plan."
+                "The points cost has changed "
+                "since this analysis was generated. "
+                "Refresh analysis before approving."
+            )
+
+        if (
+            expected_hit_cost > 0
+            and
+            confirmed_hit_cost
+            != expected_hit_cost
+        ):
+            raise PlanApplyError(
+                f"This plan costs "
+                f"{expected_hit_cost} points. "
+                "Explicit confirmation is required."
             )
 
         bootstrap = get_bootstrap()

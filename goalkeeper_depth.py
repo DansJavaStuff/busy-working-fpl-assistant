@@ -150,9 +150,21 @@ def get_goalkeeper_depth():
         if p["element_type"] == 1
     ]
 
-    rotowire_depth = (
-        get_rotowire_goalkeeper_depth()
-    )
+    try:
+
+        rotowire_depth = (
+            get_rotowire_goalkeeper_depth()
+        )
+
+    except requests.RequestException as exc:
+
+        print(
+            "RotoWire goalkeeper depth "
+            "unavailable:",
+            exc,
+        )
+
+        rotowire_depth = {}
 
     result = {}
 

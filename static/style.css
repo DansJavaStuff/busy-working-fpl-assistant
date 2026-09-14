@@ -802,3 +802,157 @@ button:disabled {
     }
 }
 
+
+.proposal-action-label {
+    flex-basis: 100%;
+    margin-top: 4px;
+    font-size: .68rem;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    opacity: .55;
+}
+
+.proposal-action-note {
+    flex-basis: 100%;
+    padding: 9px 11px;
+    border-radius: 8px;
+    background: rgba(0,0,0,.05);
+    font-size: .78rem;
+    line-height: 1.35;
+    opacity: .75;
+}
+
+.proposal-action-button {
+    transition:
+        transform .12s ease,
+        box-shadow .12s ease;
+}
+
+.proposal-action-button:hover {
+    transform: translateY(-1px);
+}
+
+.proposal-action-button.captain-action {
+    background: #222;
+    color: white;
+}
+
+.proposal-action-button.vice-action {
+    background: #dfe3e6;
+    color: #222;
+}
+
+.proposal-action-button.swap-action {
+    background: white;
+    color: #222;
+    border: 1px solid #d3d7da;
+}
+.hit-confirmation {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    margin-bottom: 12px;
+    padding: 11px 13px;
+    border-radius: 9px;
+    background: #fff5d6;
+    border: 1px solid #ead38a;
+    cursor: pointer;
+}
+
+.hit-confirmation input {
+    margin-top: 3px;
+    width: 18px;
+    height: 18px;
+}
+
+.hit-confirmation span {
+    font-size: .82rem;
+    line-height: 1.35;
+}
+
+.hit-confirmation strong {
+    color: #8a5700;
+}
+.transfer-player-out {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.keep-player-form {
+    margin-top: 7px;
+}
+
+.keep-player-button {
+    border: 1px solid #cfd4d7;
+    border-radius: 7px;
+    padding: 5px 8px;
+    background: white;
+    font-size: .62rem;
+    font-weight: 900;
+    letter-spacing: .04em;
+    cursor: pointer;
+}
+
+.keep-player-button:hover {
+    background: #f2f4f5;
+}
+
+.active-preferences {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0 18px;
+    padding: 11px 13px;
+    border-radius: 9px;
+    background: #edf7f0;
+}
+
+.active-preferences strong {
+    flex-basis: 100%;
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    opacity: .6;
+}
+
+.active-preferences span {
+    font-size: .78rem;
+    font-weight: 700;
+    color: #257347;
+}
+.active-preference-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.remove-preference-form {
+    margin: 0;
+}
+
+.remove-preference-button {
+    border: 0;
+    background: transparent;
+    color: #8b2f2f;
+    font-size: .68rem;
+    font-weight: 900;
+    cursor: pointer;
+    text-decoration: underline;
+}
+.clear-preferences-form {
+    margin: 0 0 4px;
+}
+
+.clear-preferences-button {
+    border: 0;
+    background: transparent;
+    color: #8b2f2f;
+    padding: 0;
+    font-size: .68rem;
+    font-weight: 900;
+    letter-spacing: .04em;
+    cursor: pointer;
+    text-decoration: underline;
+}

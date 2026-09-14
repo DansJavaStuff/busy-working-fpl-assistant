@@ -145,17 +145,118 @@
                 TRANSFER{% if report.recommended.transfers != 1 %}S{% endif %}
             </h3>
 
-            {% for pair in report.recommended_pairs %}
 
-                <div class="transfer">
+        {% set constraints = report.get(
+            "constraints",
+            {}
+        ) %}
 
-                    <div>
-                        <strong>{{ pair.out.name }}</strong>
-                        <small>
-                            {{ pair.out.team }}
-                            · £{{ "%.1f"|format(pair.out.price) }}m
-                        </small>
-                    </div>
+        {% set must_keep_ids = constraints.get(
+            "must_keep_ids",
+            []
+        ) %}
+
+        {% if must_keep_ids %}
+
+            <div class="active-preferences">
+
+                <strong>
+                    Active preferences
+                </strong>
+
+                <form
+                    method="post"
+                    action="/clear-preferences"
+                    class="clear-preferences-form"
+                >
+                    <button
+                        type="submit"
+                        class="clear-preferences-button"
+                    >
+                        CLEAR ALL
+                    </button>
+                </form>
+
+                {% for player in (
+                    report.current_starters
+                    + report.current_bench
+                ) %}
+
+                    {% if (
+                        player.id
+                        in must_keep_ids
+                    ) %}
+
+<div class="active-preference-item">
+
+    <span>
+        ✓ Keep {{ player.name }}
+    </span>
+
+    <form
+        method="post"
+        action="/remove-keep-player"
+        class="remove-preference-form"
+    >
+        <input
+            type="hidden"
+            name="player_id"
+            value="{{ player.id }}"
+        >
+
+        <button
+            type="submit"
+            class="remove-preference-button"
+        >
+            REMOVE
+        </button>
+    </form>
+
+</div>
+
+                    {% endif %}
+
+                {% endfor %}
+
+            </div>
+
+        {% endif %}
+
+        {% for pair in report.recommended_pairs %}
+
+            <div class="transfer">
+
+<div class="transfer-player-out">
+
+    <strong>
+        {{ pair.out.name }}
+    </strong>
+
+    <small>
+        {{ pair.out.team }}
+        · £{{ "%.1f"|format(pair.out.price) }}m
+    </small>
+
+    <form
+        method="post"
+        action="/keep-player"
+        class="keep-player-form"
+    >
+        <input
+            type="hidden"
+            name="player_id"
+            value="{{ pair.out.id }}"
+        >
+
+        <button
+            type="submit"
+            class="keep-player-button"
+        >
+            KEEP {{ pair.out.name|upper }}
+        </button>
+    </form>
+
+</div>
 
                     <div class="arrow">→</div>
 
@@ -183,7 +284,11 @@
         <p>
             Hit:
             <strong>
-                -{{ report.recommended.hit_cost }}
+                {% if report.recommended.hit_cost %}
+                    -{{ report.recommended.hit_cost }}
+                {% else %}
+                    0
+                {% endif %}
             </strong>
         </p>
 
@@ -240,16 +345,46 @@
                 action="/approve"
                 id="approve-form"
             >
+                {% if report.recommended.hit_cost > 0 %}
+
+                    <label class="hit-confirmation">
+
+                        <input
+                            type="checkbox"
+                            name="confirm_hit"
+                            id="hit-confirmation"
+                            value="{{ report.recommended.hit_cost }}"
+                        >
+
+                        <span>
+                            I understand this plan will cost
+                            <strong>
+                                {{ report.recommended.hit_cost }}
+                                points
+                            </strong>
+                        </span>
+
+                    </label>
+
+                {% endif %}
+
                 <button
                     class="approve-button"
                     type="submit"
                     id="approve-button"
-                    {% if report.deadline_locked %}
+                    {% if (
+                        report.deadline_locked
+                        or
+                        report.recommended.hit_cost > 0
+                    ) %}
                         disabled
                     {% endif %}
                 >
                     {% if report.deadline_locked %}
                         GW{{ report.gameweek }} LOCKED
+                    {% elif report.recommended.hit_cost > 0 %}
+                        APPROVE & APPLY
+                        -{{ report.recommended.hit_cost }}
                     {% else %}
                         APPROVE & APPLY
                     {% endif %}
@@ -1103,6 +1238,11 @@ const approveButton =
         "approve-button"
     );
 
+const hitConfirmation =
+    document.getElementById(
+        "hit-confirmation"
+    );
+
 const deadlineCard =
     document.getElementById(
         "deadline-card"
@@ -1200,6 +1340,32 @@ if (refreshForm) {
         }
     );
 }
+
+if (
+    hitConfirmation
+    &&
+    approveButton
+) {
+
+    hitConfirmation.addEventListener(
+        "change",
+        function () {
+
+            const deadlineLocked =
+                deadlineCard
+                &&
+                deadlineCard.classList.contains(
+                    "locked"
+                );
+
+            approveButton.disabled =
+                deadlineLocked
+                ||
+                !hitConfirmation.checked;
+        }
+    );
+}
+
 
 /*
  * Approve & Apply button feedback.
@@ -1374,8 +1540,10 @@ if (
     );
 }
 const proposalPlayers =
-    document.querySelectorAll(
-        ".proposal-player"
+    Array.from(
+        document.querySelectorAll(
+            ".proposal-player"
+        )
     );
 
 const proposalActions =
@@ -1398,10 +1566,168 @@ const proposalClose =
         "proposal-close"
     );
 
+const proposalState = {
+
+    starters:
+        proposalPlayers
+            .filter(
+                player =>
+                    player.dataset.role
+                    === "starter"
+            )
+            .map(
+                player =>
+                    Number(
+                        player.dataset.playerId
+                    )
+            ),
+
+    bench:
+        proposalPlayers
+            .filter(
+                player =>
+                    player.dataset.role
+                    === "bench"
+            )
+            .map(
+                player =>
+                    Number(
+                        player.dataset.playerId
+                    )
+            ),
+
+    captainId:
+        {{ report.captain.id }},
+
+    viceId:
+        {{ report.vice.id }},
+};
+
+
+function proposalPlayerById(
+    playerId
+) {
+
+    return proposalPlayers.find(
+        player =>
+            Number(
+                player.dataset.playerId
+            )
+            === playerId
+    );
+}
+
+
+function proposalPlayerNameById(
+    playerId
+) {
+
+    const player =
+        proposalPlayerById(
+            playerId
+        );
+
+    return player
+        ? player.dataset.playerName
+        : `Player ${playerId}`;
+}
+
+
+function legalFormation(
+    starterIds
+) {
+
+    const counts = {
+        GKP: 0,
+        DEF: 0,
+        MID: 0,
+        FWD: 0,
+    };
+
+    for (
+        const playerId
+        of starterIds
+    ) {
+
+        const player =
+            proposalPlayerById(
+                playerId
+            );
+
+        if (!player) {
+            return false;
+        }
+
+        const position =
+            player.dataset.position;
+
+        if (!(position in counts)) {
+            return false;
+        }
+
+        counts[position] += 1;
+    }
+
+    return (
+        starterIds.length === 11
+        &&
+        counts.GKP === 1
+        &&
+        counts.DEF >= 3
+        &&
+        counts.DEF <= 5
+        &&
+        counts.MID >= 2
+        &&
+        counts.MID <= 5
+        &&
+        counts.FWD >= 1
+        &&
+        counts.FWD <= 3
+    );
+}
+
+
+function canSwapPlayers(
+    starterId,
+    benchId
+) {
+
+    /*
+     * Keep C and VC in the XI.
+     *
+     * To bench either one, change
+     * captaincy first.
+     */
+    if (
+        starterId
+        === proposalState.captainId
+        ||
+        starterId
+        === proposalState.viceId
+    ) {
+        return false;
+    }
+
+    const newStarters =
+        proposalState.starters.map(
+            playerId =>
+                playerId === starterId
+                    ? benchId
+                    : playerId
+        );
+
+    return legalFormation(
+        newStarters
+    );
+}
+
+
 function clearProposalSelection() {
 
     proposalPlayers.forEach(
         function (player) {
+
             player.classList.remove(
                 "selected"
             );
@@ -1409,9 +1735,450 @@ function clearProposalSelection() {
     );
 
     if (proposalActions) {
-        proposalActions.hidden = true;
+
+        proposalActions.hidden =
+            true;
     }
 }
+
+
+function addProposalLabel(
+    text
+) {
+
+    if (!proposalActionButtons) {
+        return;
+    }
+
+    const label =
+        document.createElement(
+            "div"
+        );
+
+    label.className =
+        "proposal-action-label";
+
+    label.textContent =
+        text;
+
+    proposalActionButtons.appendChild(
+        label
+    );
+}
+
+
+function addProposalNote(
+    text
+) {
+
+    if (!proposalActionButtons) {
+        return;
+    }
+
+    const note =
+        document.createElement(
+            "div"
+        );
+
+    note.className =
+        "proposal-action-note";
+
+    note.textContent =
+        text;
+
+    proposalActionButtons.appendChild(
+        note
+    );
+}
+
+
+function addProposalButton(
+    label,
+    cssClass,
+    action
+) {
+
+    if (!proposalActionButtons) {
+        return;
+    }
+
+    const button =
+        document.createElement(
+            "button"
+        );
+
+    button.type =
+        "button";
+
+    button.className =
+        "proposal-action-button "
+        + cssClass;
+
+    button.textContent =
+        label;
+
+    button.addEventListener(
+        "click",
+        action
+    );
+
+    proposalActionButtons.appendChild(
+        button
+    );
+}
+
+
+async function saveProposal(
+    nextState
+) {
+
+    if (
+        deadlineCard
+        &&
+        deadlineCard.classList.contains(
+            "locked"
+        )
+    ) {
+
+        alert(
+            "The gameweek is locked."
+        );
+
+        return;
+    }
+
+    showBusy(
+        "Saving team changes…"
+    );
+
+    try {
+
+        const response =
+            await fetch(
+                "/proposal",
+                {
+                    method:
+                        "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+                    },
+
+                    body:
+                        JSON.stringify({
+                            starters:
+                                nextState.starters,
+
+                            bench:
+                                nextState.bench,
+
+                            captain_id:
+                                nextState.captainId,
+
+                            vice_id:
+                                nextState.viceId,
+                        }),
+                }
+            );
+
+        let result = {};
+
+        try {
+
+            result =
+                await response.json();
+
+        } catch {
+            /*
+             * Leave result empty.
+             */
+        }
+
+        if (!response.ok) {
+
+            throw new Error(
+                result.error
+                ||
+                `HTTP ${response.status}`
+            );
+        }
+
+        window.location.reload();
+
+    } catch (error) {
+
+        hideBusy();
+
+        alert(
+            "Unable to save proposal:\n\n"
+            + error.message
+        );
+    }
+}
+
+
+function setProposalCaptain(
+    playerId
+) {
+
+    const nextState =
+        structuredClone(
+            proposalState
+        );
+
+    /*
+     * If the vice-captain is promoted
+     * to captain, swap the armbands.
+     */
+    if (
+        playerId
+        === nextState.viceId
+    ) {
+
+        nextState.viceId =
+            nextState.captainId;
+    }
+
+    nextState.captainId =
+        playerId;
+
+    saveProposal(
+        nextState
+    );
+}
+
+
+function setProposalVice(
+    playerId
+) {
+
+    const nextState =
+        structuredClone(
+            proposalState
+        );
+
+    /*
+     * Likewise if the captain is
+     * changed directly to vice.
+     */
+    if (
+        playerId
+        === nextState.captainId
+    ) {
+
+        nextState.captainId =
+            nextState.viceId;
+    }
+
+    nextState.viceId =
+        playerId;
+
+    saveProposal(
+        nextState
+    );
+}
+
+
+function swapProposalPlayers(
+    starterId,
+    benchId
+) {
+
+    const nextState =
+        structuredClone(
+            proposalState
+        );
+
+    nextState.starters =
+        nextState.starters.map(
+            playerId =>
+                playerId === starterId
+                    ? benchId
+                    : playerId
+        );
+
+    nextState.bench =
+        nextState.bench.map(
+            playerId =>
+                playerId === benchId
+                    ? starterId
+                    : playerId
+        );
+
+    saveProposal(
+        nextState
+    );
+}
+
+
+function renderProposalActions(
+    selectedPlayer
+) {
+
+    if (
+        !proposalActionButtons
+        ||
+        !proposalActions
+    ) {
+        return;
+    }
+
+    proposalActionButtons.innerHTML =
+        "";
+
+    const playerId =
+        Number(
+            selectedPlayer.dataset.playerId
+        );
+
+    const role =
+        selectedPlayer.dataset.role;
+
+
+    if (role === "starter") {
+
+        addProposalLabel(
+            "Captaincy"
+        );
+
+        if (
+            playerId
+            !== proposalState.captainId
+        ) {
+
+            addProposalButton(
+                "Set Captain",
+                "captain-action",
+                () =>
+                    setProposalCaptain(
+                        playerId
+                    )
+            );
+        }
+
+        if (
+            playerId
+            !== proposalState.viceId
+        ) {
+
+            addProposalButton(
+                "Set Vice-Captain",
+                "vice-action",
+                () =>
+                    setProposalVice(
+                        playerId
+                    )
+            );
+        }
+
+
+        addProposalLabel(
+            "Swap with bench"
+        );
+
+        const legalBenchPlayers =
+            proposalState.bench.filter(
+                benchId =>
+                    canSwapPlayers(
+                        playerId,
+                        benchId
+                    )
+            );
+
+        if (
+            playerId
+            === proposalState.captainId
+            ||
+            playerId
+            === proposalState.viceId
+        ) {
+
+            addProposalNote(
+                "Change this player's "
+                + "captaincy first before "
+                + "moving them to the bench."
+            );
+
+        } else if (
+            legalBenchPlayers.length
+            === 0
+        ) {
+
+            addProposalNote(
+                "No legal bench swaps "
+                + "for this player."
+            );
+
+        } else {
+
+            legalBenchPlayers.forEach(
+                benchId => {
+
+                    addProposalButton(
+                        "Swap with "
+                        + proposalPlayerNameById(
+                            benchId
+                        ),
+                        "swap-action",
+                        () =>
+                            swapProposalPlayers(
+                                playerId,
+                                benchId
+                            )
+                    );
+                }
+            );
+        }
+
+    } else {
+
+        addProposalLabel(
+            "Move into Starting XI"
+        );
+
+        const legalStarters =
+            proposalState.starters.filter(
+                starterId =>
+                    canSwapPlayers(
+                        starterId,
+                        playerId
+                    )
+            );
+
+        if (
+            legalStarters.length
+            === 0
+        ) {
+
+            addProposalNote(
+                "No legal starting XI "
+                + "swaps for this player."
+            );
+
+        } else {
+
+            legalStarters.forEach(
+                starterId => {
+
+                    addProposalButton(
+                        "Replace "
+                        + proposalPlayerNameById(
+                            starterId
+                        ),
+                        "swap-action",
+                        () =>
+                            swapProposalPlayers(
+                                starterId,
+                                playerId
+                            )
+                    );
+                }
+            );
+        }
+    }
+}
+
 
 proposalPlayers.forEach(
     function (player) {
@@ -1426,17 +2193,17 @@ proposalPlayers.forEach(
                     "selected"
                 );
 
-                if (proposalPlayerName) {
+                if (
+                    proposalPlayerName
+                ) {
 
                     proposalPlayerName.textContent =
                         player.dataset.playerName;
                 }
 
-                if (proposalActionButtons) {
-
-                    proposalActionButtons.innerHTML =
-                        "";
-                }
+                renderProposalActions(
+                    player
+                );
 
                 if (proposalActions) {
 
@@ -1448,11 +2215,90 @@ proposalPlayers.forEach(
     }
 );
 
+
 if (proposalClose) {
 
     proposalClose.addEventListener(
         "click",
         clearProposalSelection
+    );
+}
+
+const keepPlayerForms =
+    document.querySelectorAll(
+        ".keep-player-form"
+    );
+
+keepPlayerForms.forEach(
+    function (form) {
+
+        form.addEventListener(
+            "submit",
+            function () {
+
+                const button =
+                    form.querySelector(
+                        "button"
+                    );
+
+                const playerName =
+                    button
+                    ? button.textContent
+                        .replace(
+                            "KEEP ",
+                            ""
+                        )
+                        .trim()
+                    : "player";
+
+                showBusy(
+                    "Re-optimising while "
+                    + "keeping "
+                    + playerName
+                    + "…"
+                );
+            }
+        );
+    }
+);
+
+const removePreferenceForms =
+    document.querySelectorAll(
+        ".remove-preference-form"
+    );
+
+removePreferenceForms.forEach(
+    function (form) {
+
+        form.addEventListener(
+            "submit",
+            function () {
+
+                showBusy(
+                    "Removing preference "
+                    + "and re-optimising…"
+                );
+            }
+        );
+    }
+);
+
+const clearPreferencesForm =
+    document.querySelector(
+        ".clear-preferences-form"
+    );
+
+if (clearPreferencesForm) {
+
+    clearPreferencesForm.addEventListener(
+        "submit",
+        function () {
+
+            showBusy(
+                "Clearing preferences "
+                + "and re-optimising…"
+            );
+        }
     );
 }
 

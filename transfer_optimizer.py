@@ -149,7 +149,17 @@ def optimise_transfers(
     current_team,
     planning_gameweek,
     number_of_transfers,
+    must_keep_ids=None,
+    must_include_ids=None,
 ):
+
+    must_keep_ids = set(
+        must_keep_ids or []
+    )
+
+    must_include_ids = set(
+        must_include_ids or []
+    )
 
     picks = current_team["picks"]
     transfer_state = current_team[
@@ -171,6 +181,30 @@ def optimise_transfers(
         p["id"]: p
         for p in players
     }
+
+    unknown_constraints = (
+        must_keep_ids
+        | must_include_ids
+    ) - set(players_by_id)
+
+    if unknown_constraints:
+        raise RuntimeError(
+            "Optimiser constraints contain "
+            "unknown player IDs: "
+            f"{unknown_constraints}"
+        )
+
+    invalid_keep_ids = (
+        must_keep_ids
+        - current_ids
+    )
+
+    if invalid_keep_ids:
+        raise RuntimeError(
+            "Can only KEEP players already "
+            "in the current squad: "
+            f"{invalid_keep_ids}"
+        )
 
     #
     # Make sure every player we currently own
@@ -200,6 +234,29 @@ def optimise_transfers(
         )
         for p in players
     }
+
+    #
+    # User constraints.
+    #
+    # KEEP means an existing player
+    # may not be transferred out.
+    #
+    for player_id in must_keep_ids:
+
+        problem += (
+            selected[player_id] == 1
+        )
+
+    #
+    # INCLUDE is more general and will
+    # later let us lock an incoming player
+    # into the recommended squad.
+    #
+    for player_id in must_include_ids:
+
+        problem += (
+            selected[player_id] == 1
+        )
 
     starter = {
         p["id"]: pulp.LpVariable(

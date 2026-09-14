@@ -1,3 +1,5 @@
+REPORT_SCHEMA_VERSION = 4
+
 from fpl_api import (
     get_my_team,
     get_planning_gameweek,
@@ -42,7 +44,6 @@ RECOMMENDATION_FILE = Path(
 REPORT_FILE = Path(
     "data/weekly_report.json"
 )
-REPORT_SCHEMA_VERSION = 3
 UK_TIMEZONE = ZoneInfo(
     "Europe/London"
 )
@@ -115,7 +116,18 @@ def pair_transfers(result):
     return pairs
 
 
-def build_weekly_report():
+def build_weekly_report(
+    must_keep_ids=None,
+    must_include_ids=None,
+):
+
+    must_keep_ids = list(
+        must_keep_ids or []
+    )
+
+    must_include_ids = list(
+        must_include_ids or []
+    )
 
     planning_gameweek = (
         get_planning_gameweek()
@@ -209,6 +221,10 @@ def build_weekly_report():
             current_team,
             planning_gameweek,
             number_of_transfers,
+            must_keep_ids=
+                must_keep_ids,
+            must_include_ids=
+                must_include_ids,
         )
 
         if result:
@@ -455,6 +471,12 @@ def build_weekly_report():
             deadline_info[
                 "locked"
             ],
+        "constraints": {
+            "must_keep_ids":
+                must_keep_ids,
+            "must_include_ids":
+                must_include_ids,
+        },
     }
 
 def save_recommendation_snapshot(
@@ -820,7 +842,31 @@ def refresh_analysis():
 
     clear_approval()
 
-    report = build_weekly_report()
+    old_report = (
+        load_weekly_report()
+    )
+
+    constraints = (
+        old_report.get(
+            "constraints",
+            {},
+        )
+        if old_report
+        else {}
+    )
+
+    report = build_weekly_report(
+        must_keep_ids=
+            constraints.get(
+                "must_keep_ids",
+                [],
+            ),
+        must_include_ids=
+            constraints.get(
+                "must_include_ids",
+                [],
+            ),
+    )
 
     save_recommendation_snapshot(
         report
@@ -828,6 +874,209 @@ def refresh_analysis():
 
     save_weekly_report(
         report
+    )
+
+    return redirect(
+        url_for("index")
+    )
+
+@app.route(
+    "/keep-player",
+    methods=["POST"],
+)
+def keep_player():
+
+    report = load_weekly_report()
+
+    if report is None:
+        return (
+            "No current weekly report.",
+            409,
+        )
+
+    try:
+        player_id = int(
+            request.form[
+                "player_id"
+            ]
+        )
+
+    except (
+        KeyError,
+        ValueError,
+    ):
+        return (
+            "Invalid player.",
+            400,
+        )
+
+    current_ids = {
+        player["id"]
+        for player
+        in (
+            report[
+                "current_starters"
+            ]
+            +
+            report[
+                "current_bench"
+            ]
+        )
+    }
+
+    if player_id not in current_ids:
+        return (
+            "KEEP can only be used "
+            "for a player currently "
+            "in your FPL squad.",
+            400,
+        )
+
+    constraints = report.get(
+        "constraints",
+        {},
+    )
+
+    keep_ids = set(
+        constraints.get(
+            "must_keep_ids",
+            [],
+        )
+    )
+
+    include_ids = set(
+        constraints.get(
+            "must_include_ids",
+            [],
+        )
+    )
+
+    keep_ids.add(
+        player_id
+    )
+
+    clear_approval()
+
+    new_report = build_weekly_report(
+        must_keep_ids=
+            sorted(keep_ids),
+        must_include_ids=
+            sorted(include_ids),
+    )
+
+    save_recommendation_snapshot(
+        new_report
+    )
+
+    save_weekly_report(
+        new_report
+    )
+
+    return redirect(
+        url_for("index")
+    )
+
+@app.route(
+    "/remove-keep-player",
+    methods=["POST"],
+)
+def remove_keep_player():
+
+    report = load_weekly_report()
+
+    if report is None:
+        return (
+            "No current weekly report.",
+            409,
+        )
+
+    try:
+        player_id = int(
+            request.form[
+                "player_id"
+            ]
+        )
+
+    except (
+        KeyError,
+        ValueError,
+    ):
+        return (
+            "Invalid player.",
+            400,
+        )
+
+    constraints = report.get(
+        "constraints",
+        {},
+    )
+
+    keep_ids = set(
+        constraints.get(
+            "must_keep_ids",
+            [],
+        )
+    )
+
+    include_ids = set(
+        constraints.get(
+            "must_include_ids",
+            [],
+        )
+    )
+
+    keep_ids.discard(
+        player_id
+    )
+
+    clear_approval()
+
+    new_report = build_weekly_report(
+        must_keep_ids=
+            sorted(keep_ids),
+        must_include_ids=
+            sorted(include_ids),
+    )
+
+    save_recommendation_snapshot(
+        new_report
+    )
+
+    save_weekly_report(
+        new_report
+    )
+
+    return redirect(
+        url_for("index")
+    )
+
+@app.route(
+    "/clear-preferences",
+    methods=["POST"],
+)
+def clear_preferences():
+
+    report = load_weekly_report()
+
+    if report is None:
+        return (
+            "No current weekly report.",
+            409,
+        )
+
+    clear_approval()
+
+    new_report = build_weekly_report(
+        must_keep_ids=[],
+        must_include_ids=[],
+    )
+
+    save_recommendation_snapshot(
+        new_report
+    )
+
+    save_weekly_report(
+        new_report
     )
 
     return redirect(
@@ -849,9 +1098,13 @@ def update_proposal():
                 "No current weekly report exists.",
         }), 409
 
-    if report.get(
-        "deadline_locked"
-    ):
+    deadline_info = (
+        get_gameweek_deadline(
+            report["gameweek"]
+        )
+    )
+
+    if deadline_info["locked"]:
         return jsonify({
             "ok": False,
             "error":
@@ -1056,8 +1309,20 @@ def approve():
         )
 
     try:
+        confirmed_hit_cost = int(
+            request.form.get(
+                "confirm_hit",
+                0,
+            )
+        )
+    except ValueError:
+        confirmed_hit_cost = 0
+
+    try:
         apply_approved_plan(
-            snapshot
+            snapshot,
+            confirmed_hit_cost=
+                confirmed_hit_cost,
         )
 
     except PlanApplyError as exc:
