@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+
     <meta charset="utf-8">
     <meta name="viewport"
           content="width=device-width, initial-scale=1">
@@ -10,8 +11,18 @@
         Gameweek HQ
     </title>
 
+    <link
+        rel="icon"
+        type="image/png"
+        href="{{ url_for(
+            'static',
+            filename='GHQ_app.png'
+        ) }}"
+    >
+
     <link rel="stylesheet"
           href="/static/style.css">
+
 </head>
 
 <body>
@@ -41,7 +52,14 @@
     <div class="hq-brand">
 
         <div class="hq-logo-placeholder">
-            GHQ
+            <img
+                src="{{ url_for(
+                    'static',
+                    filename='GHQ_Shield.png'
+                ) }}"
+                alt="Gameweek HQ crest"
+                class="hq-logo"
+            >
         </div>
 
         <div>
