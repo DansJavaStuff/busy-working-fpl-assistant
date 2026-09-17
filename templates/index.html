@@ -7,7 +7,7 @@
           content="width=device-width, initial-scale=1">
 
     <title>
-        Fantasy EPL Manager
+        Gameweek HQ
     </title>
 
     <link rel="stylesheet"
@@ -36,12 +36,41 @@
 
 <div class="page">
 
-    <header>
-        <h1>Fantasy EPL Manager</h1>
-        <div class="gw">
-            GW{{ report.gameweek }}
+    <header class="hq-header">
+
+    <div class="hq-brand">
+
+        <div class="hq-logo-placeholder">
+            GHQ
         </div>
-    </header>
+
+        <div>
+            <span class="hq-kicker">
+                FANTASY FOOTBALL
+            </span>
+
+            <h1>
+                Gameweek HQ
+            </h1>
+
+            <span class="hq-subtitle">
+                Fantasy Football Command Centre
+            </span>
+        </div>
+
+    </div>
+
+    <div class="hq-gameweek">
+        <span>
+            PLANNING
+        </span>
+
+        <strong>
+            GW{{ report.gameweek }}
+        </strong>
+    </div>
+
+</header>
 
 <section
     class="
