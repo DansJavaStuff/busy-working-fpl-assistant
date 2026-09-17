@@ -307,12 +307,17 @@
 
                     <div class="arrow">→</div>
 
-                    <div>
-                        <strong>{{ pair.in.name }}</strong>
+                    <div class="transfer-player-in">
+
+                        <strong>
+                            {{ pair.in.name }}
+                        </strong>
+
                         <small>
                             {{ pair.in.team }}
                             · £{{ "%.1f"|format(pair.in.price) }}m
                         </small>
+
                     </div>
 
                 </div>
@@ -321,30 +326,51 @@
 
         {% endif %}
 
-        <p>
-            Model gain:
-            <strong>
-                +{{ "%.2f"|format(report.transfer_gain) }}
-            </strong>
-        </p>
+        <div class="recommendation-stats">
 
-        <p>
-            Hit:
-            <strong>
-                {% if report.recommended.hit_cost %}
-                    -{{ report.recommended.hit_cost }}
-                {% else %}
-                    0
-                {% endif %}
-            </strong>
-        </p>
+            <div>
+                <span>
+                    Model gain
+                </span>
 
-        <p>
-            Bank after:
-            <strong>
-                £{{ "%.1f"|format(report.recommended.bank_after / 10) }}m
-            </strong>
-        </p>
+                <strong class="positive">
+                    +{{ "%.2f"|format(report.transfer_gain) }}
+                </strong>
+            </div>
+
+            <div>
+                <span>
+                    Hit
+                </span>
+
+                <strong
+                    class="
+                        {% if report.recommended.hit_cost %}
+                            negative
+                        {% endif %}
+                    "
+                >
+                    {% if report.recommended.hit_cost %}
+                        -{{ report.recommended.hit_cost }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </strong>
+            </div>
+
+            <div>
+                <span>
+                    Bank after
+                </span>
+
+                <strong>
+                    £{{ "%.1f"|format(
+                        report.recommended.bank_after / 10
+                    ) }}m
+                </strong>
+            </div>
+
+        </div>
 
 <div class="approval">
 
@@ -453,44 +479,113 @@
 
     <section class="card">
 
-        <h2>Transfer options</h2>
+    <h2>Transfer options</h2>
 
-        {% for scenario in report.scenarios %}
+    <div class="scenario scenario-header">
 
-            <div class="scenario">
+        <strong>
+            Option
+        </strong>
 
-                <strong>
-                    {% if scenario.transfers == 0 %}
-                        HOLD
-                    {% else %}
-                        {{ scenario.transfers }}
-                        TRANSFER{% if scenario.transfers != 1 %}S{% endif %}
-                    {% endif %}
-                </strong>
+        <span>
+            Score
+        </span>
 
-                <span>
-                    {{ "%.2f"|format(scenario.score) }}
-                </span>
+        <span>
+            Gross gain
+        </span>
 
-                <span>
-                    {% if scenario.gain >= 0 %}
-                        +{{ "%.2f"|format(scenario.gain) }}
-                    {% else %}
-                        {{ "%.2f"|format(scenario.gain) }}
-                    {% endif %}
-                </span>
+        <span>
+            Hit
+        </span>
 
-                {% if scenario.hit_cost %}
-                    <span>
-                        -{{ scenario.hit_cost }} hit
+        <span>
+            Net gain
+        </span>
+
+    </div>
+
+    {% for scenario in report.scenarios %}
+
+        {% set net_gain = (
+            scenario.gain
+            - scenario.hit_cost
+        ) %}
+
+        <div
+            class="
+                scenario
+                {% if (
+                    scenario.transfers
+                    == report.recommended.transfers
+                ) %}
+                    recommended-scenario
+                {% endif %}
+            "
+        >
+
+            <strong class="scenario-name">
+
+                {% if scenario.transfers == 0 %}
+                    HOLD
+                {% else %}
+                    {{ scenario.transfers }}
+                    TRANSFER{% if scenario.transfers != 1 %}S{% endif %}
+                {% endif %}
+
+                {% if (
+                    scenario.transfers
+                    == report.recommended.transfers
+                ) %}
+                    <span class="scenario-badge">
+                        RECOMMENDED
                     </span>
                 {% endif %}
 
-            </div>
+            </strong>
 
-        {% endfor %}
+            <span>
+                {{ "%.2f"|format(scenario.score) }}
+            </span>
 
-    </section>
+            <span>
+                {% if scenario.gain >= 0 %}
+                    +{{ "%.2f"|format(scenario.gain) }}
+                {% else %}
+                    {{ "%.2f"|format(scenario.gain) }}
+                {% endif %}
+            </span>
+
+            <span>
+                {% if scenario.hit_cost %}
+                    -{{ scenario.hit_cost }}
+                {% else %}
+                    0
+                {% endif %}
+            </span>
+
+            <span
+                class="
+                    scenario-net
+                    {% if net_gain > 0 %}
+                        positive
+                    {% elif net_gain < 0 %}
+                        negative
+                    {% endif %}
+                "
+            >
+                {% if net_gain > 0 %}
+                    +{{ "%.2f"|format(net_gain) }}
+                {% else %}
+                    {{ "%.2f"|format(net_gain) }}
+                {% endif %}
+            </span>
+
+        </div>
+
+    {% endfor %}
+
+</section>
 
 <section class="teams-section">
 
