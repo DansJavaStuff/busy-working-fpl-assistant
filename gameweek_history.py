@@ -7,6 +7,7 @@ from fpl_api import (
     ENTRY_ID,
     get_bootstrap,
     get_entry_picks,
+    get_entry_transfers,
     get_gameweek_live,
 )
 
@@ -56,6 +57,52 @@ def load_gameweek_results(gameweek):
     )
 
 
+def archive_pre_deadline_plan(
+    report,
+    plan,
+):
+    gameweek = int(
+        report["gameweek"]
+    )
+
+    directory = gameweek_dir(
+        gameweek
+    )
+
+    directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    report_path = (
+        directory
+        / "pre_deadline_report.json"
+    )
+
+    plan_path = (
+        directory
+        / "submitted_plan.json"
+    )
+
+    if not report_path.exists():
+        report_path.write_text(
+            json.dumps(
+                report,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+    if not plan_path.exists():
+        plan_path.write_text(
+            json.dumps(
+                plan,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+
 def list_archived_gameweeks():
     if not HISTORY_DIR.exists():
         return []
@@ -83,6 +130,14 @@ def list_archived_gameweeks():
 
 def _event_info(gameweek):
     bootstrap = get_bootstrap()
+
+    bootstrap_players = {
+        player["id"]: player
+        for player in bootstrap.get(
+            "elements",
+            [],
+        )
+    }
 
     event = next(
         (
@@ -433,12 +488,79 @@ def collect_gameweek_results(
             )
         )
 
+    planned_transfers = list(
+        plan.get(
+            "transfers",
+            [],
+        )
+    )
+
+    transfer_source = (
+        "submitted_plan"
+    )
+
+    if not planned_transfers:
+
+        entry_transfers = (
+            get_entry_transfers(
+                entry_id=entry_id,
+            )
+        )
+
+        planned_transfers = [
+            {
+                "element_out":
+                    transfer[
+                        "element_out"
+                    ],
+                "element_out_name":
+                    bootstrap_players.get(
+                        transfer[
+                            "element_out"
+                        ],
+                        {},
+                    ).get(
+                        "web_name",
+                        str(
+                            transfer[
+                                "element_out"
+                            ]
+                        ),
+                    ),
+                "element_in":
+                    transfer[
+                        "element_in"
+                    ],
+                "element_in_name":
+                    bootstrap_players.get(
+                        transfer[
+                            "element_in"
+                        ],
+                        {},
+                    ).get(
+                        "web_name",
+                        str(
+                            transfer[
+                                "element_in"
+                            ]
+                        ),
+                    ),
+            }
+            for transfer
+            in entry_transfers
+            if transfer.get(
+                "event"
+            ) == gameweek
+        ]
+
+        if planned_transfers:
+            transfer_source = (
+                "fpl_entry_history"
+            )
+
     transfers = []
 
-    for transfer in plan.get(
-        "transfers",
-        [],
-    ):
+    for transfer in planned_transfers:
         outgoing_id = transfer[
             "element_out"
         ]
@@ -624,6 +746,8 @@ def collect_gameweek_results(
             bench,
         "transfers":
             transfers,
+        "transfer_source":
+            transfer_source,
         "transfer_summary":
             {
                 "expected_gain":
