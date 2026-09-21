@@ -2039,3 +2039,156 @@ span:last-child {
     }
 
 }
+
+
+/* ==================================================
+   HISTORY NAVIGATION + SEASON OVERVIEW
+   ================================================== */
+
+.history-overview {
+    border-left:
+        5px solid
+        var(--hq-plum);
+}
+
+.history-controls {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 16px;
+}
+
+.history-controls h2 {
+    margin: 2px 0 0;
+}
+
+.history-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.history-selector label {
+    color: var(--hq-muted);
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.history-selector select {
+    min-width: 110px;
+    padding: 9px 34px 9px 11px;
+    border: 1px solid rgba(53, 24, 62, .15);
+    border-radius: 9px;
+    background: white;
+    color: var(--hq-ink);
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.history-season-table {
+    border: 1px solid rgba(53, 24, 62, .08);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.history-season-row {
+    display: grid;
+    grid-template-columns:
+        .7fr
+        .8fr
+        .8fr
+        1fr
+        .8fr
+        .8fr;
+    gap: 8px;
+    align-items: center;
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(53, 24, 62, .07);
+    color: var(--hq-ink);
+    text-decoration: none;
+}
+
+.history-season-row:last-child {
+    border-bottom: 0;
+}
+
+.history-season-row.header {
+    background: #f7f5f8;
+    color: var(--hq-muted);
+    font-size: .63rem;
+    font-weight: 900;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.history-season-row:not(.header):hover {
+    background: rgba(49, 198, 212, .05);
+}
+
+.history-season-row.selected {
+    background:
+        linear-gradient(
+            90deg,
+            rgba(49, 198, 212, .12),
+            rgba(49, 198, 212, .03)
+        );
+    box-shadow:
+        inset 4px 0 0
+        var(--hq-cyan);
+}
+
+.history-week-nav {
+    display: grid;
+    grid-template-columns:
+        1fr auto 1fr;
+    gap: 12px;
+    align-items: center;
+    margin: 0 0 12px;
+}
+
+.history-week-nav > :last-child {
+    justify-self: end;
+}
+
+.history-nav-button {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 8px 11px;
+    border-radius: 9px;
+    background: white;
+    border: 1px solid rgba(53, 24, 62, .10);
+    color: var(--hq-plum);
+    font-size: .76rem;
+    font-weight: 850;
+    text-decoration: none;
+}
+
+.history-nav-button:hover {
+    border-color: rgba(53, 24, 62, .22);
+}
+
+@media (max-width: 700px) {
+
+    .history-controls {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .history-selector {
+        justify-content: space-between;
+    }
+
+    .history-season-table {
+        overflow-x: auto;
+    }
+
+    .history-season-row {
+        min-width: 590px;
+    }
+
+}
