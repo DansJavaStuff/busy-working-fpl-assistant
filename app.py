@@ -19,6 +19,11 @@ from tools.apply_approved_plan import (
     PlanApplyError,
 )
 
+from gameweek_history import (
+    collect_gameweek_results,
+    load_history,
+)
+
 import json
 from pathlib import Path
 from datetime import datetime
@@ -807,6 +812,34 @@ def validate_proposed_team(
         bench,
         squad_by_id,
     )
+
+@app.route(
+    "/history",
+)
+def history():
+
+    return render_template(
+        "history.html",
+        history=load_history(),
+    )
+
+
+@app.route(
+    "/history/<int:gameweek>/collect",
+    methods=["POST"],
+)
+def collect_history_results(
+    gameweek,
+):
+
+    collect_gameweek_results(
+        gameweek
+    )
+
+    return redirect(
+        url_for("history")
+    )
+
 
 @app.route("/")
 def index():
