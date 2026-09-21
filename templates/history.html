@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1">
+
+    <title>
+        Gameweek History · Gameweek HQ
+    </title>
+
+    <link
+        rel="icon"
+        type="image/png"
+        href="{{ url_for(
+            'static',
+            filename='GHQ_app.png'
+        ) }}"
+    >
+
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+
+</head>
+
+<body>
+
+<div class="page">
+
+    <header class="hq-header">
+
+        <div class="hq-brand">
+
+            <div class="hq-logo-placeholder">
+                <img
+                    src="{{ url_for(
+                        'static',
+                        filename='GHQ_Shield.png'
+                    ) }}"
+                    alt="Gameweek HQ crest"
+                    class="hq-logo"
+                >
+            </div>
+
+            <div>
+                <span class="hq-kicker">
+                    PERFORMANCE REVIEW
+                </span>
+
+                <h1>
+                    Gameweek History
+                </h1>
+
+                <span class="hq-subtitle">
+                    Projection vs reality
+                </span>
+            </div>
+
+        </div>
+
+        <a
+            href="{{ url_for('index') }}"
+            class="hq-nav-link"
+        >
+            DASHBOARD
+        </a>
+
+    </header>
+
+
+    {% if not history %}
+
+        <section class="card">
+            <h2>No archived Gameweeks yet</h2>
+        </section>
+
+    {% endif %}
+
+
+    {% for item in history %}
+
+        {% set result = item.results %}
+
+        <section class="card history-card">
+
+            <div class="history-card-header">
+
+                <div>
+                    <span class="team-label">
+                        GAMEWEEK REVIEW
+                    </span>
+
+                    <h2>
+                        GW{{ item.gameweek }}
+                    </h2>
+                </div>
+
+                {% if result %}
+
+                    <span
+                        class="
+                            history-status
+                            {% if result.event_finished %}
+                                complete
+                            {% else %}
+                                provisional
+                            {% endif %}
+                        "
+                    >
+                        {% if result.event_finished %}
+                            FINAL
+                        {% else %}
+                            LIVE
+                        {% endif %}
+                    </span>
+
+                {% endif %}
+
+            </div>
+
+
+            {% if not result %}
+
+                <p>
+                    Pre-deadline projection captured.
+                    Results have not been collected yet.
+                </p>
+
+                <form
+                    method="post"
+                    action="{{ url_for(
+                        'collect_history_results',
+                        gameweek=item.gameweek
+                    ) }}"
+                >
+                    <button
+                        type="submit"
+                        class="approve-button"
+                    >
+                        COLLECT GW{{ item.gameweek }} RESULTS
+                    </button>
+                </form>
+
+            {% else %}
+
+                <div class="history-summary">
+
+                    <div>
+                        <span>Actual points</span>
+                        <strong>
+                            {{ result.projection.actual }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>GW average</span>
+                        <strong>
+                            {{ result.average_points }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Projected</span>
+                        <strong>
+                            {{ "%.1f"|format(
+                                result.projection.net
+                            ) }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Projection delta</span>
+                        <strong
+                            class="
+                                {% if result.projection.difference >= 0 %}
+                                    positive
+                                {% else %}
+                                    negative
+                                {% endif %}
+                            "
+                        >
+                            {% if result.projection.difference >= 0 %}
+                                +
+                            {% endif %}
+                            {{ "%.1f"|format(
+                                result.projection.difference
+                            ) }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>GW rank</span>
+                        <strong>
+                            {% if result.entry_history.rank %}
+                                {{ "{:,}".format(
+                                    result.entry_history.rank
+                                ) }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Bench points</span>
+                        <strong>
+                            {{ result.entry_history.points_on_bench }}
+                        </strong>
+                    </div>
+
+                </div>
+
+
+                <div class="history-grid">
+
+                    <div class="history-pitch-card">
+
+                        <h3>
+                            Final team
+                        </h3>
+
+                        <div class="pitch history-pitch">
+
+                            <div class="pitch-markings">
+                                <div class="centre-circle"></div>
+                                <div class="penalty-box top"></div>
+                                <div class="penalty-box bottom"></div>
+                            </div>
+
+                            {% for position in [
+                                "GKP",
+                                "DEF",
+                                "MID",
+                                "FWD"
+                            ] %}
+
+                                <div
+                                    class="
+                                        pitch-row
+                                        history-row
+                                    "
+                                >
+
+                                    {% for player in result.starters %}
+
+                                        {% if player.position == position %}
+
+                                            <div class="pitch-player">
+
+                                                <strong>
+                                                    {{ player.name }}
+                                                </strong>
+
+                                                <small>
+                                                    {{ player.actual_points }}
+                                                    pts
+                                                </small>
+
+                                                <div class="pitch-badges">
+
+                                                    {% if player.captain %}
+                                                        <span class="badge captain">
+                                                            C
+                                                        </span>
+                                                    {% elif player.vice_captain %}
+                                                        <span class="badge vice">
+                                                            VC
+                                                        </span>
+                                                    {% endif %}
+
+                                                </div>
+
+                                            </div>
+
+                                        {% endif %}
+
+                                    {% endfor %}
+
+                                </div>
+
+                            {% endfor %}
+
+                        </div>
+
+                        <div class="pitch-bench">
+
+                            {% for player in result.bench %}
+
+                                <div class="bench-player">
+
+                                    <span class="bench-slot">
+                                        {{ loop.index }}
+                                    </span>
+
+                                    <strong>
+                                        {{ player.name }}
+                                    </strong>
+
+                                    <small>
+                                        {{ player.actual_points }}
+                                        pts
+                                    </small>
+
+                                </div>
+
+                            {% endfor %}
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="history-detail">
+
+                        <h3>
+                            Transfer review
+                        </h3>
+
+                        {% if result.transfers %}
+
+                            {% for transfer in result.transfers %}
+
+                                <div class="transfer-review">
+
+                                    <div>
+                                        <strong>
+                                            {{ transfer.out_name }}
+                                        </strong>
+                                        <small>
+                                            OUT
+                                        </small>
+                                    </div>
+
+                                    <div class="transfer-review-arrow">
+                                        →
+                                    </div>
+
+                                    <div>
+                                        <strong>
+                                            {{ transfer.in_name }}
+                                        </strong>
+                                        <small>
+                                            IN
+                                        </small>
+                                    </div>
+
+                                    <div class="transfer-review-metric">
+                                        <span>
+                                            Projected edge
+                                        </span>
+                                        <strong>
+                                            {% if transfer.expected_edge is not none %}
+                                                {% if transfer.expected_edge >= 0 %}
+                                                    +
+                                                {% endif %}
+                                                {{ "%.2f"|format(
+                                                    transfer.expected_edge
+                                                ) }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </strong>
+                                    </div>
+
+                                    <div class="transfer-review-metric">
+                                        <span>
+                                            Actual edge
+                                        </span>
+                                        <strong
+                                            class="
+                                                {% if transfer.actual_edge >= 0 %}
+                                                    positive
+                                                {% else %}
+                                                    negative
+                                                {% endif %}
+                                            "
+                                        >
+                                            {% if transfer.actual_edge >= 0 %}
+                                                +
+                                            {% endif %}
+                                            {{ transfer.actual_edge }}
+                                        </strong>
+                                    </div>
+
+                                    <div class="transfer-review-scoreline">
+                                        {{ transfer.out_actual }}
+                                        →
+                                        {{ transfer.in_actual }}
+                                        pts
+                                    </div>
+
+                                </div>
+
+                            {% endfor %}
+
+                            <div class="transfer-total">
+
+                                <span>
+                                    Net transfer impact
+                                </span>
+
+                                <strong
+                                    class="
+                                        {% if result.transfer_summary.net_actual_gain >= 0 %}
+                                            positive
+                                        {% else %}
+                                            negative
+                                        {% endif %}
+                                    "
+                                >
+                                    {% if result.transfer_summary.net_actual_gain >= 0 %}
+                                        +
+                                    {% endif %}
+                                    {{ result.transfer_summary.net_actual_gain }}
+                                    pts
+                                </strong>
+
+                            </div>
+
+                        {% else %}
+
+                            <p>
+                                No transfers made.
+                            </p>
+
+                        {% endif %}
+
+
+                        <h3>
+                            Player calibration
+                        </h3>
+
+                        <div class="player-review-table">
+
+                            <div class="player-review-row header">
+                                <span>Player</span>
+                                <span>Proj</span>
+                                <span>Actual</span>
+                                <span>Δ</span>
+                            </div>
+
+                            {% for player in result.players %}
+
+                                <div class="player-review-row">
+
+                                    <strong>
+                                        {{ player.name }}
+                                    </strong>
+
+                                    <span>
+                                        {% if player.projected is not none %}
+                                            {{ "%.1f"|format(
+                                                player.projected
+                                            ) }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </span>
+
+                                    <span>
+                                        {{ player.actual_points }}
+                                    </span>
+
+                                    <span
+                                        class="
+                                            {% if player.projection_delta is not none %}
+                                                {% if player.projection_delta >= 0 %}
+                                                    positive
+                                                {% else %}
+                                                    negative
+                                                {% endif %}
+                                            {% endif %}
+                                        "
+                                    >
+                                        {% if player.projection_delta is not none %}
+                                            {% if player.projection_delta >= 0 %}
+                                                +
+                                            {% endif %}
+                                            {{ "%.1f"|format(
+                                                player.projection_delta
+                                            ) }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </span>
+
+                                </div>
+
+                            {% endfor %}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            {% endif %}
+
+        </section>
+
+    {% endfor %}
+
+</div>
+
+</body>
+</html>
