@@ -106,6 +106,25 @@ def get_entry_picks(
 
     return response.json()
 
+
+def get_entry_transfers(
+    entry_id=ENTRY_ID,
+):
+
+    url = (
+        "https://fantasy.premierleague.com/"
+        f"api/entry/{entry_id}/transfers/"
+    )
+
+    response = requests.get(
+        url,
+        timeout=30,
+    )
+
+    response.raise_for_status()
+
+    return response.json()
+
 def get_gameweek_status():
 
     data = get_bootstrap()
