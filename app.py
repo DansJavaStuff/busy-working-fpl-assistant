@@ -20,6 +20,7 @@ from tools.apply_approved_plan import (
 )
 
 from gameweek_history import (
+    archive_pre_deadline_plan,
     collect_gameweek_results,
     load_history,
 )
@@ -1350,6 +1351,19 @@ def approve():
         )
     except ValueError:
         confirmed_hit_cost = 0
+
+    report = load_weekly_report()
+
+    if (
+        report is not None
+        and
+        report.get("gameweek")
+        == snapshot.get("gameweek")
+    ):
+        archive_pre_deadline_plan(
+            report,
+            snapshot,
+        )
 
     try:
         apply_approved_plan(
