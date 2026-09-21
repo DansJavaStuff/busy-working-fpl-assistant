@@ -256,8 +256,16 @@
                                                 </strong>
 
                                                 <small>
-                                                    {{ player.actual_points }}
-                                                    pts
+                                                    {% if player.multiplier > 1 %}
+                                                        {{ player.actual_contribution }}
+                                                        pts counted
+                                                        ·
+                                                        {{ player.actual_points }}
+                                                        raw
+                                                    {% else %}
+                                                        {{ player.actual_points }}
+                                                        pts
+                                                    {% endif %}
                                                 </small>
 
                                                 <div class="pitch-badges">
@@ -293,7 +301,11 @@
                                 <div class="bench-player">
 
                                     <span class="bench-slot">
-                                        {{ loop.index }}
+                                        {% if player.position == "GKP" %}
+                                            GK
+                                        {% else %}
+                                            {{ loop.index }}
+                                        {% endif %}
                                     </span>
 
                                     <strong>
@@ -477,12 +489,18 @@
                                         "
                                     >
                                         {% if player.projection_delta is not none %}
-                                            {% if player.projection_delta >= 0 %}
+                                            {% if player.projection_delta > 0.049 %}
                                                 +
+                                                {{ "%.1f"|format(
+                                                    player.projection_delta
+                                                ) }}
+                                            {% elif player.projection_delta < -0.049 %}
+                                                {{ "%.1f"|format(
+                                                    player.projection_delta
+                                                ) }}
+                                            {% else %}
+                                                +0.0
                                             {% endif %}
-                                            {{ "%.1f"|format(
-                                                player.projection_delta
-                                            ) }}
                                         {% else %}
                                             —
                                         {% endif %}
