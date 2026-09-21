@@ -819,9 +819,83 @@ def validate_proposed_team(
 )
 def history():
 
+    history_items = load_history()
+
+    selected_gameweek = request.args.get(
+        "gw",
+        type=int,
+    )
+
+    available_gameweeks = [
+        item["gameweek"]
+        for item in history_items
+    ]
+
+    if (
+        selected_gameweek
+        not in available_gameweeks
+    ):
+        selected_gameweek = (
+            available_gameweeks[0]
+            if available_gameweeks
+            else None
+        )
+
+    selected_item = next(
+        (
+            item
+            for item in history_items
+            if item["gameweek"]
+            == selected_gameweek
+        ),
+        None,
+    )
+
+    selected_index = (
+        available_gameweeks.index(
+            selected_gameweek
+        )
+        if selected_gameweek
+        in available_gameweeks
+        else None
+    )
+
+    newer_gameweek = None
+    older_gameweek = None
+
+    if selected_index is not None:
+
+        if selected_index > 0:
+            newer_gameweek = (
+                available_gameweeks[
+                    selected_index - 1
+                ]
+            )
+
+        if (
+            selected_index
+            < len(
+                available_gameweeks
+            ) - 1
+        ):
+            older_gameweek = (
+                available_gameweeks[
+                    selected_index + 1
+                ]
+            )
+
     return render_template(
         "history.html",
-        history=load_history(),
+        history=history_items,
+        selected_item=selected_item,
+        selected_gameweek=
+            selected_gameweek,
+        available_gameweeks=
+            available_gameweeks,
+        newer_gameweek=
+            newer_gameweek,
+        older_gameweek=
+            older_gameweek,
     )
 
 
