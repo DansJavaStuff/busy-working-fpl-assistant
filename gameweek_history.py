@@ -131,14 +131,6 @@ def list_archived_gameweeks():
 def _event_info(gameweek):
     bootstrap = get_bootstrap()
 
-    bootstrap_players = {
-        player["id"]: player
-        for player in bootstrap.get(
-            "elements",
-            [],
-        )
-    }
-
     event = next(
         (
             event
@@ -338,9 +330,29 @@ def collect_gameweek_results(
             f"GW{gameweek}."
         )
 
-    event = _event_info(
-        gameweek
+    bootstrap = get_bootstrap()
+
+    bootstrap_players = {
+        player["id"]: player
+        for player in bootstrap.get(
+            "elements",
+            [],
+        )
+    }
+
+    event = next(
+        (
+            event
+            for event in bootstrap["events"]
+            if event["id"] == gameweek
+        ),
+        None,
     )
+
+    if event is None:
+        raise RuntimeError(
+            f"Unable to find FPL GW{gameweek}"
+        )
 
     live = get_gameweek_live(
         gameweek
