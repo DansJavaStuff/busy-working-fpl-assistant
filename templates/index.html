@@ -78,14 +78,25 @@
 
     </div>
 
-    <div class="hq-gameweek">
-        <span>
-            PLANNING
-        </span>
+    <div class="hq-header-actions">
 
-        <strong>
-            GW{{ report.gameweek }}
-        </strong>
+        <a
+            href="{{ url_for('history') }}"
+            class="hq-nav-link"
+        >
+            HISTORY
+        </a>
+
+        <div class="hq-gameweek">
+            <span>
+                PLANNING
+            </span>
+
+            <strong>
+                GW{{ report.gameweek }}
+            </strong>
+        </div>
+
     </div>
 
 </header>
