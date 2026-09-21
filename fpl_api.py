@@ -33,6 +33,15 @@ def get_fixtures():
     response.raise_for_status()
     return response.json()
 
+
+def get_gameweek_live(gameweek):
+    response = requests.get(
+        f"{BASE_URL}/event/{gameweek}/live/",
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
+
 def get_players():
     data = get_bootstrap()
 
