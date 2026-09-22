@@ -25,6 +25,10 @@ from gameweek_history import (
     load_history,
 )
 
+from chip_planner import (
+    build_chip_planner,
+)
+
 import json
 from pathlib import Path
 from datetime import datetime
@@ -813,6 +817,19 @@ def validate_proposed_team(
         bench,
         squad_by_id,
     )
+
+@app.route(
+    "/chips",
+)
+def chips():
+
+    planner = build_chip_planner()
+
+    return render_template(
+        "chips.html",
+        planner=planner,
+    )
+
 
 @app.route(
     "/history",
