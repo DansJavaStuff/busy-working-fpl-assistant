@@ -129,8 +129,8 @@
                         <span>Normal</span>
                         <span>BB</span>
                         <span>Uplift</span>
-                        <span>Next 4 Δ</span>
-                        <span>Practical</span>
+                        <span>Next 4 vs normal</span>
+                        <span>Practical uplift</span>
                     </div>
 
                     {% for scenario in planner.bench_boost.scenarios %}
@@ -187,18 +187,18 @@
 
                             <span
                                 class="
-                                    {% if scenario.post_bb_delta > 0.049 %}
+                                    {% if scenario.post_vs_normal_delta > 0.049 %}
                                         positive
-                                    {% elif scenario.post_bb_delta < -0.049 %}
+                                    {% elif scenario.post_vs_normal_delta < -0.049 %}
                                         negative
                                     {% endif %}
                                 "
                             >
-                                {% if scenario.post_bb_delta > 0.049 %}
+                                {% if scenario.post_vs_normal_delta > 0.049 %}
                                     +
                                 {% endif %}
                                 {{ "%.1f"|format(
-                                    scenario.post_bb_delta
+                                    scenario.post_vs_normal_delta
                                 ) }}
                             </span>
 
@@ -269,10 +269,15 @@
                     chip, not merely by improving the
                     squad. Formation is allowed to change
                     in each scenario.
-                    <strong>Next 4 Δ</strong> shows the
-                    longer-term squad effect, while
-                    <strong>Practical</strong> combines
-                    this week and a smaller future value.
+                    <strong>Next 4 vs normal</strong>
+                    compares the future value of the
+                    Bench Boost-specific transfers with
+                    the normal plan using the same
+                    transfer allowance.
+                    <strong>Practical uplift</strong>
+                    combines the chip uplift this week
+                    with a smaller weighting for that
+                    future difference.
                 </p>
 
             {% endif %}
