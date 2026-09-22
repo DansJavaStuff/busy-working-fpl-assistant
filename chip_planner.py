@@ -355,6 +355,15 @@ def _bench_boost_scenarios(
             for player in squad
         )
 
+        normal_post_projection = sum(
+            _post_bb_projection(
+                player,
+                planning_gameweek,
+            )
+            for player
+            in normal_result["squad"]
+        )
+
         gross_projection = (
             squad_projection
             + captain_projection
@@ -398,6 +407,8 @@ def _bench_boost_scenarios(
                 ),
             "post_bb_projection":
                 post_bb_projection,
+            "normal_post_projection":
+                normal_post_projection,
             "pairs":
                 _pair_transfers(
                     result
@@ -438,28 +449,28 @@ def _bench_boost_scenarios(
             - baseline["post_bb_projection"]
         )
 
+        scenario["post_vs_normal_delta"] = (
+            scenario["post_bb_projection"]
+            - scenario["normal_post_projection"]
+        )
+
         scenario["practical_gain"] = (
-            scenario["gain_vs_current"]
+            scenario["bb_uplift"]
             +
             (
-                scenario["post_bb_delta"]
+                scenario["post_vs_normal_delta"]
                 * POST_BB_HORIZON_WEIGHT
             )
         )
 
         scenario["practical_score"] = (
-            scenario["net_projection"]
-            +
-            (
-                scenario["post_bb_projection"]
-                * POST_BB_HORIZON_WEIGHT
-            )
+            scenario["practical_gain"]
         )
 
         scenario["rental_risk"] = (
-            scenario["gain_vs_current"] > 0
+            scenario["bb_uplift"] > 0
             and
-            scenario["post_bb_delta"] < 0
+            scenario["post_vs_normal_delta"] < 0
         )
 
     best = max(
@@ -668,10 +679,11 @@ def build_chip_planner():
                     f"of BB uplift."
                 )
                 card["note"] = (
-                    "Practical ranking includes "
-                    "this Gameweek, transfer hits "
-                    "and a smaller value for the "
-                    "four following Gameweeks."
+                    "Practical ranking compares "
+                    "the Bench Boost plan against "
+                    "the equivalent normal plan, "
+                    "including a smaller value for "
+                    "the four following Gameweeks."
                 )
 
         elif card["name"] == "3xc":
