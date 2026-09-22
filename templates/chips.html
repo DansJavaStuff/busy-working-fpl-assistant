@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1">
+
+    <title>
+        Chip Planner · Gameweek HQ
+    </title>
+
+    <link
+        rel="icon"
+        type="image/png"
+        href="{{ url_for(
+            'static',
+            filename='GHQ_app.png'
+        ) }}"
+    >
+
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+</head>
+
+<body>
+
+<div class="page">
+
+    <header class="hq-header">
+
+        <div class="hq-brand">
+
+            <div class="hq-logo-placeholder">
+                <img
+                    src="{{ url_for(
+                        'static',
+                        filename='GHQ_Shield.png'
+                    ) }}"
+                    alt="Gameweek HQ crest"
+                    class="hq-logo"
+                >
+            </div>
+
+            <div>
+                <span class="hq-kicker">
+                    CHIP STRATEGY
+                </span>
+
+                <h1>
+                    Chip Planner
+                </h1>
+
+                <span class="hq-subtitle">
+                    Opportunity, value and timing
+                </span>
+            </div>
+
+        </div>
+
+        <div class="hq-header-actions">
+            <a
+                href="{{ url_for('history') }}"
+                class="hq-nav-link"
+            >
+                HISTORY
+            </a>
+
+            <a
+                href="{{ url_for('index') }}"
+                class="hq-nav-link"
+            >
+                DASHBOARD
+            </a>
+        </div>
+
+    </header>
+
+
+    <section class="card chip-intro">
+
+        <span class="team-label">
+            READ-ONLY PLANNER
+        </span>
+
+        <h2>
+            Planning GW{{ planner.gameweek }}
+        </h2>
+
+        <p>
+            This page does not activate chips.
+            It records availability and builds
+            the evidence needed to compare chip
+            opportunities before anything is
+            integrated into live recommendations.
+        </p>
+
+    </section>
+
+
+    <div class="chip-grid">
+
+        {% for chip in planner.chips %}
+
+            <section
+                class="
+                    chip-card
+                    {{ chip.status }}
+                "
+            >
+
+                <div class="chip-card-header">
+
+                    <div>
+                        <span class="team-label">
+                            {{ chip.short }}
+                            {% if chip.number %}
+                                · SET {{ chip.number }}
+                            {% endif %}
+                        </span>
+
+                        <h2>
+                            {{ chip.title }}
+                        </h2>
+                    </div>
+
+                    <span
+                        class="
+                            chip-status-pill
+                            {{ chip.status }}
+                        "
+                    >
+                        {{ chip.status }}
+                    </span>
+
+                </div>
+
+                <div class="chip-metrics">
+
+                    <div>
+                        <span>Available from</span>
+                        <strong>
+                            {% if chip.start_event %}
+                                GW{{ chip.start_event }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Expires after</span>
+                        <strong>
+                            {% if chip.stop_event %}
+                                GW{{ chip.stop_event }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </strong>
+                    </div>
+
+                </div>
+
+                <div class="chip-evaluation">
+                    <span>Current evaluation</span>
+                    <strong>
+                        {{ chip.evaluation }}
+                    </strong>
+
+                    <p class="chip-note">
+                        {{ chip.note }}
+                    </p>
+                </div>
+
+                {% if chip.name == "bboost" %}
+
+                    <div class="bb-bench">
+
+                        {% for player in planner.bench %}
+
+                            <div class="bb-bench-player">
+                                <strong>
+                                    {{ player.name }}
+                                </strong>
+
+                                <small>
+                                    {{ "%.1f"|format(
+                                        player.projection
+                                    ) }}
+                                    projected
+                                </small>
+                            </div>
+
+                        {% endfor %}
+
+                    </div>
+
+                {% endif %}
+
+            </section>
+
+        {% endfor %}
+
+    </div>
+
+
+    <section class="card chip-roadmap">
+
+        <span class="team-label">
+            NEXT BUILD
+        </span>
+
+        <h2>
+            Chip opportunity engine
+        </h2>
+
+        <p>
+            Bench Boost will be first:
+            compare the current four bench
+            projections against optimised
+            free-transfer and hit-assisted
+            versions of the squad, then measure
+            the extra points the chip actually
+            makes count.
+        </p>
+
+    </section>
+
+</div>
+
+</body>
+</html>
