@@ -1,0 +1,30 @@
+<section class="card chip-load-error">
+
+    <span class="team-label">
+        CHIP PLANNER
+    </span>
+
+    <h2>
+        Unable to load chip data
+    </h2>
+
+    <p>
+        The page loaded successfully, but the
+        live data calculation failed.
+    </p>
+
+    {% if error %}
+        <details>
+            <summary>Technical details</summary>
+            <pre>{{ error }}</pre>
+        </details>
+    {% endif %}
+
+    <button
+        type="button"
+        onclick="window.location.reload()"
+    >
+        TRY AGAIN
+    </button>
+
+</section>
