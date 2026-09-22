@@ -237,6 +237,43 @@ def _pair_transfers(result):
     return pairs
 
 
+def _normal_gw_projection(
+    result,
+    planning_gameweek,
+):
+    starters = [
+        player
+        for player in result["squad"]
+        if player["starter"]
+    ]
+
+    captain = next(
+        player
+        for player in starters
+        if player["captain"]
+    )
+
+    gross = (
+        sum(
+            _projection(
+                player,
+                planning_gameweek,
+            )
+            for player in starters
+        )
+        +
+        _projection(
+            captain,
+            planning_gameweek,
+        )
+    )
+
+    return (
+        gross
+        - result["hit_cost"]
+    )
+
+
 def _bench_boost_scenarios(
     players,
     current_team,
@@ -253,7 +290,18 @@ def _bench_boost_scenarios(
             chip_mode="bench_boost",
         )
 
-        if result is None:
+        normal_result = optimise_transfers(
+            players,
+            current_team,
+            planning_gameweek,
+            transfers,
+        )
+
+        if (
+            result is None
+            or
+            normal_result is None
+        ):
             continue
 
         squad = result["squad"]
@@ -317,6 +365,18 @@ def _bench_boost_scenarios(
             - result["hit_cost"]
         )
 
+        normal_net_projection = (
+            _normal_gw_projection(
+                normal_result,
+                planning_gameweek,
+            )
+        )
+
+        bb_uplift = (
+            net_projection
+            - normal_net_projection
+        )
+
         scenarios.append({
             "transfers":
                 transfers,
@@ -328,6 +388,10 @@ def _bench_boost_scenarios(
                 net_projection,
             "bench_projection":
                 bench_projection,
+            "normal_net_projection":
+                normal_net_projection,
+            "bb_uplift":
+                bb_uplift,
             "formation":
                 _formation(
                     starters
@@ -338,6 +402,10 @@ def _bench_boost_scenarios(
                 _pair_transfers(
                     result
                 ),
+            "normal_pairs":
+                _pair_transfers(
+                    normal_result
+                ),
         })
 
     if not scenarios:
@@ -346,6 +414,7 @@ def _bench_boost_scenarios(
             "baseline": None,
             "best": None,
             "best_practical": None,
+            "best_uplift": None,
             "best_no_hit": None,
         }
 
@@ -405,6 +474,12 @@ def _bench_boost_scenarios(
             item["practical_score"],
     )
 
+    best_uplift = max(
+        scenarios,
+        key=lambda item:
+            item["bb_uplift"],
+    )
+
     no_hit = [
         scenario
         for scenario in scenarios
@@ -430,6 +505,8 @@ def _bench_boost_scenarios(
             best,
         "best_practical":
             best_practical,
+        "best_uplift":
+            best_uplift,
         "best_no_hit":
             best_no_hit,
     }
@@ -586,7 +663,9 @@ def build_chip_planner():
                     f"Best practical BB setup "
                     f"projects "
                     f"{best['net_projection']:.1f} "
-                    f"net GW points."
+                    f"net GW points, with "
+                    f"{best['bb_uplift']:.1f} pts "
+                    f"of BB uplift."
                 )
                 card["note"] = (
                     "Practical ranking includes "
