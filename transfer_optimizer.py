@@ -126,6 +126,32 @@ def get_projection(player, gameweek):
         0.0
     )
 
+def get_post_horizon_projection(
+    player,
+    planning_gameweek,
+):
+    """
+    Projection for the four Gameweeks after the
+    planning Gameweek.
+
+    Bench Boost values the current Gameweek
+    separately, so this avoids double-counting
+    the immediate fixture when judging whether
+    a transfer remains useful afterwards.
+    """
+
+    return sum(
+        get_projection(
+            player,
+            gameweek,
+        )
+        for gameweek in range(
+            planning_gameweek + 1,
+            planning_gameweek + 5,
+        )
+    )
+
+
 def get_horizon_projection(
     player,
     planning_gameweek
@@ -315,7 +341,7 @@ def optimise_transfers(
             +
             (
                 selected[p["id"]]
-                * get_horizon_projection(
+                * get_post_horizon_projection(
                     p,
                     planning_gameweek
                 )
