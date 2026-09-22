@@ -545,4 +545,6 @@ def build_chip_planner():
             bench,
         "bench_projection":
             bench_projection,
+        "bench_boost":
+            bench_boost,
     }
