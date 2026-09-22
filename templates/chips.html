@@ -78,157 +78,122 @@
 
     </header>
 
+    <main
+        id="chip-planner-content"
+        aria-live="polite"
+        aria-busy="true"
+    >
 
-    <section class="card chip-intro">
+        <section class="card chip-loading-card">
 
-        <span class="team-label">
-            READ-ONLY PLANNER
-        </span>
+            <div class="chip-loading-spinner"></div>
 
-        <h2>
-            Planning GW{{ planner.gameweek }}
-        </h2>
+            <div>
+                <span class="team-label">
+                    BUILDING PLAN
+                </span>
 
-        <p>
-            This page does not activate chips.
-            It records availability and builds
-            the evidence needed to compare chip
-            opportunities before anything is
-            integrated into live recommendations.
-        </p>
+                <h2>
+                    Loading current chip data…
+                </h2>
 
-    </section>
+                <p>
+                    Checking your live FPL squad,
+                    chip availability and player
+                    projections.
+                </p>
+            </div>
 
+        </section>
 
-    <div class="chip-grid">
+        <div class="chip-loading-grid">
+            <div class="chip-loading-placeholder"></div>
+            <div class="chip-loading-placeholder"></div>
+            <div class="chip-loading-placeholder"></div>
+            <div class="chip-loading-placeholder"></div>
+        </div>
 
-        {% for chip in planner.chips %}
-
-            <section
-                class="
-                    chip-card
-                    {{ chip.status }}
-                "
-            >
-
-                <div class="chip-card-header">
-
-                    <div>
-                        <span class="team-label">
-                            {{ chip.short }}
-                            {% if chip.number %}
-                                · SET {{ chip.number }}
-                            {% endif %}
-                        </span>
-
-                        <h2>
-                            {{ chip.title }}
-                        </h2>
-                    </div>
-
-                    <span
-                        class="
-                            chip-status-pill
-                            {{ chip.status }}
-                        "
-                    >
-                        {{ chip.status }}
-                    </span>
-
-                </div>
-
-                <div class="chip-metrics">
-
-                    <div>
-                        <span>Available from</span>
-                        <strong>
-                            {% if chip.start_event %}
-                                GW{{ chip.start_event }}
-                            {% else %}
-                                —
-                            {% endif %}
-                        </strong>
-                    </div>
-
-                    <div>
-                        <span>Expires after</span>
-                        <strong>
-                            {% if chip.stop_event %}
-                                GW{{ chip.stop_event }}
-                            {% else %}
-                                —
-                            {% endif %}
-                        </strong>
-                    </div>
-
-                </div>
-
-                <div class="chip-evaluation">
-                    <span>Current evaluation</span>
-                    <strong>
-                        {{ chip.evaluation }}
-                    </strong>
-
-                    <p class="chip-note">
-                        {{ chip.note }}
-                    </p>
-                </div>
-
-                {% if chip.name == "bboost" %}
-
-                    <div class="bb-bench">
-
-                        {% for player in planner.bench %}
-
-                            <div class="bb-bench-player">
-                                <strong>
-                                    {{ player.name }}
-                                </strong>
-
-                                <small>
-                                    {{ "%.1f"|format(
-                                        player.projection
-                                    ) }}
-                                    projected
-                                </small>
-                            </div>
-
-                        {% endfor %}
-
-                    </div>
-
-                {% endif %}
-
-            </section>
-
-        {% endfor %}
-
-    </div>
-
-
-    <section class="card chip-roadmap">
-
-        <span class="team-label">
-            NEXT BUILD
-        </span>
-
-        <h2>
-            Chip opportunity engine
-        </h2>
-
-        <p>
-            Bench Boost will be first:
-            compare the current four bench
-            projections against optimised
-            free-transfer and hit-assisted
-            versions of the squad, then measure
-            the extra points the chip actually
-            makes count.
-        </p>
-
-    </section>
+    </main>
 
 </div>
+
+<script>
+(async function loadChipPlanner() {
+
+    const target = document.getElementById(
+        "chip-planner-content"
+    );
+
+    try {
+
+        const response = await fetch(
+            "{{ url_for('chip_data') }}",
+            {
+                headers: {
+                    "X-Requested-With":
+                        "fetch"
+                }
+            }
+        );
+
+        const html = await response.text();
+
+        target.innerHTML = html;
+
+        if (!response.ok) {
+            throw new Error(
+                "Chip Planner request failed"
+            );
+        }
+
+    } catch (error) {
+
+        if (
+            !target.querySelector(
+                ".chip-load-error"
+            )
+        ) {
+            target.innerHTML = `
+                <section
+                    class="card chip-load-error"
+                >
+                    <span class="team-label">
+                        CHIP PLANNER
+                    </span>
+
+                    <h2>
+                        Unable to load chip data
+                    </h2>
+
+                    <p>
+                        The page itself is working,
+                        but the live FPL data request
+                        failed.
+                    </p>
+
+                    <button
+                        type="button"
+                        onclick="window.location.reload()"
+                    >
+                        TRY AGAIN
+                    </button>
+                </section>
+            `;
+        }
+
+        console.error(error);
+
+    } finally {
+
+        target.setAttribute(
+            "aria-busy",
+            "false"
+        );
+
+    }
+
+})();
+</script>
 
 </body>
 </html>
