@@ -5,6 +5,10 @@ from fpl_api import (
 
 from optimizer import load_players
 
+from transfer_optimizer import (
+    optimise_transfers,
+)
+
 
 CHIP_META = {
     "bboost": {
@@ -147,6 +151,197 @@ def _chip_cards(current_team):
     return cards
 
 
+def _pair_transfers(result):
+    remaining = list(
+        result.get(
+            "incoming",
+            [],
+        )
+    )
+
+    pairs = []
+
+    for outgoing in sorted(
+        result.get(
+            "outgoing",
+            [],
+        ),
+        key=lambda p:
+            p["position_id"],
+    ):
+        incoming = next(
+            (
+                player
+                for player in remaining
+                if player["position"]
+                == outgoing["position"]
+            ),
+            None,
+        )
+
+        if incoming is None:
+            continue
+
+        remaining.remove(
+            incoming
+        )
+
+        pairs.append({
+            "out":
+                outgoing["name"],
+            "in":
+                incoming["name"],
+        })
+
+    return pairs
+
+
+def _bench_boost_scenarios(
+    players,
+    current_team,
+    planning_gameweek,
+):
+    scenarios = []
+
+    for transfers in range(0, 4):
+        result = optimise_transfers(
+            players,
+            current_team,
+            planning_gameweek,
+            transfers,
+            chip_mode="bench_boost",
+        )
+
+        if result is None:
+            continue
+
+        squad = result["squad"]
+
+        starters = [
+            player
+            for player in squad
+            if player["starter"]
+        ]
+
+        bench = [
+            player
+            for player in squad
+            if not player["starter"]
+        ]
+
+        captain = next(
+            player
+            for player in starters
+            if player["captain"]
+        )
+
+        squad_projection = sum(
+            _projection(
+                player,
+                planning_gameweek,
+            )
+            for player in squad
+        )
+
+        captain_projection = (
+            _projection(
+                captain,
+                planning_gameweek,
+            )
+        )
+
+        bench_projection = sum(
+            _projection(
+                player,
+                planning_gameweek,
+            )
+            for player in bench
+        )
+
+        gross_projection = (
+            squad_projection
+            + captain_projection
+        )
+
+        net_projection = (
+            gross_projection
+            - result["hit_cost"]
+        )
+
+        scenarios.append({
+            "transfers":
+                transfers,
+            "hit_cost":
+                result["hit_cost"],
+            "gross_projection":
+                gross_projection,
+            "net_projection":
+                net_projection,
+            "bench_projection":
+                bench_projection,
+            "pairs":
+                _pair_transfers(
+                    result
+                ),
+        })
+
+    if not scenarios:
+        return {
+            "scenarios": [],
+            "baseline": None,
+            "best": None,
+            "best_no_hit": None,
+        }
+
+    baseline = next(
+        (
+            scenario
+            for scenario in scenarios
+            if scenario["transfers"] == 0
+        ),
+        scenarios[0],
+    )
+
+    for scenario in scenarios:
+        scenario["gain_vs_current"] = (
+            scenario["net_projection"]
+            - baseline["net_projection"]
+        )
+
+    best = max(
+        scenarios,
+        key=lambda item:
+            item["net_projection"],
+    )
+
+    no_hit = [
+        scenario
+        for scenario in scenarios
+        if scenario["hit_cost"] == 0
+    ]
+
+    best_no_hit = (
+        max(
+            no_hit,
+            key=lambda item:
+                item["net_projection"],
+        )
+        if no_hit
+        else None
+    )
+
+    return {
+        "scenarios":
+            scenarios,
+        "baseline":
+            baseline,
+        "best":
+            best,
+        "best_no_hit":
+            best_no_hit,
+    }
+
+
 def build_chip_planner():
     planning_gameweek = (
         get_planning_gameweek()
@@ -216,6 +411,14 @@ def build_chip_planner():
         for player in bench
     )
 
+    bench_boost = (
+        _bench_boost_scenarios(
+            players,
+            current_team,
+            planning_gameweek,
+        )
+    )
+
     cards = _chip_cards(
         current_team
     )
@@ -270,19 +473,34 @@ def build_chip_planner():
     for card in display_cards:
 
         if card["name"] == "bboost":
-            card["evaluation"] = (
-                f"Current GW{planning_gameweek} "
-                f"bench projects for "
-                f"{bench_projection:.1f} pts."
-            )
+            best = bench_boost[
+                "best"
+            ]
 
-            card["note"] = (
-                "This is the baseline only. "
-                "Next we will compare the "
-                "current squad with free-transfer "
-                "and hit-assisted Bench Boost "
-                "scenarios."
-            )
+            if best is None:
+                card["evaluation"] = (
+                    "Bench Boost scenarios "
+                    "could not be scored."
+                )
+                card["note"] = (
+                    "No valid optimiser "
+                    "scenario was returned."
+                )
+            else:
+                card["evaluation"] = (
+                    f"Current bench adds "
+                    f"{bench_projection:.1f} pts. "
+                    f"Best tested BB setup "
+                    f"projects "
+                    f"{best['net_projection']:.1f} "
+                    f"net team pts."
+                )
+                card["note"] = (
+                    "The table below compares "
+                    "the current squad with "
+                    "0-3 transfer Bench Boost "
+                    "setups. Hits are deducted."
+                )
 
         elif card["name"] == "3xc":
             card["evaluation"] = (
