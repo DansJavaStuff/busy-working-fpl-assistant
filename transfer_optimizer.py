@@ -151,6 +151,7 @@ def optimise_transfers(
     number_of_transfers,
     must_keep_ids=None,
     must_include_ids=None,
+    chip_mode=None,
 ):
 
     must_keep_ids = set(
@@ -296,30 +297,68 @@ def optimise_transfers(
     # Whole squad gets a smaller future-horizon
     # contribution.
     #
-    problem += pulp.lpSum(
-        (
-            starter[p["id"]]
-            * get_projection(
-                p,
-                planning_gameweek
+    if chip_mode == "bench_boost":
+
+        problem += pulp.lpSum(
+            (
+                selected[p["id"]]
+                * get_projection(
+                    p,
+                    planning_gameweek
+                )
             )
-        )
-        +
-        (
-            captain[p["id"]]
-            * calculate_captain_score(p)
-        )
-        +
-        (
-            selected[p["id"]]
-            * get_horizon_projection(
-                p,
-                planning_gameweek
+            +
+            (
+                captain[p["id"]]
+                * calculate_captain_score(p)
             )
-            * HORIZON_WEIGHT
+            +
+            (
+                selected[p["id"]]
+                * get_horizon_projection(
+                    p,
+                    planning_gameweek
+                )
+                * HORIZON_WEIGHT
+            )
+            +
+            (
+                starter[p["id"]]
+                * get_projection(
+                    p,
+                    planning_gameweek
+                )
+                * 0.001
+            )
+            for p in players
         )
-        for p in players
-    )
+
+    else:
+
+        problem += pulp.lpSum(
+            (
+                starter[p["id"]]
+                * get_projection(
+                    p,
+                    planning_gameweek
+                )
+            )
+            +
+            (
+                captain[p["id"]]
+                * calculate_captain_score(p)
+            )
+            +
+            (
+                selected[p["id"]]
+                * get_horizon_projection(
+                    p,
+                    planning_gameweek
+                )
+                * HORIZON_WEIGHT
+            )
+            for p in players
+        )
 
     #
     # 15-player squad
