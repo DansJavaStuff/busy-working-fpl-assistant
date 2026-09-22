@@ -823,12 +823,36 @@ def validate_proposed_team(
 )
 def chips():
 
-    planner = build_chip_planner()
-
     return render_template(
         "chips.html",
-        planner=planner,
     )
+
+
+@app.route(
+    "/chips/data",
+)
+def chip_data():
+
+    try:
+        planner = build_chip_planner()
+
+        return render_template(
+            "chips_content.html",
+            planner=planner,
+        )
+
+    except Exception as exc:
+        app.logger.exception(
+            "Unable to build Chip Planner"
+        )
+
+        return (
+            render_template(
+                "chips_error.html",
+                error=str(exc),
+            ),
+            500,
+        )
 
 
 @app.route(
