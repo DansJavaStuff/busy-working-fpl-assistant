@@ -2462,12 +2462,13 @@ span:last-child {
 .bb-scenario-row {
     display: grid;
     grid-template-columns:
-        1.45fr
+        1.35fr
         .55fr
-        .75fr
-        .75fr
-        .85fr
-        .85fr;
+        .72fr
+        .72fr
+        .72fr
+        .82fr
+        .82fr;
     gap: 8px;
     align-items: center;
     padding: 10px 12px;
@@ -2533,4 +2534,14 @@ span:last-child {
     .bb-scenario-row {
         min-width: 570px;
     }
+}
+
+
+.bb-transfer-pairs > strong {
+    display: inline-flex;
+    align-items: center;
+    color: var(--hq-plum);
+    font-size: .68rem;
+    letter-spacing: .03em;
+    text-transform: uppercase;
 }
