@@ -126,8 +126,9 @@
                     <div class="bb-scenario-row header">
                         <span>Setup</span>
                         <span>Form</span>
-                        <span>BB unlock</span>
-                        <span>GW net</span>
+                        <span>Normal</span>
+                        <span>BB</span>
+                        <span>Uplift</span>
                         <span>Next 4 Δ</span>
                         <span>Practical</span>
                     </div>
@@ -157,7 +158,7 @@
 
                             <span>
                                 {{ "%.1f"|format(
-                                    scenario.bench_projection
+                                    scenario.normal_net_projection
                                 ) }}
                             </span>
 
@@ -166,6 +167,23 @@
                                     scenario.net_projection
                                 ) }}
                             </strong>
+
+                            <span
+                                class="
+                                    {% if scenario.bb_uplift > 0.049 %}
+                                        positive
+                                    {% elif scenario.bb_uplift < -0.049 %}
+                                        negative
+                                    {% endif %}
+                                "
+                            >
+                                {% if scenario.bb_uplift > 0.049 %}
+                                    +
+                                {% endif %}
+                                {{ "%.1f"|format(
+                                    scenario.bb_uplift
+                                ) }}
+                            </span>
 
                             <span
                                 class="
@@ -205,6 +223,8 @@
 
                                 <div class="bb-transfer-pairs">
 
+                                    <strong>BB:</strong>
+
                                     {% for pair in scenario.pairs %}
                                         <span>
                                             {{ pair.out }}
@@ -212,6 +232,21 @@
                                             {{ pair.in }}
                                         </span>
                                     {% endfor %}
+
+                                    {% if scenario.normal_pairs
+                                          != scenario.pairs %}
+
+                                        <strong>Normal:</strong>
+
+                                        {% for pair in scenario.normal_pairs %}
+                                            <span>
+                                                {{ pair.out }}
+                                                →
+                                                {{ pair.in }}
+                                            </span>
+                                        {% endfor %}
+
+                                    {% endif %}
 
                                 </div>
 
@@ -224,18 +259,20 @@
                 </div>
 
                 <p class="chip-note bb-explainer">
-                    <strong>BB unlock</strong> is the
-                    projection from the four players
-                    who would otherwise be benched.
-                    Formation is allowed to change for
-                    each squad. <strong>GW net</strong>
-                    includes captaincy and deducts any
-                    hit. <strong>Next 4 Δ</strong>
-                    shows whether the transfers improve
-                    or weaken the following four
-                    Gameweeks. <strong>Practical</strong>
-                    combines both, with future weeks
-                    deliberately weighted less heavily.
+                    <strong>Normal</strong> is the best
+                    no-chip score with the same number
+                    of transfers. <strong>BB</strong> is
+                    the best Bench Boost score after the
+                    same transfer allowance.
+                    <strong>Uplift</strong> is therefore
+                    the extra value created by using the
+                    chip, not merely by improving the
+                    squad. Formation is allowed to change
+                    in each scenario.
+                    <strong>Next 4 Δ</strong> shows the
+                    longer-term squad effect, while
+                    <strong>Practical</strong> combines
+                    this week and a smaller future value.
                 </p>
 
             {% endif %}
