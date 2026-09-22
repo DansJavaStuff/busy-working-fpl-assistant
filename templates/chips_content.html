@@ -125,11 +125,11 @@
 
                     <div class="bb-scenario-row header">
                         <span>Setup</span>
-                        <span>Bench</span>
-                        <span>Gross</span>
-                        <span>Hit</span>
-                        <span>Net</span>
-                        <span>Gain</span>
+                        <span>Form</span>
+                        <span>BB unlock</span>
+                        <span>GW net</span>
+                        <span>Next 4 Δ</span>
+                        <span>Practical</span>
                     </div>
 
                     {% for scenario in planner.bench_boost.scenarios %}
@@ -137,7 +137,7 @@
                         <div
                             class="
                                 bb-scenario-row
-                                {% if scenario == planner.bench_boost.best %}
+                                {% if scenario == planner.bench_boost.best_practical %}
                                     recommended
                                 {% endif %}
                             "
@@ -152,23 +152,13 @@
                             </strong>
 
                             <span>
+                                {{ scenario.formation }}
+                            </span>
+
+                            <span>
                                 {{ "%.1f"|format(
                                     scenario.bench_projection
                                 ) }}
-                            </span>
-
-                            <span>
-                                {{ "%.1f"|format(
-                                    scenario.gross_projection
-                                ) }}
-                            </span>
-
-                            <span>
-                                {% if scenario.hit_cost %}
-                                    -{{ scenario.hit_cost }}
-                                {% else %}
-                                    0
-                                {% endif %}
                             </span>
 
                             <strong>
@@ -179,18 +169,35 @@
 
                             <span
                                 class="
-                                    {% if scenario.gain_vs_current > 0.049 %}
+                                    {% if scenario.post_bb_delta > 0.049 %}
                                         positive
-                                    {% elif scenario.gain_vs_current < -0.049 %}
+                                    {% elif scenario.post_bb_delta < -0.049 %}
                                         negative
                                     {% endif %}
                                 "
                             >
-                                {% if scenario.gain_vs_current > 0.049 %}
+                                {% if scenario.post_bb_delta > 0.049 %}
                                     +
                                 {% endif %}
                                 {{ "%.1f"|format(
-                                    scenario.gain_vs_current
+                                    scenario.post_bb_delta
+                                ) }}
+                            </span>
+
+                            <span
+                                class="
+                                    {% if scenario.practical_gain > 0.049 %}
+                                        positive
+                                    {% elif scenario.practical_gain < -0.049 %}
+                                        negative
+                                    {% endif %}
+                                "
+                            >
+                                {% if scenario.practical_gain > 0.049 %}
+                                    +
+                                {% endif %}
+                                {{ "%.1f"|format(
+                                    scenario.practical_gain
                                 ) }}
                             </span>
 
@@ -217,12 +224,18 @@
                 </div>
 
                 <p class="chip-note bb-explainer">
-                    <strong>Bench</strong> is the
-                    extra projection made count by
-                    Bench Boost. <strong>Net</strong>
-                    is the projected 15-player team
-                    score plus captain points, after
-                    any transfer hit.
+                    <strong>BB unlock</strong> is the
+                    projection from the four players
+                    who would otherwise be benched.
+                    Formation is allowed to change for
+                    each squad. <strong>GW net</strong>
+                    includes captaincy and deducts any
+                    hit. <strong>Next 4 Δ</strong>
+                    shows whether the transfers improve
+                    or weaken the following four
+                    Gameweeks. <strong>Practical</strong>
+                    combines both, with future weeks
+                    deliberately weighted less heavily.
                 </p>
 
             {% endif %}
