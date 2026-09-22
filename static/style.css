@@ -2192,3 +2192,176 @@ span:last-child {
     }
 
 }
+
+
+/* ==================================================
+   CHIP PLANNER
+   ================================================== */
+
+.chip-intro {
+    border-left: 6px solid var(--hq-plum);
+}
+
+.chip-intro p {
+    margin-bottom: 0;
+    color: var(--hq-muted);
+    line-height: 1.55;
+}
+
+.chip-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.chip-card {
+    background: white;
+    border: 1px solid rgba(53, 24, 62, .09);
+    border-radius: 14px;
+    padding: 18px;
+}
+
+.chip-card.available {
+    border-top: 5px solid var(--hq-green);
+}
+
+.chip-card.used {
+    border-top: 5px solid var(--hq-muted);
+    opacity: .78;
+}
+
+.chip-card.unknown {
+    border-top: 5px solid var(--hq-gold);
+}
+
+.chip-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.chip-card h2 {
+    margin: 3px 0 0;
+}
+
+.chip-status-pill {
+    border-radius: 999px;
+    padding: 5px 9px;
+    font-size: .65rem;
+    font-weight: 900;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    background: #f2f3f4;
+}
+
+.chip-status-pill.available {
+    background: rgba(47, 168, 95, .12);
+    color: var(--hq-green);
+}
+
+.chip-status-pill.used {
+    color: var(--hq-muted);
+}
+
+.chip-status-pill.unknown {
+    background: rgba(255, 207, 51, .22);
+    color: #6c5200;
+}
+
+.chip-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.chip-metrics > div {
+    background: #f7f8f9;
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+
+.chip-metrics span,
+.chip-evaluation span {
+    display: block;
+    color: var(--hq-muted);
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.chip-metrics strong {
+    display: block;
+    margin-top: 2px;
+    font-size: 1.05rem;
+}
+
+.chip-evaluation {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(53, 24, 62, .08);
+}
+
+.chip-evaluation strong {
+    display: block;
+    margin-top: 4px;
+}
+
+.chip-note {
+    margin: 7px 0 0;
+    color: var(--hq-muted);
+    font-size: .83rem;
+    line-height: 1.45;
+}
+
+.bb-bench {
+    display: grid;
+    grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.bb-bench-player {
+    border-radius: 9px;
+    background: rgba(49, 198, 212, .07);
+    padding: 9px;
+    min-width: 0;
+}
+
+.bb-bench-player strong,
+.bb-bench-player small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bb-bench-player small {
+    margin-top: 3px;
+    color: var(--hq-muted);
+}
+
+.chip-roadmap {
+    border-left: 6px solid var(--hq-cyan);
+}
+
+.chip-roadmap p {
+    color: var(--hq-muted);
+    line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+    .chip-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .bb-bench {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+}
