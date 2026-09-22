@@ -118,6 +118,115 @@
 
             {% endif %}
 
+            {% if chip.name == "bboost"
+                  and planner.bench_boost.scenarios %}
+
+                <div class="bb-scenarios">
+
+                    <div class="bb-scenario-row header">
+                        <span>Setup</span>
+                        <span>Bench</span>
+                        <span>Gross</span>
+                        <span>Hit</span>
+                        <span>Net</span>
+                        <span>Gain</span>
+                    </div>
+
+                    {% for scenario in planner.bench_boost.scenarios %}
+
+                        <div
+                            class="
+                                bb-scenario-row
+                                {% if scenario == planner.bench_boost.best %}
+                                    recommended
+                                {% endif %}
+                            "
+                        >
+                            <strong>
+                                {% if scenario.transfers == 0 %}
+                                    CURRENT
+                                {% else %}
+                                    {{ scenario.transfers }}
+                                    TRANSFER{% if scenario.transfers != 1 %}S{% endif %}
+                                {% endif %}
+                            </strong>
+
+                            <span>
+                                {{ "%.1f"|format(
+                                    scenario.bench_projection
+                                ) }}
+                            </span>
+
+                            <span>
+                                {{ "%.1f"|format(
+                                    scenario.gross_projection
+                                ) }}
+                            </span>
+
+                            <span>
+                                {% if scenario.hit_cost %}
+                                    -{{ scenario.hit_cost }}
+                                {% else %}
+                                    0
+                                {% endif %}
+                            </span>
+
+                            <strong>
+                                {{ "%.1f"|format(
+                                    scenario.net_projection
+                                ) }}
+                            </strong>
+
+                            <span
+                                class="
+                                    {% if scenario.gain_vs_current > 0.049 %}
+                                        positive
+                                    {% elif scenario.gain_vs_current < -0.049 %}
+                                        negative
+                                    {% endif %}
+                                "
+                            >
+                                {% if scenario.gain_vs_current > 0.049 %}
+                                    +
+                                {% endif %}
+                                {{ "%.1f"|format(
+                                    scenario.gain_vs_current
+                                ) }}
+                            </span>
+
+                            {% if scenario.pairs %}
+
+                                <div class="bb-transfer-pairs">
+
+                                    {% for pair in scenario.pairs %}
+                                        <span>
+                                            {{ pair.out }}
+                                            →
+                                            {{ pair.in }}
+                                        </span>
+                                    {% endfor %}
+
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+                <p class="chip-note bb-explainer">
+                    <strong>Bench</strong> is the
+                    extra projection made count by
+                    Bench Boost. <strong>Net</strong>
+                    is the projected 15-player team
+                    score plus captain points, after
+                    any transfer hit.
+                </p>
+
+            {% endif %}
+
         </section>
 
     {% endfor %}
