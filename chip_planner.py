@@ -10,6 +10,9 @@ from transfer_optimizer import (
 )
 
 
+POST_BB_HORIZON_WEIGHT = 0.15
+
+
 CHIP_META = {
     "bboost": {
         "title": "Bench Boost",
@@ -151,6 +154,44 @@ def _chip_cards(current_team):
     return cards
 
 
+def _post_bb_projection(
+    player,
+    planning_gameweek,
+):
+    return sum(
+        _projection(
+            player,
+            gameweek,
+        )
+        for gameweek in range(
+            planning_gameweek + 1,
+            planning_gameweek + 5,
+        )
+    )
+
+
+def _formation(starters):
+    counts = {
+        "DEF": 0,
+        "MID": 0,
+        "FWD": 0,
+    }
+
+    for player in starters:
+        position = player.get(
+            "position"
+        )
+
+        if position in counts:
+            counts[position] += 1
+
+    return (
+        f"{counts['DEF']}-"
+        f"{counts['MID']}-"
+        f"{counts['FWD']}"
+    )
+
+
 def _pair_transfers(result):
     remaining = list(
         result.get(
@@ -258,6 +299,14 @@ def _bench_boost_scenarios(
             for player in bench
         )
 
+        post_bb_projection = sum(
+            _post_bb_projection(
+                player,
+                planning_gameweek,
+            )
+            for player in squad
+        )
+
         gross_projection = (
             squad_projection
             + captain_projection
@@ -279,6 +328,12 @@ def _bench_boost_scenarios(
                 net_projection,
             "bench_projection":
                 bench_projection,
+            "formation":
+                _formation(
+                    starters
+                ),
+            "post_bb_projection":
+                post_bb_projection,
             "pairs":
                 _pair_transfers(
                     result
@@ -290,6 +345,7 @@ def _bench_boost_scenarios(
             "scenarios": [],
             "baseline": None,
             "best": None,
+            "best_practical": None,
             "best_no_hit": None,
         }
 
@@ -308,10 +364,45 @@ def _bench_boost_scenarios(
             - baseline["net_projection"]
         )
 
+        scenario["post_bb_delta"] = (
+            scenario["post_bb_projection"]
+            - baseline["post_bb_projection"]
+        )
+
+        scenario["practical_gain"] = (
+            scenario["gain_vs_current"]
+            +
+            (
+                scenario["post_bb_delta"]
+                * POST_BB_HORIZON_WEIGHT
+            )
+        )
+
+        scenario["practical_score"] = (
+            scenario["net_projection"]
+            +
+            (
+                scenario["post_bb_projection"]
+                * POST_BB_HORIZON_WEIGHT
+            )
+        )
+
+        scenario["rental_risk"] = (
+            scenario["gain_vs_current"] > 0
+            and
+            scenario["post_bb_delta"] < 0
+        )
+
     best = max(
         scenarios,
         key=lambda item:
             item["net_projection"],
+    )
+
+    best_practical = max(
+        scenarios,
+        key=lambda item:
+            item["practical_score"],
     )
 
     no_hit = [
@@ -337,6 +428,8 @@ def _bench_boost_scenarios(
             baseline,
         "best":
             best,
+        "best_practical":
+            best_practical,
         "best_no_hit":
             best_no_hit,
     }
@@ -474,7 +567,7 @@ def build_chip_planner():
 
         if card["name"] == "bboost":
             best = bench_boost[
-                "best"
+                "best_practical"
             ]
 
             if best is None:
@@ -490,16 +583,16 @@ def build_chip_planner():
                 card["evaluation"] = (
                     f"Current bench adds "
                     f"{bench_projection:.1f} pts. "
-                    f"Best tested BB setup "
+                    f"Best practical BB setup "
                     f"projects "
                     f"{best['net_projection']:.1f} "
-                    f"net team pts."
+                    f"net GW points."
                 )
                 card["note"] = (
-                    "The table below compares "
-                    "the current squad with "
-                    "0-3 transfer Bench Boost "
-                    "setups. Hits are deducted."
+                    "Practical ranking includes "
+                    "this Gameweek, transfer hits "
+                    "and a smaller value for the "
+                    "four following Gameweeks."
                 )
 
         elif card["name"] == "3xc":
