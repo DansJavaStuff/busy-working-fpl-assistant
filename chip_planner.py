@@ -11,6 +11,7 @@ from transfer_optimizer import (
 
 
 POST_BB_HORIZON_WEIGHT = 0.15
+FIRST_HALF_END_GW = 19
 
 
 CHIP_META = {
@@ -527,6 +528,7 @@ def _triple_captain_windows(
     players,
     current_team,
     planning_gameweek,
+    end_gameweek,
 ):
     current_ids = {
         pick["element"]
@@ -536,19 +538,13 @@ def _triple_captain_windows(
         )
     }
 
-    squad = [
-        player
-        for player in players
-        if player["id"] in current_ids
-    ]
-
     windows = []
 
     for gameweek in range(
         planning_gameweek,
-        planning_gameweek + 5,
+        end_gameweek + 1,
     ):
-        candidates = sorted(
+        league_candidates = sorted(
             (
                 {
                     "id":
@@ -564,50 +560,92 @@ def _triple_captain_windows(
                             player,
                             gameweek,
                         ),
+                    "owned":
+                        player["id"]
+                        in current_ids,
                 }
-                for player in squad
+                for player in players
+                if player.get(
+                    "can_select",
+                    True,
+                )
+                and
+                _projection(
+                    player,
+                    gameweek,
+                ) > 0
             ),
             key=lambda item:
                 item["projection"],
             reverse=True,
         )
 
-        if not candidates:
+        owned_candidates = [
+            candidate
+            for candidate
+            in league_candidates
+            if candidate["owned"]
+        ]
+
+        if (
+            not league_candidates
+            or
+            not owned_candidates
+        ):
             continue
 
-        best = candidates[0]
+        best_league = (
+            league_candidates[0]
+        )
+        best_owned = (
+            owned_candidates[0]
+        )
 
         windows.append({
             "gameweek":
                 gameweek,
-            "captain":
-                best,
-            "normal_captain":
-                best["projection"] * 2,
-            "triple_captain":
-                best["projection"] * 3,
-            "tc_uplift":
-                best["projection"],
+            "owned_captain":
+                best_owned,
+            "best_candidate":
+                best_league,
+            "best_is_owned":
+                best_league["owned"],
+            "owned_tc_uplift":
+                best_owned["projection"],
+            "best_tc_uplift":
+                best_league["projection"],
+            "transfer_gap":
+                (
+                    best_league["projection"]
+                    - best_owned["projection"]
+                ),
             "alternatives":
-                candidates[1:3],
+                league_candidates[1:3],
         })
 
     if not windows:
         return {
             "windows": [],
             "best": None,
+            "best_owned": None,
         }
 
     best = max(
         windows,
         key=lambda item:
-            item["tc_uplift"],
+            item["best_tc_uplift"],
+    )
+
+    best_owned = max(
+        windows,
+        key=lambda item:
+            item["owned_tc_uplift"],
     )
 
     for window in windows:
         window["gap_to_best"] = (
-            window["tc_uplift"]
-            - best["tc_uplift"]
+            window["best_tc_uplift"]
+            - best["best_tc_uplift"]
         )
 
     return {
@@ -615,6 +653,8 @@ def _triple_captain_windows(
             windows,
         "best":
             best,
+        "best_owned":
+            best_owned,
     }
 
 
@@ -624,7 +664,10 @@ def build_chip_planner():
     )
 
     current_team = get_my_team()
-    players = load_players()
+    players = load_players(
+        projection_end_gameweek=
+            FIRST_HALF_END_GW,
+    )
 
     players_by_id = {
         player["id"]: player
@@ -692,6 +735,7 @@ def build_chip_planner():
             players,
             current_team,
             planning_gameweek,
+            FIRST_HALF_END_GW,
         )
     )
 
@@ -804,26 +848,34 @@ def build_chip_planner():
                     "was returned."
                 )
             else:
-                captain = best[
-                    "captain"
+                candidate = best[
+                    "best_candidate"
                 ]
 
+                ownership_text = (
+                    "already owned"
+                    if best[
+                        "best_is_owned"
+                    ]
+                    else "not currently owned"
+                )
+
                 card["evaluation"] = (
-                    f"Best projected window in "
-                    f"the current five-GW model "
-                    f"is GW{best['gameweek']}: "
-                    f"{captain['name']} at "
-                    f"{best['tc_uplift']:.1f} pts "
-                    f"of TC uplift."
+                    f"Best projected first-half "
+                    f"window is GW"
+                    f"{best['gameweek']}: "
+                    f"{candidate['name']} at "
+                    f"{best['best_tc_uplift']:.1f} "
+                    f"pts of TC uplift "
+                    f"({ownership_text})."
                 )
                 card["note"] = (
-                    "Triple Captain adds one extra "
-                    "copy of the captain's score "
-                    "above normal captaincy. "
-                    "This first pass uses the "
-                    "current squad and the five "
-                    "Gameweeks for which the model "
-                    "currently stores projections."
+                    "The model now compares every "
+                    "remaining Gameweek through "
+                    "GW19. It shows both the best "
+                    "captain already in the squad "
+                    "and the best projected "
+                    "league-wide candidate."
                 )
 
         elif card["name"] == "wildcard":
