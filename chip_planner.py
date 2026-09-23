@@ -832,39 +832,9 @@ def _free_hit_analysis(
         not in current_ids
     ]
 
-    normal_score = (
-        best_normal["net_score"]
-        if best_normal
-        else current_score
-    )
-
-    normal_gw = (
-        best_normal["gw_projection"]
-        if best_normal
-        else current_gw
-    )
-
     return {
         "budget":
             budget,
-        "best_normal":
-            best_normal,
-        "normal_score":
-            normal_score,
-        "normal_gw":
-            normal_gw,
-        "normal_transfers":
-            (
-                best_normal["transfers"]
-                if best_normal
-                else 0
-            ),
-        "normal_hit":
-            (
-                best_normal["hit_cost"]
-                if best_normal
-                else 0
-            ),
         "normal":
             normal,
         "normal_gw":
@@ -1032,6 +1002,24 @@ def _wildcard_analysis(
     return {
         "budget":
             budget,
+        "best_normal":
+            best_normal,
+        "normal_score":
+            normal_score,
+        "normal_gw":
+            normal_gw,
+        "normal_transfers":
+            (
+                best_normal["transfers"]
+                if best_normal
+                else 0
+            ),
+        "normal_hit":
+            (
+                best_normal["hit_cost"]
+                if best_normal
+                else 0
+            ),
         "current_score":
             current_score,
         "wildcard_score":
