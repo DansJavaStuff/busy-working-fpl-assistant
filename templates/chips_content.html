@@ -29,10 +29,10 @@
     </h2>
 
     <p>
-        Immediate chip value is shown on the same
-        current-Gameweek basis. Where a later window
-        has been scored, the table also shows the cost
-        of waiting.
+        Timing value is shown on a consistent
+        current-squad basis so each chip can be compared
+        with its own later windows. The individual cards
+        below still show the richer execution plans.
     </p>
 
     <div class="chip-opportunity-table">
@@ -103,8 +103,8 @@
         <strong>Cost of waiting</strong> means how much
         projected chip value is lost by skipping GW{{ planner.gameweek }}
         and using the best currently-scored later window instead.
-        Bench Boost, Wildcard and Free Hit still need future-window
-        scoring before that column can be completed.
+        A negative number means a better window is projected later.
+        {{ planner.opportunity.note }}
     </p>
 
 </section>
