@@ -18,97 +18,24 @@
 
 </section>
 
-<section class="card chip-opportunity">
-
+<section
+    id="chip-opportunity-slot"
+    class="card chip-opportunity-loading"
+>
     <span class="team-label">
         CHIP OPPORTUNITY
     </span>
 
     <h2>
-        GW{{ planner.gameweek }} comparison
+        Calculating future chip windows…
     </h2>
 
     <p>
-        Timing value is shown on a consistent
-        current-squad basis so each chip can be compared
-        with its own later windows. The individual cards
-        below still show the richer execution plans.
+        The current chip cards are ready below.
+        This slower comparison is loading separately
+        and will be cached once complete.
     </p>
-
-    <div class="chip-opportunity-table">
-
-        <div class="chip-opportunity-row header">
-            <span>Chip</span>
-            <span>Now</span>
-            <span>Best later</span>
-            <span>Cost of waiting</span>
-            <span>Context</span>
-        </div>
-
-        {% for row in planner.opportunity.rows %}
-
-            <div class="chip-opportunity-row">
-
-                <strong>
-                    {{ row.short }}
-                </strong>
-
-                <strong class="positive">
-                    +
-                    {{ "%.1f"|format(
-                        row.now_value
-                    ) }}
-                </strong>
-
-                <span>
-                    {% if row.best_later_value is not none %}
-                        GW{{ row.best_later_gw }}
-                        ·
-                        +{{ "%.1f"|format(
-                            row.best_later_value
-                        ) }}
-                    {% else %}
-                        Not yet scored
-                    {% endif %}
-                </span>
-
-                <span
-                    class="
-                        {% if row.cost_of_waiting is not none
-                              and row.cost_of_waiting > 0.049 %}
-                            negative
-                        {% endif %}
-                    "
-                >
-                    {% if row.cost_of_waiting is not none %}
-                        {{ "%.1f"|format(
-                            row.cost_of_waiting
-                        ) }}
-                    {% else %}
-                        —
-                    {% endif %}
-                </span>
-
-                <small>
-                    {{ row.now_context }}
-                </small>
-
-            </div>
-
-        {% endfor %}
-
-    </div>
-
-    <p class="chip-note">
-        <strong>Cost of waiting</strong> means how much
-        projected chip value is lost by skipping GW{{ planner.gameweek }}
-        and using the best currently-scored later window instead.
-        A negative number means a better window is projected later.
-        {{ planner.opportunity.note }}
-    </p>
-
 </section>
-
 
 <div class="chip-grid">
 
