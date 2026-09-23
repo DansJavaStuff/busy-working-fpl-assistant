@@ -27,7 +27,8 @@
             class="
                 chip-card
                 {{ chip.status }}
-                {% if chip.name == "bboost" %}
+                {% if chip.name == "bboost"
+                      or chip.name == "wildcard" %}
                     chip-card-wide
                 {% endif %}
             "
@@ -233,6 +234,94 @@
 
             {% endif %}
 
+            {% if chip.name == "wildcard" %}
+
+                <div class="wc-summary">
+
+                    <div>
+                        <span>Current GW</span>
+                        <strong>
+                            {{ "%.1f"|format(
+                                planner.wildcard.current_gw
+                            ) }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Wildcard GW</span>
+                        <strong>
+                            {{ "%.1f"|format(
+                                planner.wildcard.wildcard_gw
+                            ) }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>GW uplift</span>
+                        <strong class="positive">
+                            {% if planner.wildcard.gw_uplift > 0 %}
+                                +
+                            {% endif %}
+                            {{ "%.1f"|format(
+                                planner.wildcard.gw_uplift
+                            ) }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>5GW uplift</span>
+                        <strong class="positive">
+                            {% if planner.wildcard.objective_uplift > 0 %}
+                                +
+                            {% endif %}
+                            {{ "%.1f"|format(
+                                planner.wildcard.objective_uplift
+                            ) }}
+                        </strong>
+                    </div>
+
+                </div>
+
+                <div class="wc-changes">
+                    <div>
+                        <span class="team-label">OUT</span>
+                        {% for player in planner.wildcard.outgoing %}
+                            <div class="wc-player out">
+                                <strong>{{ player.name }}</strong>
+                                <small>
+                                    {{ player.position }}
+                                    · {{ player.team }}
+                                    · £{{ "%.1f"|format(player.price) }}m
+                                </small>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div>
+                        <span class="team-label">IN</span>
+                        {% for player in planner.wildcard.incoming %}
+                            <div class="wc-player in">
+                                <strong>{{ player.name }}</strong>
+                                <small>
+                                    {{ player.position }}
+                                    · {{ player.team }}
+                                    · £{{ "%.1f"|format(player.price) }}m
+                                </small>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <p class="chip-note wc-explainer">
+                    The Wildcard comparison uses the
+                    same five-Gameweek objective as
+                    normal squad planning, but removes
+                    transfer-count and hit constraints.
+                    It does not activate the chip.
+                </p>
+
+            {% endif %}
+
             {% if chip.name == "bboost"
                   and planner.bench_boost.scenarios %}
 
@@ -415,11 +504,10 @@
     </h2>
 
     <p>
-        Bench Boost and Triple Captain now have
-        scored models. The next major build can
-        move onto Wildcard: compare the current
-        squad with an unrestricted optimal squad
-        over a multi-Gameweek horizon.
+        Bench Boost, Triple Captain and Wildcard
+        now have scored models. The remaining
+        first-half chip model is Free Hit, followed
+        by the cross-chip opportunity-cost view.
     </p>
 
 </section>
