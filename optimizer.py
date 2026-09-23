@@ -1258,6 +1258,7 @@ def optimise_squad(
     minimum_objective_score=None,
     minimise_cost=False,
     budget_limit=None,
+    objective_mode="normal",
 ):
 
     problem = pulp.LpProblem(
@@ -1307,18 +1308,52 @@ def optimise_squad(
 
     SQUAD_HORIZON_WEIGHT = 0.15
 
-    projection_objective = pulp.lpSum(
-        (
-            starter[p["id"]] * p["proj_next"]
+    if objective_mode == "free_hit":
+
+        #
+        # Free Hit is a one-Gameweek chip. The
+        # starting XI dominates the objective,
+        # while the bench gets a small insurance
+        # value for autosub/late-team-news risk.
+        #
+        FREE_HIT_BENCH_WEIGHT = 0.05
+
+        projection_objective = pulp.lpSum(
+            (
+                starter[p["id"]]
+                * p["proj_next"]
+            )
             +
-            captain[p["id"]] * calculate_captain_score(p)
+            (
+                captain[p["id"]]
+                * calculate_captain_score(p)
+            )
             +
-            selected[p["id"]]
-            * p["proj_5gw"]
-            * SQUAD_HORIZON_WEIGHT
+            (
+                (
+                    selected[p["id"]]
+                    - starter[p["id"]]
+                )
+                * p["proj_next"]
+                * FREE_HIT_BENCH_WEIGHT
+            )
+            for p in players
         )
-        for p in players
-    )
+
+    else:
+
+        projection_objective = pulp.lpSum(
+            (
+                starter[p["id"]] * p["proj_next"]
+                +
+                captain[p["id"]] * calculate_captain_score(p)
+                +
+                selected[p["id"]]
+                * p["proj_5gw"]
+                * SQUAD_HORIZON_WEIGHT
+            )
+            for p in players
+        )
 
     squad_cost = pulp.lpSum(
         selected[p["id"]] * p["cost"]
