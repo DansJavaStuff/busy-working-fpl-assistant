@@ -3,7 +3,11 @@ from fpl_api import (
     get_planning_gameweek,
 )
 
-from optimizer import load_players
+from optimizer import (
+    load_players,
+    optimise_squad,
+    calculate_objective_score,
+)
 
 from transfer_optimizer import (
     optimise_transfers,
@@ -696,6 +700,156 @@ def _triple_captain_windows(
     }
 
 
+def _wildcard_analysis(
+    players,
+    current_team,
+    planning_gameweek,
+):
+    picks = current_team.get(
+        "picks",
+        [],
+    )
+
+    current_ids = {
+        pick["element"]
+        for pick in picks
+    }
+
+    budget = (
+        sum(
+            pick["selling_price"]
+            for pick in picks
+        )
+        +
+        current_team[
+            "transfers"
+        ]["bank"]
+    )
+
+    current_result = optimise_transfers(
+        players,
+        current_team,
+        planning_gameweek,
+        0,
+    )
+
+    wildcard_squad = optimise_squad(
+        players,
+        budget_limit=budget,
+    )
+
+    current_score = (
+        calculate_objective_score(
+            current_result["squad"]
+        )
+    )
+
+    wildcard_score = (
+        calculate_objective_score(
+            wildcard_squad
+        )
+    )
+
+    wildcard_ids = {
+        player["id"]
+        for player in wildcard_squad
+    }
+
+    outgoing = [
+        player
+        for player in current_result["squad"]
+        if player["id"]
+        not in wildcard_ids
+    ]
+
+    incoming = [
+        player
+        for player in wildcard_squad
+        if player["id"]
+        not in current_ids
+    ]
+
+    current_gw = (
+        _normal_gw_projection(
+            current_result,
+            planning_gameweek,
+        )
+    )
+
+    wildcard_starters = [
+        player
+        for player in wildcard_squad
+        if player["starter"]
+    ]
+
+    wildcard_captain = next(
+        player
+        for player in wildcard_starters
+        if player["captain"]
+    )
+
+    wildcard_gw = (
+        sum(
+            _projection(
+                player,
+                planning_gameweek,
+            )
+            for player
+            in wildcard_starters
+        )
+        +
+        _projection(
+            wildcard_captain,
+            planning_gameweek,
+        )
+    )
+
+    return {
+        "budget":
+            budget,
+        "current_score":
+            current_score,
+        "wildcard_score":
+            wildcard_score,
+        "objective_uplift":
+            (
+                wildcard_score
+                - current_score
+            ),
+        "current_gw":
+            current_gw,
+        "wildcard_gw":
+            wildcard_gw,
+        "gw_uplift":
+            (
+                wildcard_gw
+                - current_gw
+            ),
+        "changes":
+            len(incoming),
+        "outgoing":
+            sorted(
+                outgoing,
+                key=lambda p:
+                    (
+                        p["position_id"],
+                        p["name"],
+                    ),
+            ),
+        "incoming":
+            sorted(
+                incoming,
+                key=lambda p:
+                    (
+                        p["position_id"],
+                        p["name"],
+                    ),
+            ),
+        "squad":
+            wildcard_squad,
+    }
+
+
 def build_chip_planner():
     planning_gameweek = (
         get_planning_gameweek()
@@ -783,6 +937,14 @@ def build_chip_planner():
             current_team,
             planning_gameweek,
             FIRST_HALF_END_GW,
+        )
+    )
+
+    wildcard = (
+        _wildcard_analysis(
+            players,
+            current_team,
+            planning_gameweek,
         )
     )
 
@@ -919,14 +1081,20 @@ def build_chip_planner():
 
         elif card["name"] == "wildcard":
             card["evaluation"] = (
-                "Wildcard opportunity model "
-                "not scored yet."
+                f"Unrestricted optimal squad "
+                f"changes {wildcard['changes']} "
+                f"players and improves the "
+                f"five-GW model objective by "
+                f"{wildcard['objective_uplift']:.1f} "
+                f"pts."
             )
             card["note"] = (
-                "Will compare the current squad "
-                "with an unrestricted optimal "
-                "squad over a multi-Gameweek "
-                "horizon."
+                f"Immediate GW"
+                f"{planning_gameweek} uplift is "
+                f"{wildcard['gw_uplift']:.1f} pts. "
+                f"Wildcard budget uses your real "
+                f"selling value plus bank: "
+                f"£{wildcard['budget'] / 10:.1f}m."
             )
 
         elif card["name"] == "freehit":
@@ -953,4 +1121,6 @@ def build_chip_planner():
             bench_boost,
         "triple_captain":
             triple_captain,
+        "wildcard":
+            wildcard,
     }
