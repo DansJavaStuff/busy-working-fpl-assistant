@@ -118,6 +118,110 @@
 
             {% endif %}
 
+            {% if chip.name == "3xc"
+                  and planner.triple_captain.windows %}
+
+                <div class="tc-windows">
+
+                    <div class="tc-window-row header">
+                        <span>GW</span>
+                        <span>Captain</span>
+                        <span>Raw</span>
+                        <span>Normal C</span>
+                        <span>TC total</span>
+                        <span>TC uplift</span>
+                    </div>
+
+                    {% for window in planner.triple_captain.windows %}
+
+                        <div
+                            class="
+                                tc-window-row
+                                {% if window == planner.triple_captain.best %}
+                                    recommended
+                                {% endif %}
+                            "
+                        >
+                            <strong>
+                                GW{{ window.gameweek }}
+                            </strong>
+
+                            <div class="tc-captain-cell">
+                                <strong>
+                                    {{ window.captain.name }}
+                                </strong>
+                                <small>
+                                    {{ window.captain.team }}
+                                </small>
+                            </div>
+
+                            <span>
+                                {{ "%.1f"|format(
+                                    window.captain.projection
+                                ) }}
+                            </span>
+
+                            <span>
+                                {{ "%.1f"|format(
+                                    window.normal_captain
+                                ) }}
+                            </span>
+
+                            <strong>
+                                {{ "%.1f"|format(
+                                    window.triple_captain
+                                ) }}
+                            </strong>
+
+                            <span class="positive">
+                                +
+                                {{ "%.1f"|format(
+                                    window.tc_uplift
+                                ) }}
+                            </span>
+
+                            {% if window.alternatives %}
+
+                                <div class="tc-alternatives">
+                                    <span>
+                                        Also:
+                                    </span>
+
+                                    {% for candidate in window.alternatives %}
+                                        <span>
+                                            {{ candidate.name }}
+                                            {{ "%.1f"|format(
+                                                candidate.projection
+                                            ) }}
+                                        </span>
+                                    {% endfor %}
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+                <p class="chip-note tc-explainer">
+                    <strong>Raw</strong> is the
+                    player's projected score.
+                    <strong>Normal C</strong> is the
+                    contribution with ordinary
+                    captaincy, while
+                    <strong>TC total</strong> is the
+                    projected contribution with
+                    Triple Captain.
+                    <strong>TC uplift</strong> is the
+                    extra value created by the chip:
+                    one additional copy of the
+                    captain's raw score.
+                </p>
+
+            {% endif %}
+
             {% if chip.name == "bboost"
                   and planner.bench_boost.scenarios %}
 
@@ -300,13 +404,11 @@
     </h2>
 
     <p>
-        Bench Boost will be first:
-        compare the current four bench
-        projections against optimised
-        free-transfer and hit-assisted
-        versions of the squad, then measure
-        the extra points the chip actually
-        makes count.
+        Bench Boost and Triple Captain now have
+        scored models. The next major build can
+        move onto Wildcard: compare the current
+        squad with an unrestricted optimal squad
+        over a multi-Gameweek horizon.
     </p>
 
 </section>
