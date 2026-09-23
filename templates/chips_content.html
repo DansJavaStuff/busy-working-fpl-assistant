@@ -28,7 +28,8 @@
                 chip-card
                 {{ chip.status }}
                 {% if chip.name == "bboost"
-                      or chip.name == "wildcard" %}
+                      or chip.name == "wildcard"
+                      or chip.name == "freehit" %}
                     chip-card-wide
                 {% endif %}
             "
@@ -234,15 +235,99 @@
 
             {% endif %}
 
+            {% if chip.name == "freehit"
+                  and planner.free_hit.normal %}
+
+                <div class="wc-summary">
+
+                    <div>
+                        <span>Best normal GW</span>
+                        <strong>
+                            {{ "%.1f"|format(
+                                planner.free_hit.normal_gw
+                            ) }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Free Hit GW</span>
+                        <strong>
+                            {{ "%.1f"|format(
+                                planner.free_hit.free_hit_gw
+                            ) }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>FH uplift</span>
+                        <strong class="positive">
+                            {% if planner.free_hit.uplift > 0 %}
+                                +
+                            {% endif %}
+                            {{ "%.1f"|format(
+                                planner.free_hit.uplift
+                            ) }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Temporary changes</span>
+                        <strong>
+                            {{ planner.free_hit.changes }}
+                        </strong>
+                    </div>
+
+                </div>
+
+                <div class="wc-changes">
+                    <div>
+                        <span class="team-label">OUT FOR GW{{ planner.gameweek }}</span>
+                        {% for player in planner.free_hit.outgoing %}
+                            <div class="wc-player out">
+                                <strong>{{ player.name }}</strong>
+                                <small>
+                                    {{ player.position }}
+                                    · {{ player.team }}
+                                    · £{{ "%.1f"|format(player.price) }}m
+                                </small>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div>
+                        <span class="team-label">IN FOR GW{{ planner.gameweek }}</span>
+                        {% for player in planner.free_hit.incoming %}
+                            <div class="wc-player in">
+                                <strong>{{ player.name }}</strong>
+                                <small>
+                                    {{ player.position }}
+                                    · {{ player.team }}
+                                    · £{{ "%.1f"|format(player.price) }}m
+                                </small>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <p class="chip-note wc-explainer">
+                    Free Hit is optimised only for the
+                    current Gameweek. The bench gets a
+                    small insurance weight for autosubs,
+                    but future fixtures do not influence
+                    the temporary squad.
+                </p>
+
+            {% endif %}
+
             {% if chip.name == "wildcard" %}
 
                 <div class="wc-summary">
 
                     <div>
-                        <span>Current GW</span>
+                        <span>Best normal GW</span>
                         <strong>
                             {{ "%.1f"|format(
-                                planner.wildcard.current_gw
+                                planner.wildcard.normal_gw
                             ) }}
                         </strong>
                     </div>
@@ -269,7 +354,7 @@
                     </div>
 
                     <div>
-                        <span>5GW uplift</span>
+                        <span>Model advantage</span>
                         <strong class="positive">
                             {% if planner.wildcard.objective_uplift > 0 %}
                                 +
@@ -315,9 +400,11 @@
                 <p class="chip-note wc-explainer">
                     The Wildcard comparison uses the
                     same five-Gameweek objective as
-                    normal squad planning, but removes
-                    transfer-count and hit constraints.
-                    It does not activate the chip.
+                    normal squad planning, but compares
+                    the unrestricted squad against the
+                    best normal 0–3 transfer plan rather
+                    than against a simple hold. It does
+                    not activate the chip.
                 </p>
 
             {% endif %}
@@ -504,10 +591,11 @@
     </h2>
 
     <p>
-        Bench Boost, Triple Captain and Wildcard
-        now have scored models. The remaining
-        first-half chip model is Free Hit, followed
-        by the cross-chip opportunity-cost view.
+        All four first-half chips now have scored
+        models. The next mechanics step is the
+        cross-chip opportunity-cost view: compare
+        using a chip now with saving it for the best
+        remaining window.
     </p>
 
 </section>
