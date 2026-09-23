@@ -524,6 +524,39 @@ def _bench_boost_scenarios(
     }
 
 
+def _tc_candidate_score(
+    player,
+    gameweek,
+):
+    """
+    Ranking score for Triple Captain candidates.
+
+    Expected points remains the main input, but
+    captaincy should slightly favour attacking
+    positions and penalise defensive/GK variance.
+    """
+
+    projection = _projection(
+        player,
+        gameweek,
+    )
+
+    position_multiplier = {
+        "FWD": 1.08,
+        "MID": 1.05,
+        "DEF": 0.94,
+        "GKP": 0.88,
+    }.get(
+        player.get("position"),
+        1.0,
+    )
+
+    return (
+        projection
+        * position_multiplier
+    )
+
+
 def _triple_captain_windows(
     players,
     current_team,
@@ -560,6 +593,11 @@ def _triple_captain_windows(
                             player,
                             gameweek,
                         ),
+                    "captain_score":
+                        _tc_candidate_score(
+                            player,
+                            gameweek,
+                        ),
                     "owned":
                         player["id"]
                         in current_ids,
@@ -576,7 +614,7 @@ def _triple_captain_windows(
                 ) > 0
             ),
             key=lambda item:
-                item["projection"],
+                item["captain_score"],
             reverse=True,
         )
 
@@ -667,6 +705,7 @@ def build_chip_planner():
     players = load_players(
         projection_end_gameweek=
             FIRST_HALF_END_GW,
+        long_range_regression=True,
     )
 
     players_by_id = {
