@@ -125,11 +125,12 @@
 
                     <div class="tc-window-row header">
                         <span>GW</span>
-                        <span>Captain</span>
-                        <span>Raw</span>
-                        <span>Normal C</span>
-                        <span>TC total</span>
-                        <span>TC uplift</span>
+                        <span>Best owned</span>
+                        <span>Owned uplift</span>
+                        <span>Best candidate</span>
+                        <span>Owned?</span>
+                        <span>Best uplift</span>
+                        <span>Gap</span>
                     </div>
 
                     {% for window in planner.triple_captain.windows %}
@@ -148,56 +149,55 @@
 
                             <div class="tc-captain-cell">
                                 <strong>
-                                    {{ window.captain.name }}
+                                    {{ window.owned_captain.name }}
                                 </strong>
                                 <small>
-                                    {{ window.captain.team }}
+                                    {{ window.owned_captain.team }}
                                 </small>
                             </div>
-
-                            <span>
-                                {{ "%.1f"|format(
-                                    window.captain.projection
-                                ) }}
-                            </span>
-
-                            <span>
-                                {{ "%.1f"|format(
-                                    window.normal_captain
-                                ) }}
-                            </span>
-
-                            <strong>
-                                {{ "%.1f"|format(
-                                    window.triple_captain
-                                ) }}
-                            </strong>
 
                             <span class="positive">
                                 +
                                 {{ "%.1f"|format(
-                                    window.tc_uplift
+                                    window.owned_tc_uplift
                                 ) }}
                             </span>
 
-                            {% if window.alternatives %}
+                            <div class="tc-captain-cell">
+                                <strong>
+                                    {{ window.best_candidate.name }}
+                                </strong>
+                                <small>
+                                    {{ window.best_candidate.team }}
+                                </small>
+                            </div>
 
-                                <div class="tc-alternatives">
-                                    <span>
-                                        Also:
-                                    </span>
+                            <span>
+                                {% if window.best_is_owned %}
+                                    YES
+                                {% else %}
+                                    NO
+                                {% endif %}
+                            </span>
 
-                                    {% for candidate in window.alternatives %}
-                                        <span>
-                                            {{ candidate.name }}
-                                            {{ "%.1f"|format(
-                                                candidate.projection
-                                            ) }}
-                                        </span>
-                                    {% endfor %}
-                                </div>
+                            <strong class="positive">
+                                +
+                                {{ "%.1f"|format(
+                                    window.best_tc_uplift
+                                ) }}
+                            </strong>
 
-                            {% endif %}
+                            <span
+                                class="
+                                    {% if window.gap_to_best < -0.049 %}
+                                        negative
+                                    {% endif %}
+                                "
+                            >
+                                {{ "%.1f"|format(
+                                    window.gap_to_best
+                                ) }}
+                            </span>
 
                         </div>
 
@@ -206,18 +206,21 @@
                 </div>
 
                 <p class="chip-note tc-explainer">
-                    <strong>Raw</strong> is the
-                    player's projected score.
-                    <strong>Normal C</strong> is the
-                    contribution with ordinary
-                    captaincy, while
-                    <strong>TC total</strong> is the
-                    projected contribution with
-                    Triple Captain.
-                    <strong>TC uplift</strong> is the
-                    extra value created by the chip:
-                    one additional copy of the
-                    captain's raw score.
+                    <strong>Owned uplift</strong> is
+                    the extra value from Triple
+                    Captain using the best projected
+                    player already in your squad.
+                    <strong>Best candidate</strong>
+                    is the strongest projected
+                    captain across all selectable
+                    FPL players for that Gameweek.
+                    <strong>Best uplift</strong> is
+                    the chip value if that player
+                    were available to captain.
+                    <strong>Gap</strong> shows how
+                    far each Gameweek sits below the
+                    strongest remaining window
+                    through GW19.
                 </p>
 
             {% endif %}
