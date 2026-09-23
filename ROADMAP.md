@@ -28,18 +28,20 @@ The assistant currently supports:
 
 CURRENT MILESTONE — HOSTED WEEKLY MANAGER
 
-[ ] Build local Flask dashboard
-[ ] Display current FPL squad
-[ ] Display transfer scenarios
-[ ] Display recommended transfers
-[ ] Show proposed XI / bench / captain
-[ ] Add Approve / Reject workflow
-[ ] Add dry-run FPL write layer
-[ ] Test team-selection API write
-[ ] Test transfer API write
+[x] Build local Flask dashboard
+[x] Display current FPL squad
+[x] Display transfer scenarios
+[x] Display recommended transfers
+[x] Show proposed XI / bench / captain
+[x] Add Approve / Reject workflow
+[x] Add dry-run FPL write layer
+[x] Test team-selection API write
+[x] Test transfer API write
 [ ] Add authentication
 [ ] Add scheduled Friday optimiser run
 [ ] Deploy to hosted service
+
+The local dashboard is now the main interactive surface. It also includes Gameweek history and a read-only chip planner.
 
 ONGOING — OPTIMISER REFINEMENT
 
@@ -158,15 +160,48 @@ Move from “What is the best move this week?” toward “What is the best tran
 - [ ] Quantify team-value consequences
 - [ ] Ensure price movement informs decisions rather than automatically triggering them
 
-## Later — Chips and Special Gameweeks
+## Current — Chip Planner Hardening and Special Gameweeks
 
-- [ ] Wildcard planning
-- [ ] Free Hit planning
-- [ ] Bench Boost planning
-- [ ] Triple Captain planning
+The four standard chips now have scored planning models, plus a cross-chip opportunity view comparing the current Gameweek with remaining first-half windows.
+
+2026/27 official FPL mechanics that the planner must preserve:
+
+- Two sets of Wildcard, Free Hit, Bench Boost and Triple Captain: one set for GW1–19 and a refreshed set from GW20 onward
+- First-half chips expire after GW19 and do not carry over
+- Only one chip can be played in a Gameweek
+- Wildcard and Free Hit preserve banked free transfers
+- Free Hit cannot be played in GW1 and cannot be played in both GW19 and GW20
+- Wildcard cannot be played in GW1
+- Bench Boost scores all 15 squad players
+- Triple Captain triples the captain's score rather than doubling it
+- Free Hit changes are temporary; Wildcard changes are permanent
+
+Implemented:
+
+- [x] Wildcard planning
+- [x] Free Hit planning
+- [x] Bench Boost planning
+- [x] Triple Captain planning
+- [x] First-half future timing windows through GW19
+- [x] Cross-chip opportunity-cost comparison
+- [x] Lazy-loaded / cached opportunity analysis
+- [x] Reuse normal optimiser scenarios to reduce duplicate chip computation
+
+Current hardening work:
+
+- [ ] Add automated chip-planner regression tests
+- [ ] Encode / validate chip availability boundary rules explicitly
+- [ ] Verify opportunity scoring against representative real-world scenarios
+- [ ] Ensure GW19 -> GW20 refresh behaviour is handled correctly
+- [ ] Keep long-range timing estimates clearly separate from confirmed fixture opportunities
+
+Next mechanics:
+
 - [ ] Blank-gameweek planning
 - [ ] Double-gameweek planning
 - [ ] Rearranged-fixture handling
+- [ ] Make Free Hit timing explicitly sensitive to blank Gameweeks
+- [ ] Make Bench Boost / Triple Captain timing explicitly sensitive to double Gameweeks
 
 ## Later — Weekly Decision Report
 
@@ -219,6 +254,7 @@ The terminal tools should remain independently usable.
 
 - [ ] Add automated tests for projection logic
 - [ ] Add automated tests for transfer logic
+- [ ] Expand automated tests for chip-planner logic
 - [ ] Cache external data where appropriate
 - [ ] Handle external-source failures gracefully
 - [ ] Continue improving player / team name matching
@@ -271,17 +307,19 @@ Good ideas that are deliberately not current priorities:
 
 ## Priority Order
 
-1. **Budget efficiency** — current.
-2. Smarter free-transfer valuation.
-3. Outfield playing-time confidence.
-4. Projection validation.
-5. Multi-gameweek transfer planning.
-6. Captaincy improvements.
-7. Price-change awareness.
-8. Chips and special gameweeks.
+1. **Chip planner hardening** — current: tests, rule boundaries and opportunity-model validation.
+2. Blank / Double Gameweek and rearranged-fixture awareness.
+3. Smarter free-transfer valuation.
+4. Outfield playing-time confidence.
+5. Projection validation.
+6. Multi-gameweek transfer planning.
+7. Captaincy improvements.
+8. Price-change awareness.
 9. Weekly decision report.
-10. Web dashboard.
+10. Hosted-service work: authentication, scheduling and deployment.
 11. Project rename and technical cleanup.
+
+Budget-efficiency work has already been substantially implemented in the optimiser and can continue as refinement rather than blocking the chip-planner milestone.
 
 The order is intentionally flexible: a live gameweek decision can promote an issue if it reveals a material weakness in the model.
 
