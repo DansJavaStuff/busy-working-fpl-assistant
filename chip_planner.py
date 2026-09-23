@@ -1063,6 +1063,169 @@ def _wildcard_analysis(
     }
 
 
+def _chip_opportunity_summary(
+    planning_gameweek,
+    bench_boost,
+    triple_captain,
+    wildcard,
+    free_hit,
+):
+    rows = []
+
+    bb_best = bench_boost.get(
+        "best_practical"
+    )
+
+    if bb_best is not None:
+        rows.append({
+            "chip": "Bench Boost",
+            "short": "BB",
+            "now_value":
+                bb_best["bb_uplift"],
+            "now_context":
+                (
+                    f"{bb_best['transfers']} transfer"
+                    f"{'s' if bb_best['transfers'] != 1 else ''}"
+                    f", {bb_best['hit_cost']}-pt hit"
+                ),
+            "best_later_value":
+                None,
+            "best_later_gw":
+                None,
+            "cost_of_waiting":
+                None,
+            "status":
+                "current-only",
+        })
+
+    tc_windows = triple_captain.get(
+        "windows",
+        [],
+    )
+
+    current_tc = next(
+        (
+            window
+            for window in tc_windows
+            if window["gameweek"]
+            == planning_gameweek
+        ),
+        None,
+    )
+
+    later_tc = [
+        window
+        for window in tc_windows
+        if window["gameweek"]
+        > planning_gameweek
+    ]
+
+    best_later_tc = (
+        max(
+            later_tc,
+            key=lambda item:
+                item["best_tc_uplift"],
+        )
+        if later_tc
+        else None
+    )
+
+    if current_tc is not None:
+        now_value = (
+            current_tc[
+                "best_tc_uplift"
+            ]
+        )
+
+        later_value = (
+            best_later_tc[
+                "best_tc_uplift"
+            ]
+            if best_later_tc
+            else None
+        )
+
+        rows.append({
+            "chip": "Triple Captain",
+            "short": "TC",
+            "now_value":
+                now_value,
+            "now_context":
+                current_tc[
+                    "best_candidate"
+                ]["name"],
+            "best_later_value":
+                later_value,
+            "best_later_gw":
+                (
+                    best_later_tc[
+                        "gameweek"
+                    ]
+                    if best_later_tc
+                    else None
+                ),
+            "cost_of_waiting":
+                (
+                    now_value
+                    - later_value
+                    if later_value
+                    is not None
+                    else None
+                ),
+            "status":
+                "comparable",
+        })
+
+    rows.append({
+        "chip": "Wildcard",
+        "short": "WC",
+        "now_value":
+            wildcard[
+                "gw_uplift"
+            ],
+        "now_context":
+            (
+                f"{wildcard['changes']} squad changes"
+            ),
+        "best_later_value":
+            None,
+        "best_later_gw":
+            None,
+        "cost_of_waiting":
+            None,
+        "status":
+            "current-only",
+    })
+
+    rows.append({
+        "chip": "Free Hit",
+        "short": "FH",
+        "now_value":
+            free_hit[
+                "uplift"
+            ],
+        "now_context":
+            (
+                f"{free_hit['changes']} temporary changes"
+            ),
+        "best_later_value":
+            None,
+        "best_later_gw":
+            None,
+        "cost_of_waiting":
+            None,
+        "status":
+            "current-only",
+    })
+
+    return {
+        "gameweek":
+            planning_gameweek,
+        "rows":
+            rows,
+    }
+
+
 def build_chip_planner():
     planning_gameweek = (
         get_planning_gameweek()
@@ -1166,6 +1329,16 @@ def build_chip_planner():
             players,
             current_team,
             planning_gameweek,
+        )
+    )
+
+    opportunity = (
+        _chip_opportunity_summary(
+            planning_gameweek,
+            bench_boost,
+            triple_captain,
+            wildcard,
+            free_hit,
         )
     )
 
@@ -1376,4 +1549,6 @@ def build_chip_planner():
             wildcard,
         "free_hit":
             free_hit,
+        "opportunity":
+            opportunity,
     }
