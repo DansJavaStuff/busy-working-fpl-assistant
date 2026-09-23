@@ -1,0 +1,77 @@
+<section class="card chip-opportunity">
+
+    <span class="team-label">
+        CHIP OPPORTUNITY
+    </span>
+
+    <h2>
+        GW{{ opportunity.gameweek }} comparison
+    </h2>
+
+    <p>
+        Timing value is shown on a consistent
+        current-squad basis so each chip can be compared
+        with its own later windows.
+    </p>
+
+    <div class="chip-opportunity-table">
+
+        <div class="chip-opportunity-row header">
+            <span>Chip</span>
+            <span>Now</span>
+            <span>Best later</span>
+            <span>Cost of waiting</span>
+            <span>Context</span>
+        </div>
+
+        {% for row in opportunity.rows %}
+
+            <div class="chip-opportunity-row">
+
+                <strong>{{ row.short }}</strong>
+
+                <strong class="positive">
+                    +{{ "%.1f"|format(row.now_value) }}
+                </strong>
+
+                <span>
+                    {% if row.best_later_value is not none %}
+                        GW{{ row.best_later_gw }}
+                        · +{{ "%.1f"|format(row.best_later_value) }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </span>
+
+                <span
+                    class="
+                        {% if row.cost_of_waiting is not none
+                              and row.cost_of_waiting > 0.049 %}
+                            negative
+                        {% endif %}
+                    "
+                >
+                    {% if row.cost_of_waiting is not none %}
+                        {{ "%.1f"|format(row.cost_of_waiting) }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </span>
+
+                <small>{{ row.now_context }}</small>
+
+            </div>
+
+        {% endfor %}
+
+    </div>
+
+    <p class="chip-note">
+        <strong>Cost of waiting</strong> is the
+        projected chip value lost by skipping this
+        Gameweek for the best currently-scored later
+        window. A negative number means a better later
+        window is projected. {{ opportunity.note }}
+    </p>
+
+</section>
