@@ -1257,6 +1257,7 @@ def optimise_squad(
     force_formation=None,
     minimum_objective_score=None,
     minimise_cost=False,
+    budget_limit=None,
 ):
 
     problem = pulp.LpProblem(
@@ -1345,8 +1346,21 @@ def optimise_squad(
         for p in players
     ) == 15
 
-    # £100.0m budget
-    problem += squad_cost <= BUDGET
+    # Squad budget. Normal optimisation retains
+    # the £100.0m default; Wildcard planning can
+    # instead use the entry's real selling value
+    # plus cash in the bank.
+    if budget_limit is None:
+        budget_limit = BUDGET
+
+    problem += squad_cost <= budget_limit
+
+    # Players FPL says cannot currently be selected
+    # must not appear in a newly built unrestricted
+    # squad.
+    for p in players:
+        if not p.get("can_select", True):
+            problem += selected[p["id"]] == 0
 
     # Squad position requirements
     squad_positions = {
