@@ -735,7 +735,6 @@ def build_chip_planner():
             players,
             current_team,
             planning_gameweek,
-            FIRST_HALF_END_GW,
         )
     )
 
@@ -744,6 +743,7 @@ def build_chip_planner():
             players,
             current_team,
             planning_gameweek,
+            FIRST_HALF_END_GW,
         )
     )
 
