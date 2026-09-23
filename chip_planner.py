@@ -389,6 +389,7 @@ def _bench_boost_scenarios(
     players,
     current_team,
     planning_gameweek,
+    normal_scenarios=None,
 ):
     scenarios = []
 
@@ -401,12 +402,25 @@ def _bench_boost_scenarios(
             chip_mode="bench_boost",
         )
 
-        normal_result = optimise_transfers(
-            players,
-            current_team,
-            planning_gameweek,
-            transfers,
+        normal_result = next(
+            (
+                scenario
+                for scenario in (
+                    normal_scenarios or []
+                )
+                if scenario["transfers"]
+                == transfers
+            ),
+            None,
         )
+
+        if normal_result is None:
+            normal_result = optimise_transfers(
+                players,
+                current_team,
+                planning_gameweek,
+                transfers,
+            )
 
         if (
             result is None
@@ -806,7 +820,7 @@ def _triple_captain_windows(
     }
 
 
-def _best_normal_scenario(
+def _normal_scenarios(
     players,
     current_team,
     planning_gameweek,
@@ -840,6 +854,27 @@ def _best_normal_scenario(
             result
         )
 
+    return scenarios
+
+
+def _best_normal_scenario(
+    players,
+    current_team,
+    planning_gameweek,
+    max_transfers=3,
+    normal_scenarios=None,
+):
+    scenarios = (
+        normal_scenarios
+        if normal_scenarios is not None
+        else _normal_scenarios(
+            players,
+            current_team,
+            planning_gameweek,
+            max_transfers,
+        )
+    )
+
     if not scenarios:
         return None
 
@@ -854,6 +889,7 @@ def _free_hit_analysis(
     players,
     current_team,
     planning_gameweek,
+    normal_scenarios=None,
 ):
     picks = current_team.get(
         "picks",
@@ -875,6 +911,8 @@ def _free_hit_analysis(
         players,
         current_team,
         planning_gameweek,
+        normal_scenarios=
+            normal_scenarios,
     )
 
     free_hit_squad = optimise_squad(
@@ -987,6 +1025,7 @@ def _wildcard_analysis(
     players,
     current_team,
     planning_gameweek,
+    normal_scenarios=None,
 ):
     picks = current_team.get(
         "picks",
@@ -1009,17 +1048,31 @@ def _wildcard_analysis(
         ]["bank"]
     )
 
-    current_result = optimise_transfers(
-        players,
-        current_team,
-        planning_gameweek,
-        0,
+    current_result = next(
+        (
+            scenario
+            for scenario in (
+                normal_scenarios or []
+            )
+            if scenario["transfers"] == 0
+        ),
+        None,
     )
+
+    if current_result is None:
+        current_result = optimise_transfers(
+            players,
+            current_team,
+            planning_gameweek,
+            0,
+        )
 
     best_normal = _best_normal_scenario(
         players,
         current_team,
         planning_gameweek,
+        normal_scenarios=
+            normal_scenarios,
     )
 
     wildcard_squad = optimise_squad(
@@ -1661,11 +1714,21 @@ def build_chip_planner(
         for player in bench
     )
 
+    normal_scenarios = (
+        _normal_scenarios(
+            players,
+            current_team,
+            planning_gameweek,
+        )
+    )
+
     bench_boost = (
         _bench_boost_scenarios(
             players,
             current_team,
             planning_gameweek,
+            normal_scenarios=
+                normal_scenarios,
         )
     )
 
@@ -1683,6 +1746,8 @@ def build_chip_planner(
             players,
             current_team,
             planning_gameweek,
+            normal_scenarios=
+                normal_scenarios,
         )
     )
 
@@ -1691,6 +1756,8 @@ def build_chip_planner(
             players,
             current_team,
             planning_gameweek,
+            normal_scenarios=
+                normal_scenarios,
         )
     )
 
@@ -1959,36 +2026,12 @@ def build_chip_opportunity(
         long_range_regression=True,
     )
 
-    bench_boost = (
-        _bench_boost_scenarios(
-            players,
-            current_team,
-            planning_gameweek,
-        )
-    )
-
     triple_captain = (
         _triple_captain_windows(
             players,
             current_team,
             planning_gameweek,
             FIRST_HALF_END_GW,
-        )
-    )
-
-    wildcard = (
-        _wildcard_analysis(
-            players,
-            current_team,
-            planning_gameweek,
-        )
-    )
-
-    free_hit = (
-        _free_hit_analysis(
-            players,
-            current_team,
-            planning_gameweek,
         )
     )
 
@@ -2003,10 +2046,10 @@ def build_chip_opportunity(
     opportunity = (
         _chip_opportunity_summary(
             planning_gameweek,
-            bench_boost,
+            None,
             triple_captain,
-            wildcard,
-            free_hit,
+            None,
+            None,
             timing_windows,
         )
     )
