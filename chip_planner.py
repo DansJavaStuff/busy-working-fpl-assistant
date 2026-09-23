@@ -1017,6 +1017,18 @@ def _wildcard_analysis(
         )
     )
 
+    normal_score = (
+        best_normal["net_score"]
+        if best_normal
+        else current_score
+    )
+
+    normal_gw = (
+        best_normal["gw_projection"]
+        if best_normal
+        else current_gw
+    )
+
     return {
         "budget":
             budget,
