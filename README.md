@@ -27,8 +27,14 @@ Current capabilities include:
 - Official FPL availability percentages as the primary availability signal where supplied
 - Minimum free-transfer gain threshold so tiny numerical improvements do not automatically consume a transfer
 - Season benchmark history in `data/season_history.csv`
+- Local Flask dashboard for weekly squad / transfer decisions
+- Approve / Reject workflow and FPL write-layer tooling
+- Gameweek history view
+- Read-only chip planner for Wildcard, Free Hit, Bench Boost and Triple Captain
+- Future first-half chip-window comparison through GW19
+- Cached cross-chip opportunity analysis
 
-The current development priority is **budget efficiency**: identifying when a cheaper squad or transfer path gives almost the same projection while preserving useful money in the bank.
+The current development priority is **chip planner hardening and special-Gameweek awareness**: regression-testing the chip logic and adding explicit Blank / Double Gameweek and rearranged-fixture handling.
 
 ## Recommendation Philosophy
 
@@ -213,27 +219,26 @@ Current and planned modelling work includes:
 
 See [ROADMAP.md](ROADMAP.md) for the full development plan.
 
-## Web / User Interface Direction
+## Web / User Interface
 
-The current tools are terminal-first.
+The project now includes a local Flask dashboard used as the main interactive weekly manager while retaining the terminal tools for diagnostics and independent use.
 
-A future lightweight Raspberry Pi web dashboard may include views for:
+Current web functionality includes:
 
-- This Gameweek
-- My Squad
-- Transfers
-- Player Comparison
-- Fixture Planner
-- Season Performance
-- Model Diagnostics
+- This Gameweek / current squad
+- Transfer scenarios and recommendations
+- Proposed XI, bench, captain and vice-captain
+- Approve / Reject workflow
+- Gameweek history
+- Read-only chip planning and opportunity comparison
 
-The terminal tools should remain independently usable.
+Future web work includes authentication, scheduled optimiser runs, hosted deployment and additional diagnostic / comparison views.
 
 ## Development
 
 Development priorities, technical debt and completed milestones are tracked in [ROADMAP.md](ROADMAP.md).
 
-The current main priority is **budget efficiency**.
+The current main priority is **chip planner hardening**, followed by Blank / Double Gameweek and rearranged-fixture awareness.
 
 The roadmap also tracks the future project rename because the existing `busy-working-fpl-assistant` repository name was inherited from the unrelated Busy Working Fantasy NFL project.
 
