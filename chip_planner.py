@@ -1,3 +1,7 @@
+import json
+import time
+from pathlib import Path
+
 from fpl_api import (
     get_my_team,
     get_planning_gameweek,
@@ -16,6 +20,11 @@ from transfer_optimizer import (
 
 POST_BB_HORIZON_WEIGHT = 0.15
 FIRST_HALF_END_GW = 19
+
+CHIP_OPPORTUNITY_CACHE = Path(
+    "data/chip_opportunity_cache.json"
+)
+CHIP_OPPORTUNITY_CACHE_TTL = 30 * 60
 
 
 CHIP_META = {
@@ -36,6 +45,103 @@ CHIP_META = {
         "short": "FH",
     },
 }
+
+
+def _opportunity_cache_key(
+    planning_gameweek,
+    current_team,
+):
+    picks = sorted(
+        (
+            pick["element"],
+            pick.get(
+                "selling_price",
+                0,
+            ),
+        )
+        for pick in current_team.get(
+            "picks",
+            [],
+        )
+    )
+
+    return {
+        "gameweek":
+            planning_gameweek,
+        "bank":
+            current_team.get(
+                "transfers",
+                {},
+            ).get(
+                "bank",
+                0,
+            ),
+        "picks":
+            picks,
+    }
+
+
+def _load_opportunity_cache(
+    cache_key,
+):
+    if not CHIP_OPPORTUNITY_CACHE.exists():
+        return None
+
+    try:
+        payload = json.loads(
+            CHIP_OPPORTUNITY_CACHE.read_text(
+                encoding="utf-8"
+            )
+        )
+    except (
+        OSError,
+        json.JSONDecodeError,
+    ):
+        return None
+
+    if payload.get("key") != cache_key:
+        return None
+
+    cached_at = payload.get(
+        "cached_at",
+        0,
+    )
+
+    if (
+        time.time()
+        - cached_at
+        > CHIP_OPPORTUNITY_CACHE_TTL
+    ):
+        return None
+
+    return payload.get(
+        "opportunity"
+    )
+
+
+def _save_opportunity_cache(
+    cache_key,
+    opportunity,
+):
+    CHIP_OPPORTUNITY_CACHE.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    CHIP_OPPORTUNITY_CACHE.write_text(
+        json.dumps(
+            {
+                "cached_at":
+                    time.time(),
+                "key":
+                    cache_key,
+                "opportunity":
+                    opportunity,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
 
 
 def _projection(player, gameweek):
@@ -1480,7 +1586,9 @@ def _chip_opportunity_summary(
     }
 
 
-def build_chip_planner():
+def build_chip_planner(
+    include_opportunity=False,
+):
     planning_gameweek = (
         get_planning_gameweek()
     )
@@ -1586,24 +1694,27 @@ def build_chip_planner():
         )
     )
 
-    timing_windows = (
-        _future_chip_windows(
-            players,
-            current_team,
-            planning_gameweek,
-        )
-    )
+    opportunity = None
 
-    opportunity = (
-        _chip_opportunity_summary(
-            planning_gameweek,
-            bench_boost,
-            triple_captain,
-            wildcard,
-            free_hit,
-            timing_windows,
+    if include_opportunity:
+        timing_windows = (
+            _future_chip_windows(
+                players,
+                current_team,
+                planning_gameweek,
+            )
         )
-    )
+
+        opportunity = (
+            _chip_opportunity_summary(
+                planning_gameweek,
+                bench_boost,
+                triple_captain,
+                wildcard,
+                free_hit,
+                timing_windows,
+            )
+        )
 
     cards = _chip_cards(
         current_team
@@ -1815,3 +1926,94 @@ def build_chip_planner():
         "opportunity":
             opportunity,
     }
+
+
+
+def build_chip_opportunity(
+    force_refresh=False,
+):
+    planning_gameweek = (
+        get_planning_gameweek()
+    )
+
+    current_team = get_my_team()
+
+    cache_key = (
+        _opportunity_cache_key(
+            planning_gameweek,
+            current_team,
+        )
+    )
+
+    if not force_refresh:
+        cached = _load_opportunity_cache(
+            cache_key
+        )
+
+        if cached is not None:
+            return cached
+
+    players = load_players(
+        projection_end_gameweek=
+            FIRST_HALF_END_GW,
+        long_range_regression=True,
+    )
+
+    bench_boost = (
+        _bench_boost_scenarios(
+            players,
+            current_team,
+            planning_gameweek,
+        )
+    )
+
+    triple_captain = (
+        _triple_captain_windows(
+            players,
+            current_team,
+            planning_gameweek,
+            FIRST_HALF_END_GW,
+        )
+    )
+
+    wildcard = (
+        _wildcard_analysis(
+            players,
+            current_team,
+            planning_gameweek,
+        )
+    )
+
+    free_hit = (
+        _free_hit_analysis(
+            players,
+            current_team,
+            planning_gameweek,
+        )
+    )
+
+    timing_windows = (
+        _future_chip_windows(
+            players,
+            current_team,
+            planning_gameweek,
+        )
+    )
+
+    opportunity = (
+        _chip_opportunity_summary(
+            planning_gameweek,
+            bench_boost,
+            triple_captain,
+            wildcard,
+            free_hit,
+            timing_windows,
+        )
+    )
+
+    _save_opportunity_cache(
+        cache_key,
+        opportunity,
+    )
+
+    return opportunity
