@@ -2720,3 +2720,56 @@ span:last-child {
         grid-template-columns: 1fr;
     }
 }
+
+
+.chip-opportunity {
+    border-left: 4px solid var(--hq-cyan);
+}
+
+.chip-opportunity-table {
+    margin-top: 14px;
+    border: 1px solid rgba(53, 24, 62, .08);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.chip-opportunity-row {
+    display: grid;
+    grid-template-columns:
+        .65fr
+        .75fr
+        1.1fr
+        1fr
+        1.6fr;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(53, 24, 62, .07);
+}
+
+.chip-opportunity-row:last-child {
+    border-bottom: 0;
+}
+
+.chip-opportunity-row.header {
+    background: #f7f5f8;
+    color: var(--hq-muted);
+    font-size: .65rem;
+    font-weight: 900;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.chip-opportunity-row small {
+    color: var(--hq-muted);
+}
+
+@media (max-width: 700px) {
+    .chip-opportunity-table {
+        overflow-x: auto;
+    }
+
+    .chip-opportunity-row {
+        min-width: 650px;
+    }
+}
