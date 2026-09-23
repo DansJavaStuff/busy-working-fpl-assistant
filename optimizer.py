@@ -85,6 +85,7 @@ def project_gameweeks(
     player,
     fixtures,
     planning_gameweek,
+    projection_end_gameweek=None,
 ):
 
     ppg = player["points_per_game"]
@@ -272,9 +273,14 @@ def project_gameweeks(
 
     projections = {}
 
+    if projection_end_gameweek is None:
+        projection_end_gameweek = (
+            planning_gameweek + 4
+        )
+
     for gw in range(
         planning_gameweek,
-        planning_gameweek + 5
+        projection_end_gameweek + 1,
     ):
 
         fixture = next(
@@ -385,18 +391,35 @@ def build_fixture_scores(
     team_data,
     historical_team_strengths,
     planning_gameweek,
+    projection_end_gameweek=None,
 ):
 
     fixtures = get_fixtures()
 
-    # Earlier gameweeks matter more
-    planning_gameweek,
+    # Earlier gameweeks matter more.
+    # The default remains the existing five-GW
+    # horizon; chip planning can request a longer
+    # window without changing normal optimiser
+    # behaviour.
+    if projection_end_gameweek is None:
+        projection_end_gameweek = (
+            planning_gameweek + 4
+        )
+
     gw_weights = {
-        planning_gameweek: 1.00,
-        planning_gameweek + 1: 0.90,
-        planning_gameweek + 2: 0.80,
-        planning_gameweek + 3: 0.70,
-        planning_gameweek + 4: 0.60,
+        gameweek: max(
+            0.30,
+            1.00
+            - (
+                gameweek
+                - planning_gameweek
+            )
+            * 0.10,
+        )
+        for gameweek in range(
+            planning_gameweek,
+            projection_end_gameweek + 1,
+        )
     }
 
     #
@@ -649,7 +672,9 @@ def calculate_availability_factor(
 
     return 1.0
 
-def load_players():
+def load_players(
+    projection_end_gameweek=None,
+):
     data = get_bootstrap()
     
     goalkeeper_depth = (
@@ -662,6 +687,16 @@ def load_players():
     
     planning_gameweek = (
         get_planning_gameweek()
+    )
+
+    if projection_end_gameweek is None:
+        projection_end_gameweek = (
+            planning_gameweek + 4
+        )
+
+    projection_end_gameweek = max(
+        planning_gameweek + 4,
+        projection_end_gameweek,
     )
 
     completed_gameweeks = max(0,planning_gameweek - 1)
@@ -684,6 +719,7 @@ def load_players():
             team_data,
             historical_team_strengths,
             planning_gameweek,
+            projection_end_gameweek,
         )
     )   
     if DEBUG:
@@ -948,13 +984,14 @@ def load_players():
             projection_input,
             player_fixture_details,
             planning_gameweek,
+            projection_end_gameweek,
         )
 
         projection_debug = projections["_debug"]
 
         projected_gameweeks = range(
             planning_gameweek,
-            planning_gameweek + 5
+            projection_end_gameweek + 1,
         )
 
         projection_fields = {
@@ -988,7 +1025,10 @@ def load_players():
             projection_fields[
                 f"proj_gw{gw}"
             ]
-            for gw in projected_gameweeks
+            for gw in range(
+                planning_gameweek,
+                planning_gameweek + 5,
+            )
         )
 
         players.append({
