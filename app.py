@@ -27,6 +27,7 @@ from gameweek_history import (
 
 from chip_planner import (
     build_chip_planner,
+    build_chip_opportunity,
 )
 
 import json
@@ -849,6 +850,35 @@ def chip_data():
         return (
             render_template(
                 "chips_error.html",
+                error=str(exc),
+            ),
+            500,
+        )
+
+
+@app.route(
+    "/chips/opportunity",
+)
+def chip_opportunity():
+
+    try:
+        opportunity = (
+            build_chip_opportunity()
+        )
+
+        return render_template(
+            "chips_opportunity.html",
+            opportunity=opportunity,
+        )
+
+    except Exception as exc:
+        app.logger.exception(
+            "Unable to build chip opportunity"
+        )
+
+        return (
+            render_template(
+                "chips_opportunity_error.html",
                 error=str(exc),
             ),
             500,
