@@ -523,6 +523,101 @@ def _bench_boost_scenarios(
     }
 
 
+def _triple_captain_windows(
+    players,
+    current_team,
+    planning_gameweek,
+):
+    current_ids = {
+        pick["element"]
+        for pick in current_team.get(
+            "picks",
+            [],
+        )
+    }
+
+    squad = [
+        player
+        for player in players
+        if player["id"] in current_ids
+    ]
+
+    windows = []
+
+    for gameweek in range(
+        planning_gameweek,
+        planning_gameweek + 5,
+    ):
+        candidates = sorted(
+            (
+                {
+                    "id":
+                        player["id"],
+                    "name":
+                        player["name"],
+                    "team":
+                        player["team"],
+                    "position":
+                        player["position"],
+                    "projection":
+                        _projection(
+                            player,
+                            gameweek,
+                        ),
+                }
+                for player in squad
+            ),
+            key=lambda item:
+                item["projection"],
+            reverse=True,
+        )
+
+        if not candidates:
+            continue
+
+        best = candidates[0]
+
+        windows.append({
+            "gameweek":
+                gameweek,
+            "captain":
+                best,
+            "normal_captain":
+                best["projection"] * 2,
+            "triple_captain":
+                best["projection"] * 3,
+            "tc_uplift":
+                best["projection"],
+            "alternatives":
+                candidates[1:3],
+        })
+
+    if not windows:
+        return {
+            "windows": [],
+            "best": None,
+        }
+
+    best = max(
+        windows,
+        key=lambda item:
+            item["tc_uplift"],
+    )
+
+    for window in windows:
+        window["gap_to_best"] = (
+            window["tc_uplift"]
+            - best["tc_uplift"]
+        )
+
+    return {
+        "windows":
+            windows,
+        "best":
+            best,
+    }
+
+
 def build_chip_planner():
     planning_gameweek = (
         get_planning_gameweek()
@@ -594,6 +689,14 @@ def build_chip_planner():
 
     bench_boost = (
         _bench_boost_scenarios(
+            players,
+            current_team,
+            planning_gameweek,
+        )
+    )
+
+    triple_captain = (
+        _triple_captain_windows(
             players,
             current_team,
             planning_gameweek,
@@ -687,15 +790,41 @@ def build_chip_planner():
                 )
 
         elif card["name"] == "3xc":
-            card["evaluation"] = (
-                "Captain opportunity model "
-                "not scored yet."
-            )
-            card["note"] = (
-                "Will compare the extra captain "
-                "multiplier against future "
-                "premium-captain opportunities."
-            )
+            best = triple_captain[
+                "best"
+            ]
+
+            if best is None:
+                card["evaluation"] = (
+                    "Triple Captain windows "
+                    "could not be scored."
+                )
+                card["note"] = (
+                    "No valid captain projection "
+                    "was returned."
+                )
+            else:
+                captain = best[
+                    "captain"
+                ]
+
+                card["evaluation"] = (
+                    f"Best projected window in "
+                    f"the current five-GW model "
+                    f"is GW{best['gameweek']}: "
+                    f"{captain['name']} at "
+                    f"{best['tc_uplift']:.1f} pts "
+                    f"of TC uplift."
+                )
+                card["note"] = (
+                    "Triple Captain adds one extra "
+                    "copy of the captain's score "
+                    "above normal captaincy. "
+                    "This first pass uses the "
+                    "current squad and the five "
+                    "Gameweeks for which the model "
+                    "currently stores projections."
+                )
 
         elif card["name"] == "wildcard":
             card["evaluation"] = (
@@ -731,4 +860,6 @@ def build_chip_planner():
             bench_projection,
         "bench_boost":
             bench_boost,
+        "triple_captain":
+            triple_captain,
     }
