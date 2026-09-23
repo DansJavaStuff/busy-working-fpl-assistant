@@ -700,6 +700,213 @@ def _triple_captain_windows(
     }
 
 
+def _best_normal_scenario(
+    players,
+    current_team,
+    planning_gameweek,
+    max_transfers=3,
+):
+    scenarios = []
+
+    for transfers in range(
+        0,
+        max_transfers + 1,
+    ):
+        result = optimise_transfers(
+            players,
+            current_team,
+            planning_gameweek,
+            transfers,
+        )
+
+        if result is None:
+            continue
+
+        result = result.copy()
+        result["gw_projection"] = (
+            _normal_gw_projection(
+                result,
+                planning_gameweek,
+            )
+        )
+
+        scenarios.append(
+            result
+        )
+
+    if not scenarios:
+        return None
+
+    return max(
+        scenarios,
+        key=lambda item:
+            item["net_score"],
+    )
+
+
+def _free_hit_analysis(
+    players,
+    current_team,
+    planning_gameweek,
+):
+    picks = current_team.get(
+        "picks",
+        [],
+    )
+
+    budget = (
+        sum(
+            pick["selling_price"]
+            for pick in picks
+        )
+        +
+        current_team[
+            "transfers"
+        ]["bank"]
+    )
+
+    normal = _best_normal_scenario(
+        players,
+        current_team,
+        planning_gameweek,
+    )
+
+    free_hit_squad = optimise_squad(
+        players,
+        budget_limit=budget,
+        objective_mode="free_hit",
+    )
+
+    starters = [
+        player
+        for player in free_hit_squad
+        if player["starter"]
+    ]
+
+    captain = next(
+        player
+        for player in starters
+        if player["captain"]
+    )
+
+    free_hit_gw = (
+        sum(
+            _projection(
+                player,
+                planning_gameweek,
+            )
+            for player in starters
+        )
+        +
+        _projection(
+            captain,
+            planning_gameweek,
+        )
+    )
+
+    current_ids = {
+        pick["element"]
+        for pick in picks
+    }
+
+    fh_ids = {
+        player["id"]
+        for player in free_hit_squad
+    }
+
+    players_by_id = {
+        player["id"]: player
+        for player in players
+    }
+
+    outgoing = [
+        players_by_id[player_id]
+        for player_id in current_ids
+        if player_id not in fh_ids
+    ]
+
+    incoming = [
+        player
+        for player in free_hit_squad
+        if player["id"]
+        not in current_ids
+    ]
+
+    normal_score = (
+        best_normal["net_score"]
+        if best_normal
+        else current_score
+    )
+
+    normal_gw = (
+        best_normal["gw_projection"]
+        if best_normal
+        else current_gw
+    )
+
+    return {
+        "budget":
+            budget,
+        "best_normal":
+            best_normal,
+        "normal_score":
+            normal_score,
+        "normal_gw":
+            normal_gw,
+        "normal_transfers":
+            (
+                best_normal["transfers"]
+                if best_normal
+                else 0
+            ),
+        "normal_hit":
+            (
+                best_normal["hit_cost"]
+                if best_normal
+                else 0
+            ),
+        "normal":
+            normal,
+        "normal_gw":
+            (
+                normal["gw_projection"]
+                if normal
+                else None
+            ),
+        "free_hit_gw":
+            free_hit_gw,
+        "uplift":
+            (
+                free_hit_gw
+                - normal["gw_projection"]
+                if normal
+                else None
+            ),
+        "changes":
+            len(incoming),
+        "outgoing":
+            sorted(
+                outgoing,
+                key=lambda p:
+                    (
+                        p["position_id"],
+                        p["name"],
+                    ),
+            ),
+        "incoming":
+            sorted(
+                incoming,
+                key=lambda p:
+                    (
+                        p["position_id"],
+                        p["name"],
+                    ),
+            ),
+        "squad":
+            free_hit_squad,
+    }
+
+
 def _wildcard_analysis(
     players,
     current_team,
@@ -731,6 +938,12 @@ def _wildcard_analysis(
         current_team,
         planning_gameweek,
         0,
+    )
+
+    best_normal = _best_normal_scenario(
+        players,
+        current_team,
+        planning_gameweek,
     )
 
     wildcard_squad = optimise_squad(
@@ -814,7 +1027,7 @@ def _wildcard_analysis(
         "objective_uplift":
             (
                 wildcard_score
-                - current_score
+                - normal_score
             ),
         "current_gw":
             current_gw,
@@ -823,7 +1036,7 @@ def _wildcard_analysis(
         "gw_uplift":
             (
                 wildcard_gw
-                - current_gw
+                - normal_gw
             ),
         "changes":
             len(incoming),
@@ -942,6 +1155,14 @@ def build_chip_planner():
 
     wildcard = (
         _wildcard_analysis(
+            players,
+            current_team,
+            planning_gameweek,
+        )
+    )
+
+    free_hit = (
+        _free_hit_analysis(
             players,
             current_team,
             planning_gameweek,
@@ -1083,14 +1304,20 @@ def build_chip_planner():
             card["evaluation"] = (
                 f"Unrestricted optimal squad "
                 f"changes {wildcard['changes']} "
-                f"players and improves the "
-                f"five-GW model objective by "
+                f"players and beats the best "
+                f"tested normal plan by "
                 f"{wildcard['objective_uplift']:.1f} "
-                f"pts."
+                f"model pts."
             )
             card["note"] = (
+                f"Best normal plan uses "
+                f"{wildcard['normal_transfers']} "
+                f"transfer"
+                f"{'s' if wildcard['normal_transfers'] != 1 else ''} "
+                f"with a "
+                f"{wildcard['normal_hit']}-pt hit. "
                 f"Immediate GW"
-                f"{planning_gameweek} uplift is "
+                f"{planning_gameweek} advantage is "
                 f"{wildcard['gw_uplift']:.1f} pts. "
                 f"Wildcard budget uses your real "
                 f"selling value plus bank: "
@@ -1098,15 +1325,39 @@ def build_chip_planner():
             )
 
         elif card["name"] == "freehit":
-            card["evaluation"] = (
-                "Free Hit opportunity model "
-                "not scored yet."
-            )
-            card["note"] = (
-                "Will compare the current XI "
-                "with the best legal one-week "
-                "squad."
-            )
+            normal = free_hit[
+                "normal"
+            ]
+
+            if normal is None:
+                card["evaluation"] = (
+                    "Free Hit opportunity could "
+                    "not be scored."
+                )
+                card["note"] = (
+                    "No valid normal comparison "
+                    "plan was returned."
+                )
+            else:
+                card["evaluation"] = (
+                    f"Best one-week Free Hit "
+                    f"squad projects "
+                    f"{free_hit['free_hit_gw']:.1f} "
+                    f"pts, an uplift of "
+                    f"{free_hit['uplift']:.1f} pts "
+                    f"over the best tested normal "
+                    f"plan."
+                )
+                card["note"] = (
+                    f"The comparison normal plan "
+                    f"uses {normal['transfers']} "
+                    f"transfer"
+                    f"{'s' if normal['transfers'] != 1 else ''} "
+                    f"and a {normal['hit_cost']}-pt "
+                    f"hit. The Free Hit squad then "
+                    f"reverts automatically next "
+                    f"Gameweek."
+                )
 
     return {
         "gameweek":
@@ -1123,4 +1374,6 @@ def build_chip_planner():
             triple_captain,
         "wildcard":
             wildcard,
+        "free_hit":
+            free_hit,
     }
