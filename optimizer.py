@@ -383,21 +383,25 @@ def project_gameweeks(
                     - planning_gameweek
                 )
 
-                historical_weight = min(
-                    1.0,
-                    historical_reliability,
+                #
+                # Current-season form should earn
+                # influence gradually. Five matches
+                # is useful evidence, but nowhere
+                # near enough to let a 16.0 PPG start
+                # dominate projections through GW19.
+                #
+                # At 12 current-season matches the
+                # live model can carry at most 50%
+                # of a long-range projection. That
+                # influence also decays as the target
+                # Gameweek moves further away.
+                #
+                sample_weight = min(
+                    0.50,
+                    current_season_games / 12.0,
                 )
 
-                model_weight = (
-                    0.25
-                    +
-                    (
-                        historical_weight
-                        * 0.60
-                    )
-                )
-
-                model_weight *= max(
+                horizon_weight = max(
                     0.45,
                     1.0
                     - (
@@ -409,12 +413,9 @@ def project_gameweeks(
                     ),
                 )
 
-                model_weight = max(
-                    0.25,
-                    min(
-                        0.85,
-                        model_weight,
-                    ),
+                model_weight = (
+                    sample_weight
+                    * horizon_weight
                 )
 
                 conservative_projection = (
