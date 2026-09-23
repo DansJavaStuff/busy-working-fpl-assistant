@@ -1,5 +1,8 @@
-import requests
+import json
 import os
+import time
+from pathlib import Path
+
 import requests
 from dotenv import load_dotenv
 from datetime import datetime, timezone
@@ -17,21 +20,177 @@ CLIENT_ID = (
     "c1cb8a193030"
 )
 
-def get_bootstrap():
-    response = requests.get(
-        f"{BASE_URL}/bootstrap-static/",
-        timeout=20
+
+CACHE_DIR = Path(
+    "data/fpl_cache"
+)
+
+BOOTSTRAP_CACHE_TTL = 15 * 60
+BOOTSTRAP_STALE_TTL = 6 * 60 * 60
+
+FIXTURES_CACHE_TTL = 30 * 60
+FIXTURES_STALE_TTL = 24 * 60 * 60
+
+
+def _cache_path(name):
+    return CACHE_DIR / f"{name}.json"
+
+
+def _read_cache(
+    name,
+    max_age=None,
+):
+    path = _cache_path(name)
+
+    if not path.exists():
+        return None
+
+    try:
+        payload = json.loads(
+            path.read_text(
+                encoding="utf-8"
+            )
+        )
+    except (
+        OSError,
+        json.JSONDecodeError,
+    ):
+        return None
+
+    cached_at = payload.get(
+        "cached_at"
     )
-    response.raise_for_status()
-    return response.json()
+    data = payload.get(
+        "data"
+    )
+
+    if (
+        cached_at is None
+        or
+        data is None
+    ):
+        return None
+
+    age = (
+        time.time()
+        - float(cached_at)
+    )
+
+    if (
+        max_age is not None
+        and
+        age > max_age
+    ):
+        return None
+
+    return {
+        "age":
+            age,
+        "data":
+            data,
+    }
+
+
+def _write_cache(
+    name,
+    data,
+):
+    CACHE_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    path = _cache_path(name)
+    temp_path = path.with_suffix(
+        ".tmp"
+    )
+
+    temp_path.write_text(
+        json.dumps(
+            {
+                "cached_at":
+                    time.time(),
+                "data":
+                    data,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    temp_path.replace(path)
+
+
+def _cached_public_get(
+    path,
+    cache_name,
+    fresh_ttl,
+    stale_ttl,
+):
+    cached = _read_cache(
+        cache_name,
+        max_age=fresh_ttl,
+    )
+
+    if cached is not None:
+        return cached["data"]
+
+    url = (
+        f"{BASE_URL}/{path.lstrip('/')}"
+    )
+
+    try:
+        response = requests.get(
+            url,
+            timeout=(5, 20),
+        )
+        response.raise_for_status()
+
+        data = response.json()
+
+        _write_cache(
+            cache_name,
+            data,
+        )
+
+        return data
+
+    except (
+        requests.RequestException,
+        ValueError,
+    ):
+        stale = _read_cache(
+            cache_name,
+            max_age=stale_ttl,
+        )
+
+        if stale is not None:
+            print(
+                "FPL live request failed; "
+                f"using cached {cache_name} "
+                f"data from "
+                f"{int(stale['age'])}s ago."
+            )
+
+            return stale["data"]
+
+        raise
+
+def get_bootstrap():
+    return _cached_public_get(
+        "bootstrap-static/",
+        "bootstrap",
+        BOOTSTRAP_CACHE_TTL,
+        BOOTSTRAP_STALE_TTL,
+    )
+
 
 def get_fixtures():
-    response = requests.get(
-        f"{BASE_URL}/fixtures/",
-        timeout=20
+    return _cached_public_get(
+        "fixtures/",
+        "fixtures",
+        FIXTURES_CACHE_TTL,
+        FIXTURES_STALE_TTL,
     )
-    response.raise_for_status()
-    return response.json()
 
 
 def get_gameweek_live(gameweek):
