@@ -1063,40 +1063,315 @@ def _wildcard_analysis(
     }
 
 
+def _players_at_gameweek(
+    players,
+    gameweek,
+    end_gameweek=FIRST_HALF_END_GW,
+):
+    """
+    Re-anchor already-calculated player projections
+    to a future planning Gameweek without another
+    FPL/API data load.
+    """
+
+    anchored = []
+
+    for player in players:
+        item = player.copy()
+        item["planning_gameweek"] = gameweek
+        item["proj_next"] = _projection(
+            player,
+            gameweek,
+        )
+        item["proj_5gw"] = sum(
+            _projection(
+                player,
+                gw,
+            )
+            for gw in range(
+                gameweek,
+                min(
+                    end_gameweek,
+                    gameweek + 4,
+                ) + 1,
+            )
+        )
+        anchored.append(item)
+
+    return anchored
+
+
+def _future_team_state(
+    current_team,
+):
+    """
+    Future chip windows are a timing snapshot, not
+    a prediction of transfer accumulation. Keep the
+    current squad/prices/bank and use a neutral one
+    free-transfer state for any helper that needs it.
+    """
+
+    team = {
+        **current_team,
+        "picks": [
+            pick.copy()
+            for pick
+            in current_team.get(
+                "picks",
+                [],
+            )
+        ],
+        "transfers": {
+            **current_team.get(
+                "transfers",
+                {},
+            ),
+            "limit": 1,
+            "made": 0,
+        },
+    }
+
+    return team
+
+
+def _timing_window(
+    players,
+    current_team,
+    gameweek,
+):
+    anchored = _players_at_gameweek(
+        players,
+        gameweek,
+    )
+
+    team = _future_team_state(
+        current_team
+    )
+
+    hold = optimise_transfers(
+        anchored,
+        team,
+        gameweek,
+        0,
+    )
+
+    if hold is None:
+        return None
+
+    hold_gw = _normal_gw_projection(
+        hold,
+        gameweek,
+    )
+
+    bench = [
+        player
+        for player in hold["squad"]
+        if not player["starter"]
+    ]
+
+    bb_value = sum(
+        _projection(
+            player,
+            gameweek,
+        )
+        for player in bench
+    )
+
+    budget = (
+        sum(
+            pick["selling_price"]
+            for pick in team.get(
+                "picks",
+                [],
+            )
+        )
+        +
+        team["transfers"]["bank"]
+    )
+
+    wildcard_squad = optimise_squad(
+        anchored,
+        budget_limit=budget,
+    )
+
+    wc_starters = [
+        player
+        for player in wildcard_squad
+        if player["starter"]
+    ]
+
+    wc_captain = next(
+        player
+        for player in wc_starters
+        if player["captain"]
+    )
+
+    wildcard_gw = (
+        sum(
+            _projection(
+                player,
+                gameweek,
+            )
+            for player in wc_starters
+        )
+        +
+        _projection(
+            wc_captain,
+            gameweek,
+        )
+    )
+
+    free_hit_squad = optimise_squad(
+        anchored,
+        budget_limit=budget,
+        objective_mode="free_hit",
+    )
+
+    fh_starters = [
+        player
+        for player in free_hit_squad
+        if player["starter"]
+    ]
+
+    fh_captain = next(
+        player
+        for player in fh_starters
+        if player["captain"]
+    )
+
+    free_hit_gw = (
+        sum(
+            _projection(
+                player,
+                gameweek,
+            )
+            for player in fh_starters
+        )
+        +
+        _projection(
+            fh_captain,
+            gameweek,
+        )
+    )
+
+    return {
+        "gameweek": gameweek,
+        "hold_gw": hold_gw,
+        "bb_value": bb_value,
+        "wc_value":
+            wildcard_gw - hold_gw,
+        "fh_value":
+            free_hit_gw - hold_gw,
+    }
+
+
+def _future_chip_windows(
+    players,
+    current_team,
+    planning_gameweek,
+):
+    windows = []
+
+    for gameweek in range(
+        planning_gameweek,
+        FIRST_HALF_END_GW + 1,
+    ):
+        window = _timing_window(
+            players,
+            current_team,
+            gameweek,
+        )
+
+        if window is not None:
+            windows.append(window)
+
+    return windows
+
+
 def _chip_opportunity_summary(
     planning_gameweek,
     bench_boost,
     triple_captain,
     wildcard,
     free_hit,
+    timing_windows,
 ):
     rows = []
 
-    bb_best = bench_boost.get(
-        "best_practical"
+    current_timing = next(
+        (
+            window
+            for window in timing_windows
+            if window["gameweek"]
+            == planning_gameweek
+        ),
+        None,
     )
 
-    if bb_best is not None:
+    future_timing = [
+        window
+        for window in timing_windows
+        if window["gameweek"]
+        > planning_gameweek
+    ]
+
+    def add_timing_row(
+        chip,
+        short,
+        key,
+        context,
+    ):
+        if current_timing is None:
+            return
+
+        now_value = current_timing[key]
+
+        later = (
+            max(
+                future_timing,
+                key=lambda item:
+                    item[key],
+            )
+            if future_timing
+            else None
+        )
+
+        later_value = (
+            later[key]
+            if later
+            else None
+        )
+
         rows.append({
-            "chip": "Bench Boost",
-            "short": "BB",
-            "now_value":
-                bb_best["bb_uplift"],
-            "now_context":
-                (
-                    f"{bb_best['transfers']} transfer"
-                    f"{'s' if bb_best['transfers'] != 1 else ''}"
-                    f", {bb_best['hit_cost']}-pt hit"
-                ),
+            "chip": chip,
+            "short": short,
+            "now_value": now_value,
+            "now_context": context,
             "best_later_value":
-                None,
+                later_value,
             "best_later_gw":
-                None,
+                (
+                    later["gameweek"]
+                    if later
+                    else None
+                ),
             "cost_of_waiting":
-                None,
-            "status":
-                "current-only",
+                (
+                    now_value
+                    - later_value
+                    if later_value
+                    is not None
+                    else None
+                ),
+            "status": "comparable",
         })
+
+    add_timing_row(
+        "Bench Boost",
+        "BB",
+        "bb_value",
+        "current squad baseline",
+    )
 
     tc_windows = triple_captain.get(
         "windows",
@@ -1176,53 +1451,32 @@ def _chip_opportunity_summary(
                 "comparable",
         })
 
-    rows.append({
-        "chip": "Wildcard",
-        "short": "WC",
-        "now_value":
-            wildcard[
-                "gw_uplift"
-            ],
-        "now_context":
-            (
-                f"{wildcard['changes']} squad changes"
-            ),
-        "best_later_value":
-            None,
-        "best_later_gw":
-            None,
-        "cost_of_waiting":
-            None,
-        "status":
-            "current-only",
-    })
+    add_timing_row(
+        "Wildcard",
+        "WC",
+        "wc_value",
+        "unrestricted vs hold",
+    )
 
-    rows.append({
-        "chip": "Free Hit",
-        "short": "FH",
-        "now_value":
-            free_hit[
-                "uplift"
-            ],
-        "now_context":
-            (
-                f"{free_hit['changes']} temporary changes"
-            ),
-        "best_later_value":
-            None,
-        "best_later_gw":
-            None,
-        "cost_of_waiting":
-            None,
-        "status":
-            "current-only",
-    })
+    add_timing_row(
+        "Free Hit",
+        "FH",
+        "fh_value",
+        "one-week optimal vs hold",
+    )
 
     return {
         "gameweek":
             planning_gameweek,
         "rows":
             rows,
+        "note":
+            (
+                "Timing windows hold today's squad, "
+                "selling values and bank constant. "
+                "They are opportunity snapshots, "
+                "not forecasts of future transfers."
+            ),
     }
 
 
@@ -1332,6 +1586,14 @@ def build_chip_planner():
         )
     )
 
+    timing_windows = (
+        _future_chip_windows(
+            players,
+            current_team,
+            planning_gameweek,
+        )
+    )
+
     opportunity = (
         _chip_opportunity_summary(
             planning_gameweek,
@@ -1339,6 +1601,7 @@ def build_chip_planner():
             triple_captain,
             wildcard,
             free_hit,
+            timing_windows,
         )
     )
 
