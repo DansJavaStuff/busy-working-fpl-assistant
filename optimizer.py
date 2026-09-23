@@ -86,6 +86,7 @@ def project_gameweeks(
     fixtures,
     planning_gameweek,
     projection_end_gameweek=None,
+    long_range_regression=False,
 ):
 
     ppg = player["points_per_game"]
@@ -362,6 +363,77 @@ def project_gameweeks(
             projected *= (
                 expected_start_probability
             )
+
+            if long_range_regression:
+
+                #
+                # Long-range chip planning must not
+                # let a small current-season sample
+                # dominate every future Gameweek.
+                #
+                # Blend the live model back toward
+                # the historically-regressed player
+                # prior. Proven players retain more
+                # of the live projection; players
+                # with little historical evidence
+                # regress more strongly.
+                #
+                horizon = (
+                    gw
+                    - planning_gameweek
+                )
+
+                historical_weight = min(
+                    1.0,
+                    historical_reliability,
+                )
+
+                model_weight = (
+                    0.25
+                    +
+                    (
+                        historical_weight
+                        * 0.60
+                    )
+                )
+
+                model_weight *= max(
+                    0.45,
+                    1.0
+                    - (
+                        max(
+                            0,
+                            horizon - 1,
+                        )
+                        * 0.04
+                    ),
+                )
+
+                model_weight = max(
+                    0.25,
+                    min(
+                        0.85,
+                        model_weight,
+                    ),
+                )
+
+                conservative_projection = (
+                    historical_baseline
+                    * multiplier
+                    * expected_start_probability
+                )
+
+                projected = (
+                    projected
+                    * model_weight
+                    +
+                    conservative_projection
+                    * (
+                        1.0
+                        - model_weight
+                    )
+                )
+
         projections[gw] = projected
 
     #
@@ -674,6 +746,7 @@ def calculate_availability_factor(
 
 def load_players(
     projection_end_gameweek=None,
+    long_range_regression=False,
 ):
     data = get_bootstrap()
     
@@ -985,6 +1058,7 @@ def load_players(
             player_fixture_details,
             planning_gameweek,
             projection_end_gameweek,
+            long_range_regression,
         )
 
         projection_debug = projections["_debug"]
