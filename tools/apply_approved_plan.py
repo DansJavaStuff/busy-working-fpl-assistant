@@ -10,7 +10,11 @@ from fpl_api import (
 )
 
 class PlanApplyError(RuntimeError):
-    pass
+    """Expected apply failure with a message safe for the web UI."""
+
+    def __init__(self, public_message):
+        super().__init__(public_message)
+        self.public_message = public_message
 
 
 def build_picks(snapshot):
