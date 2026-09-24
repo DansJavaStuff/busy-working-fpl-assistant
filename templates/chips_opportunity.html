@@ -58,7 +58,14 @@
                     {% endif %}
                 </span>
 
-                <small>{{ row.now_context }}</small>
+                <small>
+                    {{ row.now_context }}
+                    {% if row.best_later_fixture_context %}
+                        <br>
+                        Best later:
+                        {{ row.best_later_fixture_context }}
+                    {% endif %}
+                </small>
 
             </div>
 

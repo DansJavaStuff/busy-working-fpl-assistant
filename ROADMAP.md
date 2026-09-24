@@ -197,11 +197,11 @@ Current hardening work:
 
 Next mechanics:
 
-- [ ] Blank-gameweek planning
-- [ ] Double-gameweek planning
-- [ ] Rearranged-fixture handling
-- [ ] Make Free Hit timing explicitly sensitive to blank Gameweeks
-- [ ] Make Bench Boost / Triple Captain timing explicitly sensitive to double Gameweeks
+- [x] Blank-gameweek planning
+- [x] Double-gameweek planning
+- [x] Rearranged-fixture handling through FPL Gameweek assignment
+- [x] Make Free Hit timing explicitly sensitive to blank Gameweeks
+- [x] Make Bench Boost / Triple Captain timing explicitly sensitive to double Gameweeks
 
 ## Later — Weekly Decision Report
 
@@ -261,7 +261,7 @@ The terminal tools should remain independently usable.
 - [x] Configure weekly Dependabot dependency updates
 - [x] Add first-run local setup for FPL Entry ID and refresh token
 - [x] Remove hard-coded personal FPL Entry ID from application code
-- [ ] Add protected-main ruleset once CI check names are confirmed
+- [x] Add protected-main ruleset once CI check names are confirmed
 - [ ] Expand automated tests for chip-planner logic
 - [ ] Cache external data where appropriate
 - [ ] Handle external-source failures gracefully
