@@ -3,9 +3,8 @@ from fpl_api import (
     get_entry,
     get_entry_picks,
     get_latest_gameweek,
+    get_entry_id,
 )
-
-ENTRY_ID = 5710014
 
 
 def get_current_squad(gameweek=None):
@@ -14,10 +13,11 @@ def get_current_squad(gameweek=None):
         gameweek = get_latest_gameweek()
 
     bootstrap = get_bootstrap()
-    entry = get_entry(ENTRY_ID)
+    entry_id = get_entry_id()
+    entry = get_entry(entry_id)
     picks_data = get_entry_picks(
         gameweek,
-        ENTRY_ID
+        entry_id,
     )
 
     players_by_id = {
@@ -64,7 +64,7 @@ def get_current_squad(gameweek=None):
         })
 
     return {
-        "entry_id": ENTRY_ID,
+        "entry_id": entry_id,
         "gameweek": gameweek,
         "team_name": entry["name"],
         "team_name": entry["name"],

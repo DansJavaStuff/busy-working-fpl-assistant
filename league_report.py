@@ -7,14 +7,22 @@ of the optimiser. It can later become the data layer for a web dashboard.
 import math
 import requests
 
-from fpl_api import BASE_URL, ENTRY_ID, get_bootstrap, get_entry
+from fpl_api import (
+    BASE_URL,
+    get_bootstrap,
+    get_entry,
+    get_entry_id,
+)
 
 TIMEOUT = 30
 PAGE_SIZE = 50
 MAX_PRIVATE_LEAGUE_PAGES = 100
 
 
-def get_entry_history(entry_id=ENTRY_ID):
+def get_entry_history(entry_id=None):
+    if entry_id is None:
+        entry_id = get_entry_id()
+
     response = requests.get(
         f"{BASE_URL}/entry/{entry_id}/history/",
         timeout=TIMEOUT,
@@ -86,7 +94,13 @@ def get_private_league_size(league_id):
     return None
 
 
-def print_summary(entry, latest, previous, event_info):
+def print_summary(
+    entry,
+    latest,
+    previous,
+    event_info,
+    entry_id,
+):
     team_name = entry.get("name", "FPL Team")
     manager = " ".join(
         p for p in [
@@ -102,7 +116,7 @@ def print_summary(entry, latest, previous, event_info):
     if manager:
         print(f"Manager:             {manager}")
 
-    print(f"Entry ID:            {entry.get('id', ENTRY_ID)}")
+    print(f"Entry ID:            {entry.get('id', entry_id)}")
 
     if not latest:
         return
@@ -144,7 +158,7 @@ def print_summary(entry, latest, previous, event_info):
         )
 
 
-def print_leagues(entry):
+def print_leagues(entry, entry_id):
     leagues = entry.get("leagues", {}).get("classic", [])
     private = [l for l in leagues if l.get("league_type") == "x"]
     system = [l for l in leagues if l.get("league_type") != "x"]
@@ -182,7 +196,7 @@ def print_leagues(entry):
                 try:
                     row = find_entry_on_league_page(
                         league["id"],
-                        ENTRY_ID,
+                        entry_id,
                         rank,
                     )
                     if row:
@@ -222,8 +236,9 @@ def print_leagues(entry):
 
 
 def main():
-    entry = get_entry()
-    history = get_entry_history()
+    entry_id = get_entry_id()
+    entry = get_entry(entry_id)
+    history = get_entry_history(entry_id)
     current = history.get("current", [])
     event_info = get_latest_finished_event()
 
@@ -250,8 +265,17 @@ def main():
             None,
         )
 
-    print_summary(entry, latest, previous, event_info)
-    print_leagues(entry)
+    print_summary(
+        entry,
+        latest,
+        previous,
+        event_info,
+        entry_id,
+    )
+    print_leagues(
+        entry,
+        entry_id,
+    )
 
     print()
     print(

@@ -30,6 +30,13 @@ from chip_planner import (
     build_chip_opportunity,
 )
 
+from local_config import (
+    LocalConfigError,
+    get_config_status,
+    is_configured,
+    save_local_config,
+)
+
 import json
 from pathlib import Path
 from datetime import datetime
@@ -66,6 +73,65 @@ REPORT_FILE = Path(
 UK_TIMEZONE = ZoneInfo(
     "Europe/London"
 )
+
+
+
+
+@app.before_request
+def require_local_setup():
+    if request.endpoint in {
+        "setup",
+        "static",
+    }:
+        return None
+
+    if not is_configured():
+        return redirect(
+            url_for("setup")
+        )
+
+    return None
+
+
+@app.route(
+    "/setup",
+    methods=["GET", "POST"],
+)
+def setup():
+    status = get_config_status()
+    error = None
+
+    if request.method == "POST":
+        entry_id = request.form.get(
+            "entry_id",
+            "",
+        ).strip()
+
+        refresh_token = request.form.get(
+            "refresh_token",
+            "",
+        ).strip()
+
+        try:
+            save_local_config(
+                entry_id,
+                refresh_token or None,
+            )
+        except LocalConfigError as exc:
+            error = exc.public_message
+        else:
+            return redirect(
+                url_for("index")
+            )
+
+        status = get_config_status()
+
+    return render_template(
+        "setup.html",
+        status=status,
+        error=error,
+    )
+
 
 def load_approval():
 
@@ -850,7 +916,7 @@ def chip_data():
             planner=planner,
         )
 
-    except Exception as exc:
+    except Exception:
         app.logger.exception(
             "Unable to build Chip Planner"
         )
@@ -858,7 +924,11 @@ def chip_data():
         return (
             render_template(
                 "chips_error.html",
-                error=str(exc),
+                error=(
+                    "The chip planner could not be "
+                    "built. Check the server log "
+                    "for details."
+                ),
             ),
             500,
         )
@@ -879,7 +949,7 @@ def chip_opportunity():
             opportunity=opportunity,
         )
 
-    except Exception as exc:
+    except Exception:
         app.logger.exception(
             "Unable to build chip opportunity"
         )
@@ -887,7 +957,11 @@ def chip_opportunity():
         return (
             render_template(
                 "chips_opportunity_error.html",
-                error=str(exc),
+                error=(
+                    "The chip opportunity analysis "
+                    "could not be built. Check the "
+                    "server log for details."
+                ),
             ),
             500,
         )

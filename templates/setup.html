@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gameweek HQ · Setup</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main class="container">
+    <section class="card">
+        <span class="team-label">LOCAL INSTALLATION</span>
+        <h1>Gameweek HQ setup</h1>
+
+        <p>
+            These settings identify your own FPL team and allow authenticated
+            features to work. They are stored only in this installation's
+            <code>.env</code> file, which is excluded from Git.
+        </p>
+
+        {% if error %}
+            <p class="negative"><strong>{{ error }}</strong></p>
+        {% endif %}
+
+        <form method="post" autocomplete="off">
+            <div class="form-group">
+                <label for="entry_id"><strong>FPL Entry ID</strong></label>
+                <p class="chip-note">
+                    The numeric ID for your Fantasy Premier League entry.
+                    Open your FPL <strong>Points</strong> page and look at the
+                    browser URL: the number after <code>/entry/</code> is your
+                    Entry ID. For example,
+                    <code>/entry/5710014/event/5</code> means the Entry ID is
+                    <code>5710014</code>.
+                </p>
+                <input
+                    id="entry_id"
+                    name="entry_id"
+                    inputmode="numeric"
+                    pattern="[0-9]+"
+                    required
+                    value="{{ status.entry_id or '' }}"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="refresh_token"><strong>FPL refresh token</strong></label>
+                <p class="chip-note">
+                    {% if status.refresh_token_configured %}
+                        A token is already configured. Leave this blank to keep it,
+                        or paste a new token to replace it. The saved token is never
+                        displayed back to the browser.
+                    {% else %}
+                        Paste the refresh token created during FPL account
+                        authorisation. The app never needs your FPL password.
+                    {% endif %}
+                </p>
+                <input
+                    id="refresh_token"
+                    name="refresh_token"
+                    type="password"
+                    {% if not status.refresh_token_configured %}required{% endif %}
+                    value=""
+                    autocomplete="new-password"
+                >
+            </div>
+
+            <button type="submit">
+                {% if status.configured %}
+                    Save local settings
+                {% else %}
+                    Complete setup
+                {% endif %}
+            </button>
+        </form>
+
+        <p class="chip-note">
+            Stored locally as <code>.env</code> with owner-only permissions where
+            supported. Secrets are not committed to GitHub.
+        </p>
+
+        {% if status.configured %}
+            <p><a href="{{ url_for('index') }}">Return to Gameweek HQ</a></p>
+        {% endif %}
+    </section>
+</main>
+</body>
+</html>

@@ -4,7 +4,6 @@ from zoneinfo import ZoneInfo
 import json
 
 from fpl_api import (
-    ENTRY_ID,
     get_bootstrap,
     get_entry_picks,
     get_entry_transfers,
@@ -303,7 +302,7 @@ def _format_player_result(
 
 def collect_gameweek_results(
     gameweek,
-    entry_id=ENTRY_ID,
+    entry_id=None,
 ):
     gameweek = int(gameweek)
 

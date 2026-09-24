@@ -259,6 +259,8 @@ The terminal tools should remain independently usable.
 - [x] Add runtime / development dependency manifests
 - [x] Add dependency vulnerability audit to CI
 - [x] Configure weekly Dependabot dependency updates
+- [x] Add first-run local setup for FPL Entry ID and refresh token
+- [x] Remove hard-coded personal FPL Entry ID from application code
 - [ ] Add protected-main ruleset once CI check names are confirmed
 - [ ] Expand automated tests for chip-planner logic
 - [ ] Cache external data where appropriate

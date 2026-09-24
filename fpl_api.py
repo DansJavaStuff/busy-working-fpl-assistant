@@ -1,14 +1,17 @@
 import json
-import os
 import time
 from pathlib import Path
 
 import requests
-from dotenv import load_dotenv
 from datetime import datetime, timezone
 
+from local_config import (
+    get_entry_id,
+    get_refresh_token,
+    save_refresh_token,
+)
+
 BASE_URL = "https://fantasy.premierleague.com/api"
-ENTRY_ID = 5710014
 
 TOKEN_URL = (
     "https://account.premierleague.com/"
@@ -229,7 +232,19 @@ def get_players():
 
     return players
 
-def get_entry(entry_id=ENTRY_ID):
+def _resolve_entry_id(entry_id):
+    return (
+        get_entry_id()
+        if entry_id is None
+        else int(entry_id)
+    )
+
+
+def get_entry(entry_id=None):
+
+    entry_id = _resolve_entry_id(
+        entry_id
+    )
 
     url = (
         "https://fantasy.premierleague.com/"
@@ -247,8 +262,12 @@ def get_entry(entry_id=ENTRY_ID):
 
 def get_entry_picks(
     gameweek,
-    entry_id=ENTRY_ID
+    entry_id=None,
 ):
+
+    entry_id = _resolve_entry_id(
+        entry_id
+    )
 
     url = (
         "https://fantasy.premierleague.com/"
@@ -267,8 +286,12 @@ def get_entry_picks(
 
 
 def get_entry_transfers(
-    entry_id=ENTRY_ID,
+    entry_id=None,
 ):
+
+    entry_id = _resolve_entry_id(
+        entry_id
+    )
 
     url = (
         "https://fantasy.premierleague.com/"
@@ -353,67 +376,11 @@ def get_latest_gameweek():
 
     return 1
 
-def save_refresh_token(new_token):
-
-    env_file = ".env"
-
-    lines = []
-
-    if os.path.exists(env_file):
-        with open(
-            env_file,
-            "r",
-            encoding="utf-8"
-        ) as f:
-            lines = f.readlines()
-
-    updated = False
-
-    for i, line in enumerate(lines):
-
-        if line.startswith(
-            "FPL_REFRESH_TOKEN="
-        ):
-            lines[i] = (
-                f"FPL_REFRESH_TOKEN="
-                f"{new_token}\n"
-            )
-
-            updated = True
-
-    if not updated:
-        lines.append(
-            f"FPL_REFRESH_TOKEN="
-            f"{new_token}\n"
-        )
-
-    with open(
-        env_file,
-        "w",
-        encoding="utf-8"
-    ) as f:
-        f.writelines(lines)
-
-    os.chmod(
-        env_file,
-        0o600
-    )
-
-
 def get_access_token():
 
-    load_dotenv(
-        override=True
+    refresh_token = (
+        get_refresh_token()
     )
-
-    refresh_token = os.getenv(
-        "FPL_REFRESH_TOKEN"
-    )
-
-    if not refresh_token:
-        raise RuntimeError(
-            "FPL_REFRESH_TOKEN missing from .env"
-        )
 
     response = requests.post(
         TOKEN_URL,
@@ -488,9 +455,13 @@ def get_access_token():
     return access_token
 
 def get_my_team(
-    entry_id=ENTRY_ID,
+    entry_id=None,
     access_token=None,
 ):
+
+    entry_id = _resolve_entry_id(
+        entry_id
+    )
 
     if access_token is None:
         access_token = (
@@ -518,9 +489,13 @@ def get_my_team(
 def set_my_team(
     picks,
     chip=None,
-    entry_id=ENTRY_ID,
+    entry_id=None,
     access_token=None,
 ):
+
+    entry_id = _resolve_entry_id(
+        entry_id
+    )
 
     if access_token is None:
         access_token = (
@@ -631,9 +606,13 @@ def make_transfers(
     transfers,
     event,
     chip=None,
-    entry_id=ENTRY_ID,
+    entry_id=None,
     access_token=None,
 ):
+
+    entry_id = _resolve_entry_id(
+        entry_id
+    )
 
     if access_token is None:
         access_token = (
