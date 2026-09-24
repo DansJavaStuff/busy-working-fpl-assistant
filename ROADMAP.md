@@ -91,7 +91,9 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Add persistent SQLite caching for expensive chip calculations
 - [x] Invalidate cached chip analysis by squad / transfer / chip state and model version
 - [ ] Extend persistent derived-result caching to other expensive model pages where useful
-- [ ] Save pre-deadline weekly snapshots
+- [x] Save append-only pre-deadline weekly snapshots
+- [x] Capture baseline plus T-60m / T-15m / T-10m / T-5m checkpoints
+- [x] Require fresh official public FPL data for deadline checkpoints
 - [ ] Import historical fixture / Gameweek context
 - [ ] Build full GW-by-GW value curves for all four chips
 - [ ] Add fixture-certainty and model-confidence signals
