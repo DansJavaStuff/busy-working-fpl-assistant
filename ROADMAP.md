@@ -254,6 +254,12 @@ The terminal tools should remain independently usable.
 
 - [ ] Add automated tests for projection logic
 - [ ] Add automated tests for transfer logic
+- [x] Add initial automated tests for chip-planner logic
+- [x] Add GitHub Actions CI for compile, tests and lightweight linting
+- [x] Add runtime / development dependency manifests
+- [x] Add dependency vulnerability audit to CI
+- [x] Configure weekly Dependabot dependency updates
+- [ ] Add protected-main ruleset once CI check names are confirmed
 - [ ] Expand automated tests for chip-planner logic
 - [ ] Cache external data where appropriate
 - [ ] Handle external-source failures gracefully
