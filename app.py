@@ -44,6 +44,10 @@ from history_store import (
     get_gameweek_snapshots,
 )
 
+from snapshot_analysis import (
+    analyse_gameweek_snapshots,
+)
+
 import json
 from pathlib import Path
 from datetime import datetime
@@ -1154,9 +1158,17 @@ def build_snapshot_status(
                 ),
         })
 
+    analysis = (
+        analyse_gameweek_snapshots(
+            gameweek,
+            get_entry_id(),
+        )
+    )
+
     return {
         "state": state,
         "checkpoints": checkpoints,
+        "analysis": analysis,
     }
 
 
