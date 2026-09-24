@@ -130,6 +130,10 @@ JSON payload columns preserve source details that may be useful later without fo
 
 This gives future chip-pattern work a reproducible storage layer while keeping the database itself disposable and rebuildable.
 
+The same SQLite database also provides a persistent cache for expensive derived model results. Chip Planner results are cached by a fingerprint of the current squad, bank, transfer state, chip state and planning Gameweek, together with an explicit model-version key. Cached results expire automatically, and changing those inputs produces a different cache key rather than reusing stale analysis.
+
+The Chip Planner currently uses a 15-minute cache for the main page and a 30-minute cache for the slower future-opportunity analysis. Supplying `?refresh=1` to the corresponding data endpoint bypasses the cache and recalculates immediately.
+
 ## Main Scripts
 
 ### `transfer_optimizer.py`

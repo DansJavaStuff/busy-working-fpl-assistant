@@ -1,6 +1,5 @@
+import hashlib
 import json
-import time
-from pathlib import Path
 
 from fpl_api import (
     get_my_team,
@@ -17,15 +16,19 @@ from transfer_optimizer import (
     optimise_transfers,
 )
 
+from history_store import (
+    get_cached_result,
+    save_cached_result,
+)
+
 
 POST_BB_HORIZON_WEIGHT = 0.15
 FIRST_HALF_END_GW = 19
 SECOND_HALF_START_GW = 20
 SEASON_END_GW = 38
 
-CHIP_OPPORTUNITY_CACHE = Path(
-    "data/chip_opportunity_cache.json"
-)
+CHIP_CACHE_MODEL_VERSION = "chip-planner-v1"
+CHIP_PLANNER_CACHE_TTL = 15 * 60
 CHIP_OPPORTUNITY_CACHE_TTL = 30 * 60
 
 
@@ -164,7 +167,7 @@ def _chip_boundary_status(
     }
 
 
-def _opportunity_cache_key(
+def _chip_cache_context(
     planning_gameweek,
     current_team,
 ):
@@ -175,9 +178,48 @@ def _opportunity_cache_key(
                 "selling_price",
                 0,
             ),
+            pick.get(
+                "position",
+                0,
+            ),
         )
         for pick in current_team.get(
             "picks",
+            [],
+        )
+    )
+
+    transfers = current_team.get(
+        "transfers",
+        {},
+    )
+
+    chips = sorted(
+        (
+            _normalise_chip_name(
+                chip
+            ),
+            chip.get("number"),
+            _normalise_status(
+                chip
+            ),
+            chip.get(
+                "start_event"
+            ),
+            chip.get(
+                "stop_event"
+            ),
+            (
+                chip.get(
+                    "played_by_entry"
+                )
+                or chip.get(
+                    "played_event"
+                )
+            ),
+        )
+        for chip in current_team.get(
+            "chips",
             [],
         )
     )
@@ -186,79 +228,52 @@ def _opportunity_cache_key(
         "gameweek":
             planning_gameweek,
         "bank":
-            current_team.get(
-                "transfers",
-                {},
-            ).get(
+            transfers.get(
                 "bank",
+                0,
+            ),
+        "transfer_limit":
+            transfers.get(
+                "limit",
+                0,
+            ),
+        "transfers_made":
+            transfers.get(
+                "made",
+                0,
+            ),
+        "transfer_cost":
+            transfers.get(
+                "cost",
                 0,
             ),
         "picks":
             picks,
+        "chips":
+            chips,
     }
 
 
-def _load_opportunity_cache(
-    cache_key,
+def _chip_cache_key(
+    planning_gameweek,
+    current_team,
 ):
-    if not CHIP_OPPORTUNITY_CACHE.exists():
-        return None
-
-    try:
-        payload = json.loads(
-            CHIP_OPPORTUNITY_CACHE.read_text(
-                encoding="utf-8"
-            )
-        )
-    except (
-        OSError,
-        json.JSONDecodeError,
-    ):
-        return None
-
-    if payload.get("key") != cache_key:
-        return None
-
-    cached_at = payload.get(
-        "cached_at",
-        0,
+    context = _chip_cache_context(
+        planning_gameweek,
+        current_team,
     )
 
-    if (
-        time.time()
-        - cached_at
-        > CHIP_OPPORTUNITY_CACHE_TTL
-    ):
-        return None
-
-    return payload.get(
-        "opportunity"
+    encoded = json.dumps(
+        context,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode(
+        "utf-8"
     )
 
-
-def _save_opportunity_cache(
-    cache_key,
-    opportunity,
-):
-    CHIP_OPPORTUNITY_CACHE.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    CHIP_OPPORTUNITY_CACHE.write_text(
-        json.dumps(
-            {
-                "cached_at":
-                    time.time(),
-                "key":
-                    cache_key,
-                "opportunity":
-                    opportunity,
-            },
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
+    return hashlib.sha256(
+        encoded
+    ).hexdigest()
 
 
 def _projection(player, gameweek):
@@ -1895,6 +1910,7 @@ def _chip_opportunity_summary(
 
 def build_chip_planner(
     include_opportunity=False,
+    force_refresh=False,
 ):
     planning_gameweek = (
         get_planning_gameweek()
@@ -1907,6 +1923,32 @@ def build_chip_planner(
             planning_gameweek
         )
     )
+
+    cache_key = _chip_cache_key(
+        planning_gameweek,
+        current_team,
+    )
+
+    cache_namespace = (
+        "chip_planner_with_opportunity"
+        if include_opportunity
+        else "chip_planner"
+    )
+
+    if not force_refresh:
+        cached = get_cached_result(
+            cache_namespace,
+            cache_key,
+            CHIP_CACHE_MODEL_VERSION,
+        )
+
+        if cached is not None:
+            cached["cache"] = {
+                "hit": True,
+                "namespace":
+                    cache_namespace,
+            }
+            return cached
 
     players = load_players(
         projection_end_gameweek=
@@ -2238,7 +2280,7 @@ def build_chip_planner(
                     f"Gameweek."
                 )
 
-    return {
+    result = {
         "gameweek":
             planning_gameweek,
         "chip_horizon_end":
@@ -2264,7 +2306,22 @@ def build_chip_planner(
             ),
         "opportunity":
             opportunity,
+        "cache": {
+            "hit": False,
+            "namespace":
+                cache_namespace,
+        },
     }
+
+    save_cached_result(
+        cache_namespace,
+        cache_key,
+        CHIP_CACHE_MODEL_VERSION,
+        result,
+        CHIP_PLANNER_CACHE_TTL,
+    )
+
+    return result
 
 
 
@@ -2283,19 +2340,24 @@ def build_chip_opportunity(
         )
     )
 
-    cache_key = (
-        _opportunity_cache_key(
-            planning_gameweek,
-            current_team,
-        )
+    cache_key = _chip_cache_key(
+        planning_gameweek,
+        current_team,
     )
 
     if not force_refresh:
-        cached = _load_opportunity_cache(
-            cache_key
+        cached = get_cached_result(
+            "chip_opportunity",
+            cache_key,
+            CHIP_CACHE_MODEL_VERSION,
         )
 
         if cached is not None:
+            cached["cache"] = {
+                "hit": True,
+                "namespace":
+                    "chip_opportunity",
+            }
             return cached
 
     players = load_players(
@@ -2333,9 +2395,18 @@ def build_chip_opportunity(
         )
     )
 
-    _save_opportunity_cache(
+    opportunity["cache"] = {
+        "hit": False,
+        "namespace":
+            "chip_opportunity",
+    }
+
+    save_cached_result(
+        "chip_opportunity",
         cache_key,
+        CHIP_CACHE_MODEL_VERSION,
         opportunity,
+        CHIP_OPPORTUNITY_CACHE_TTL,
     )
 
     return opportunity

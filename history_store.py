@@ -1,5 +1,6 @@
 import json
 import sqlite3
+import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -512,3 +513,175 @@ def save_chip_outcome(
         return int(
             cursor.lastrowid
         )
+
+
+
+def get_cached_result(
+    namespace,
+    cache_key,
+    model_version,
+    now=None,
+    db_path=DEFAULT_DB_PATH,
+):
+    now = (
+        time.time()
+        if now is None
+        else float(now)
+    )
+
+    ensure_database(
+        db_path
+    )
+
+    with connect(
+        db_path
+    ) as connection:
+        row = connection.execute(
+            """
+            SELECT payload_json
+            FROM derived_cache
+            WHERE namespace = ?
+              AND cache_key = ?
+              AND model_version = ?
+              AND expires_at > ?
+            """,
+            (
+                namespace,
+                cache_key,
+                model_version,
+                now,
+            ),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    try:
+        return json.loads(
+            row["payload_json"]
+        )
+    except json.JSONDecodeError:
+        return None
+
+
+def save_cached_result(
+    namespace,
+    cache_key,
+    model_version,
+    payload,
+    ttl_seconds,
+    now=None,
+    db_path=DEFAULT_DB_PATH,
+):
+    now = (
+        time.time()
+        if now is None
+        else float(now)
+    )
+    expires_at = (
+        now
+        + float(ttl_seconds)
+    )
+
+    ensure_database(
+        db_path
+    )
+
+    with transaction(
+        db_path
+    ) as connection:
+        connection.execute(
+            """
+            INSERT INTO derived_cache (
+                namespace,
+                cache_key,
+                model_version,
+                created_at,
+                expires_at,
+                payload_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(
+                namespace,
+                cache_key,
+                model_version
+            )
+            DO UPDATE SET
+                created_at =
+                    excluded.created_at,
+                expires_at =
+                    excluded.expires_at,
+                payload_json =
+                    excluded.payload_json
+            """,
+            (
+                namespace,
+                cache_key,
+                model_version,
+                now,
+                expires_at,
+                _json_text(
+                    payload
+                ),
+            ),
+        )
+
+
+def delete_cached_result(
+    namespace,
+    cache_key,
+    model_version,
+    db_path=DEFAULT_DB_PATH,
+):
+    ensure_database(
+        db_path
+    )
+
+    with transaction(
+        db_path
+    ) as connection:
+        cursor = connection.execute(
+            """
+            DELETE FROM derived_cache
+            WHERE namespace = ?
+              AND cache_key = ?
+              AND model_version = ?
+            """,
+            (
+                namespace,
+                cache_key,
+                model_version,
+            ),
+        )
+
+        return cursor.rowcount
+
+
+def prune_expired_cache(
+    now=None,
+    db_path=DEFAULT_DB_PATH,
+):
+    now = (
+        time.time()
+        if now is None
+        else float(now)
+    )
+
+    ensure_database(
+        db_path
+    )
+
+    with transaction(
+        db_path
+    ) as connection:
+        cursor = connection.execute(
+            """
+            DELETE FROM derived_cache
+            WHERE expires_at <= ?
+            """,
+            (
+                now,
+            ),
+        )
+
+        return cursor.rowcount

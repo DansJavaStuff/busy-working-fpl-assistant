@@ -7,8 +7,10 @@ from history_store import (
     current_schema_version,
     database_status,
     ensure_database,
+    get_cached_result,
     save_chip_opportunity,
     save_chip_outcome,
+    save_cached_result,
     save_snapshot,
     upsert_gameweek,
     upsert_season,
@@ -41,7 +43,7 @@ class HistoryStoreTests(unittest.TestCase):
             current_schema_version(
                 self.db_path
             ),
-            1,
+            2,
         )
 
         status = database_status(
@@ -53,7 +55,7 @@ class HistoryStoreTests(unittest.TestCase):
         )
         self.assertEqual(
             status["schema_version"],
-            1,
+            2,
         )
 
     def test_migrations_are_idempotent(self):
@@ -76,7 +78,80 @@ class HistoryStoreTests(unittest.TestCase):
 
         self.assertEqual(
             count,
-            1,
+            2,
+        )
+
+    def test_derived_cache_round_trip_and_expiry(self):
+        ensure_database(
+            self.db_path
+        )
+
+        save_cached_result(
+            "chip_planner",
+            "abc123",
+            "model-v1",
+            {
+                "gameweek": 6,
+                "value": 12.5,
+            },
+            ttl_seconds=60,
+            now=1000,
+            db_path=self.db_path,
+        )
+
+        cached = get_cached_result(
+            "chip_planner",
+            "abc123",
+            "model-v1",
+            now=1030,
+            db_path=self.db_path,
+        )
+
+        self.assertEqual(
+            cached,
+            {
+                "gameweek": 6,
+                "value": 12.5,
+            },
+        )
+
+        expired = get_cached_result(
+            "chip_planner",
+            "abc123",
+            "model-v1",
+            now=1061,
+            db_path=self.db_path,
+        )
+
+        self.assertIsNone(
+            expired
+        )
+
+    def test_derived_cache_is_model_version_specific(self):
+        ensure_database(
+            self.db_path
+        )
+
+        save_cached_result(
+            "chip_planner",
+            "same-inputs",
+            "model-v1",
+            {
+                "value": 1,
+            },
+            ttl_seconds=60,
+            now=1000,
+            db_path=self.db_path,
+        )
+
+        self.assertIsNone(
+            get_cached_result(
+                "chip_planner",
+                "same-inputs",
+                "model-v2",
+                now=1010,
+                db_path=self.db_path,
+            )
         )
 
     def test_can_store_core_historical_records(self):
