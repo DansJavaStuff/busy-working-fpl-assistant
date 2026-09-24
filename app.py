@@ -917,7 +917,13 @@ def chips():
 def chip_data():
 
     try:
-        planner = build_chip_planner()
+        planner = build_chip_planner(
+            force_refresh=(
+                request.args.get(
+                    "refresh"
+                ) == "1"
+            ),
+        )
 
         return render_template(
             "chips_content.html",
@@ -949,7 +955,13 @@ def chip_opportunity():
 
     try:
         opportunity = (
-            build_chip_opportunity()
+            build_chip_opportunity(
+                force_refresh=(
+                    request.args.get(
+                        "refresh"
+                    ) == "1"
+                ),
+            )
         )
 
         return render_template(
