@@ -2299,7 +2299,7 @@ def build_chip_opportunity(
 
     players = load_players(
         projection_end_gameweek=
-            FIRST_HALF_END_GW,
+            chip_horizon_end,
         long_range_regression=True,
     )
 
@@ -2317,6 +2317,7 @@ def build_chip_opportunity(
             players,
             current_team,
             planning_gameweek,
+            chip_horizon_end,
         )
     )
 
