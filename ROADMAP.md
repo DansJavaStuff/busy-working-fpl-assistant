@@ -81,7 +81,23 @@ Saving £2.5m costs only 0.17 projected points.
 
 The cheaper squad may be strategically preferable even though it is not the mathematical maximum for the current projection window.
 
-## Current — Smarter Free-Transfer Valuation
+## Current — Chip Schedule & Historical Intelligence
+
+Before moving on to transfer valuation, turn the chip opportunity model into a coordinated, confidence-aware schedule.
+
+- [x] Historical data foundation: versioned local SQLite store
+- [x] Rebuildable schema migrations
+- [x] Separate runtime data from Git-tracked code/reference data
+- [ ] Save pre-deadline weekly snapshots
+- [ ] Import historical fixture / Gameweek context
+- [ ] Build full GW-by-GW value curves for all four chips
+- [ ] Add fixture-certainty and model-confidence signals
+- [ ] Allow explicit HOLD / insufficient-data recommendations
+- [ ] Build coordinated chip schedule with one-chip-per-GW constraints
+- [ ] Backtest historical chip patterns and outcomes
+- [ ] Explain useful historical analogues without overfitting to Gameweek number
+
+## Next — Smarter Free-Transfer Valuation
 
 Improve the current fixed minimum projected-gain threshold.
 
@@ -316,15 +332,16 @@ Good ideas that are deliberately not current priorities:
 
 ## Priority Order
 
-1. **Smarter free-transfer valuation** — current modelling priority.
-2. Outfield playing-time confidence.
-3. Projection validation.
-4. Multi-gameweek transfer planning.
-5. Captaincy improvements.
-6. Price-change awareness.
-7. Weekly decision report.
-8. Hosted-service work: authentication, scheduling and deployment.
-9. Project rename and technical cleanup.
+1. **Chip schedule & historical intelligence** — current modelling priority.
+2. Smarter free-transfer valuation.
+3. Outfield playing-time confidence.
+4. Projection validation.
+5. Multi-gameweek transfer planning.
+6. Captaincy improvements.
+7. Price-change awareness.
+8. Weekly decision report.
+9. Hosted-service work: authentication, scheduling and deployment.
+10. Project rename and technical cleanup.
 
 Budget-efficiency work can continue as a refinement alongside the current transfer-valuation work; it does not block the next modelling milestone.
 

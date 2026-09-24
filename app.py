@@ -37,6 +37,10 @@ from local_config import (
     save_local_config,
 )
 
+from history_store import (
+    ensure_database,
+)
+
 import json
 from pathlib import Path
 from datetime import datetime
@@ -52,6 +56,10 @@ from flask import (
 )
 
 app = Flask(__name__)
+
+# Keep the local historical store ready for
+# snapshot collection and future backtesting.
+ensure_database()
 
 
 class ProposalValidationError(ValueError):

@@ -11,3 +11,5 @@ data/gameweek_history/
 
 data/fpl_cache/
 data/chip_opportunity_cache.json
+data/runtime/
+data/snapshots/
