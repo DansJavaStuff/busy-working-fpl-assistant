@@ -1,5 +1,5 @@
 from fpl_api import (
-    ENTRY_ID,
+    get_entry_id,
     get_access_token,
     get_bootstrap,
     get_my_team,
@@ -166,8 +166,10 @@ def apply_approved_plan(
         get_access_token()
     )
 
+    entry_id = get_entry_id()
+
     live_team = get_my_team(
-        entry_id=ENTRY_ID,
+        entry_id=entry_id,
         access_token=access_token,
     )
 
@@ -320,12 +322,12 @@ def apply_approved_plan(
         make_transfers(
             transfers=transfers,
             event=planning_gameweek,
-            entry_id=ENTRY_ID,
+            entry_id=entry_id,
             access_token=access_token,
         )
 
         live_team = get_my_team(
-            entry_id=ENTRY_ID,
+            entry_id=entry_id,
             access_token=access_token,
         )
 
@@ -352,12 +354,12 @@ def apply_approved_plan(
     set_my_team(
         picks=picks,
         chip=None,
-        entry_id=ENTRY_ID,
+        entry_id=entry_id,
         access_token=access_token,
     )
 
     after = get_my_team(
-        entry_id=ENTRY_ID,
+        entry_id=entry_id,
         access_token=access_token,
     )
 
