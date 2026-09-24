@@ -154,6 +154,88 @@ def _projection(player, gameweek):
     )
 
 
+def _fixture_context(
+    players,
+    gameweek,
+):
+    """
+    Summarise the FPL fixture slate from the same
+    per-team fixture counts used by player projections.
+    """
+    counts_by_team = {}
+
+    for player in players:
+        team_id = player.get(
+            "team_id"
+        )
+
+        if (
+            team_id is None
+            or team_id in counts_by_team
+        ):
+            continue
+
+        counts_by_team[team_id] = int(
+            player.get(
+                "fixture_counts",
+                {},
+            ).get(
+                gameweek,
+                0,
+            )
+        )
+
+    blank_count = sum(
+        count == 0
+        for count in counts_by_team.values()
+    )
+
+    double_count = sum(
+        count >= 2
+        for count in counts_by_team.values()
+    )
+
+    if blank_count and double_count:
+        kind = "blank_double"
+    elif blank_count:
+        kind = "blank"
+    elif double_count:
+        kind = "double"
+    else:
+        kind = "normal"
+
+    parts = []
+
+    if blank_count:
+        parts.append(
+            f"{blank_count} blank "
+            f"club{'s' if blank_count != 1 else ''}"
+        )
+
+    if double_count:
+        parts.append(
+            f"{double_count} double "
+            f"club{'s' if double_count != 1 else ''}"
+        )
+
+    label = (
+        " · ".join(parts)
+        if parts
+        else "normal fixture slate"
+    )
+
+    return {
+        "kind":
+            kind,
+        "blank_team_count":
+            blank_count,
+        "double_team_count":
+            double_count,
+        "label":
+            label,
+    }
+
+
 def _normalise_status(chip):
     status = (
         chip.get("status_for_entry")
@@ -766,6 +848,11 @@ def _triple_captain_windows(
         windows.append({
             "gameweek":
                 gameweek,
+            "fixture_context":
+                _fixture_context(
+                    players,
+                    gameweek,
+                ),
             "owned_captain":
                 best_owned,
             "best_candidate":
@@ -1415,6 +1502,11 @@ def _timing_window(
 
     return {
         "gameweek": gameweek,
+        "fixture_context":
+            _fixture_context(
+                players,
+                gameweek,
+            ),
         "hold_gw": hold_gw,
         "bb_value": bb_value,
         "wc_value":
@@ -1505,7 +1597,17 @@ def _chip_opportunity_summary(
             "chip": chip,
             "short": short,
             "now_value": now_value,
-            "now_context": context,
+            "now_context":
+                (
+                    f"{context} · "
+                    f"{current_timing['fixture_context']['label']}"
+                ),
+            "best_later_fixture_context":
+                (
+                    later["fixture_context"]["label"]
+                    if later
+                    else None
+                ),
             "best_later_value":
                 later_value,
             "best_later_gw":
@@ -1585,9 +1687,18 @@ def _chip_opportunity_summary(
             "now_value":
                 now_value,
             "now_context":
-                current_tc[
-                    "best_candidate"
-                ]["name"],
+                (
+                    f"{current_tc['best_candidate']['name']} · "
+                    f"{current_tc['fixture_context']['label']}"
+                ),
+            "best_later_fixture_context":
+                (
+                    best_later_tc[
+                        "fixture_context"
+                    ]["label"]
+                    if best_later_tc
+                    else None
+                ),
             "best_later_value":
                 later_value,
             "best_later_gw":
@@ -1990,6 +2101,11 @@ def build_chip_planner(
             wildcard,
         "free_hit":
             free_hit,
+        "fixture_context":
+            _fixture_context(
+                players,
+                planning_gameweek,
+            ),
         "opportunity":
             opportunity,
     }
