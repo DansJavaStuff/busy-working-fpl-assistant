@@ -115,7 +115,7 @@ data/runtime/fpl_history.db
 The runtime database is intentionally excluded from Git. The schema and migrations are tracked in `db/migrations/`, so a clean clone can recreate the database automatically. The Flask app applies pending migrations at startup; the same can be done manually with:
 
 ```bash
-python3 tools/init_history_db.py
+python3 -m tools.init_history_db
 ```
 
 The initial schema separates:
