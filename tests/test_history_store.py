@@ -12,6 +12,7 @@ from history_store import (
     save_chip_outcome,
     save_cached_result,
     save_snapshot,
+    snapshot_exists,
     upsert_gameweek,
     upsert_season,
 )
@@ -150,6 +151,50 @@ class HistoryStoreTests(unittest.TestCase):
                 "same-inputs",
                 "model-v2",
                 now=1010,
+                db_path=self.db_path,
+            )
+        )
+
+    def test_snapshot_exists_distinguishes_checkpoint_type(self):
+        ensure_database(
+            self.db_path
+        )
+
+        season_id = upsert_season(
+            "2026-27",
+            db_path=self.db_path,
+        )
+        gameweek_id = upsert_gameweek(
+            season_id,
+            6,
+            db_path=self.db_path,
+        )
+
+        save_snapshot(
+            season_id,
+            gameweek_id,
+            "pre_deadline_baseline",
+            {"ok": True},
+            entry_id=123,
+            db_path=self.db_path,
+        )
+
+        self.assertTrue(
+            snapshot_exists(
+                season_id,
+                gameweek_id,
+                "pre_deadline_baseline",
+                entry_id=123,
+                db_path=self.db_path,
+            )
+        )
+
+        self.assertFalse(
+            snapshot_exists(
+                season_id,
+                gameweek_id,
+                "pre_deadline_t15m",
+                entry_id=123,
                 db_path=self.db_path,
             )
         )

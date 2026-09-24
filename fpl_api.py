@@ -128,11 +128,16 @@ def _cached_public_get(
     cache_name,
     fresh_ttl,
     stale_ttl,
+    force_refresh=False,
+    allow_stale=True,
 ):
-    cached = _read_cache(
-        cache_name,
-        max_age=fresh_ttl,
-    )
+    cached = None
+
+    if not force_refresh:
+        cached = _read_cache(
+            cache_name,
+            max_age=fresh_ttl,
+        )
 
     if cached is not None:
         return cached["data"]
@@ -161,9 +166,13 @@ def _cached_public_get(
         requests.RequestException,
         ValueError,
     ):
-        stale = _read_cache(
-            cache_name,
-            max_age=stale_ttl,
+        stale = (
+            _read_cache(
+                cache_name,
+                max_age=stale_ttl,
+            )
+            if allow_stale
+            else None
         )
 
         if stale is not None:
@@ -178,21 +187,31 @@ def _cached_public_get(
 
         raise
 
-def get_bootstrap():
+def get_bootstrap(
+    force_refresh=False,
+    allow_stale=True,
+):
     return _cached_public_get(
         "bootstrap-static/",
         "bootstrap",
         BOOTSTRAP_CACHE_TTL,
         BOOTSTRAP_STALE_TTL,
+        force_refresh=force_refresh,
+        allow_stale=allow_stale,
     )
 
 
-def get_fixtures():
+def get_fixtures(
+    force_refresh=False,
+    allow_stale=True,
+):
     return _cached_public_get(
         "fixtures/",
         "fixtures",
         FIXTURES_CACHE_TTL,
         FIXTURES_STALE_TTL,
+        force_refresh=force_refresh,
+        allow_stale=allow_stale,
     )
 
 

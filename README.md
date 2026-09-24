@@ -134,6 +134,37 @@ The same SQLite database also provides a persistent cache for expensive derived 
 
 The Chip Planner currently uses a 15-minute cache for the main page and a 30-minute cache for the slower future-opportunity analysis. Supplying `?refresh=1` to the corresponding data endpoint bypasses the cache and recalculates immediately.
 
+### Pre-deadline snapshots
+
+A small systemd timer can collect append-only snapshots of what FPL data was actually available before each deadline. This is designed for later backtesting so historical models do not accidentally use information that only became known afterwards.
+
+Install the timer once on the Raspberry Pi from the repository root:
+
+```bash
+sh tools/install_snapshot_timer.sh
+```
+
+The installer starts the collector immediately and then checks every two minutes. It does not write a new row every two minutes; it only saves when a checkpoint is due.
+
+For each Gameweek the current checkpoints are:
+
+- one **baseline** snapshot when the collector first runs more than an hour before the deadline
+- approximately **T-60 minutes**
+- approximately **T-15 minutes**
+- approximately **T-10 minutes**
+- approximately **T-5 minutes**
+
+Snapshots are append-only. The baseline is not overwritten by the later pre-deadline records. Each checkpoint is saved at most once per entry/Gameweek.
+
+When a snapshot is actually due, the collector bypasses the normal public-data cache and requires fresh official FPL bootstrap and fixture responses, then captures the authenticated current squad and public entry data. If a live public FPL request fails, that checkpoint is not silently filled with stale cached data.
+
+The timer can be inspected with:
+
+```bash
+sudo systemctl status fpl-snapshot-collector.timer
+sudo journalctl -u fpl-snapshot-collector.service
+```
+
 ## Main Scripts
 
 ### `transfer_optimizer.py`
