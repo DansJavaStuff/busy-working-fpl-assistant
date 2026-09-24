@@ -69,7 +69,7 @@ class SnapshotCheckpointTests(
 
     def test_late_15_minute_checkpoint_is_recovered(self):
         details = checkpoint_details_for_seconds(
-            12 * 60
+            11 * 60
         )
 
         self.assertEqual(
