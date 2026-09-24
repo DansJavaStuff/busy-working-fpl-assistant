@@ -158,15 +158,27 @@ Contains additional player-level context used by the model.
 
 Utility for retrieving and inspecting the authenticated FPL squad.
 
-## Authentication
+## First-run setup and authentication
 
-Authenticated features require an FPL refresh token in a local `.env` file:
+A fresh installation does not contain an FPL account ID or credentials.
+
+Start the Flask app and browse to it normally. If local configuration is missing, Gameweek HQ redirects to `/setup` and asks for:
+
+- your numeric FPL Entry ID
+- your FPL refresh token
+
+The setup page writes these values to the installation's local `.env` file:
 
 ```text
+FPL_ENTRY_ID=...
 FPL_REFRESH_TOKEN=...
 ```
 
-The refresh token may rotate during authenticated requests and is saved locally by the application.
+The refresh token is never displayed back to the browser after it has been saved. On supported systems the file is written with owner-only (`0600`) permissions, and `.env` is excluded from Git.
+
+If a refresh token is rotated during authenticated FPL requests, the replacement is saved back to the same local file without losing the Entry ID.
+
+An optional `.env.example` is included for manual setup, but the web setup page is the preferred route.
 
 **Never commit `.env`, refresh tokens or other credentials to Git.**
 
@@ -177,10 +189,14 @@ The project is developed primarily on macOS and run on a Raspberry Pi using a Py
 Typical setup:
 
 ```bash
+git clone https://github.com/DansJavaStuff/busy-working-fpl-assistant.git
+cd busy-working-fpl-assistant
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
+
+After starting the Flask app, complete the local setup page. This makes a replacement Raspberry Pi or a future clean install reproducible without editing Python source files.
 
 The optimisation model also requires the CBC solver used by PuLP.
 
@@ -231,6 +247,7 @@ Current web functionality includes:
 - Approve / Reject workflow
 - Gameweek history
 - Read-only chip planning and opportunity comparison
+- First-run local setup for FPL account configuration
 
 Future web work includes authentication, scheduled optimiser runs, hosted deployment and additional diagnostic / comparison views.
 
