@@ -46,6 +46,14 @@ from flask import (
 
 app = Flask(__name__)
 
+
+class ProposalValidationError(ValueError):
+    """Validation failure whose message is safe to show to the user."""
+
+    def __init__(self, public_message):
+        super().__init__(public_message)
+        self.public_message = public_message
+
 APPROVAL_FILE = Path(
     "data/weekly_approval.json"
 )
@@ -687,12 +695,12 @@ def validate_proposed_team(
 ):
 
     if len(starter_ids) != 11:
-        raise ValueError(
+        raise ProposalValidationError(
             "Proposal must contain 11 starters."
         )
 
     if len(bench_ids) != 4:
-        raise ValueError(
+        raise ProposalValidationError(
             "Proposal must contain 4 bench players."
         )
 
@@ -702,7 +710,7 @@ def validate_proposed_team(
     )
 
     if len(all_ids) != len(set(all_ids)):
-        raise ValueError(
+        raise ProposalValidationError(
             "Proposal contains duplicate players."
         )
 
@@ -717,7 +725,7 @@ def validate_proposed_team(
     )
 
     if set(all_ids) != expected_ids:
-        raise ValueError(
+        raise ProposalValidationError(
             "Proposal does not match "
             "the recommended 15-player squad."
         )
@@ -748,7 +756,7 @@ def validate_proposed_team(
         ] += 1
 
     if position_counts["GKP"] != 1:
-        raise ValueError(
+        raise ProposalValidationError(
             "Starting XI must contain "
             "exactly one goalkeeper."
         )
@@ -758,7 +766,7 @@ def validate_proposed_team(
         <= position_counts["DEF"]
         <= 5
     ):
-        raise ValueError(
+        raise ProposalValidationError(
             "Starting XI must contain "
             "3-5 defenders."
         )
@@ -768,7 +776,7 @@ def validate_proposed_team(
         <= position_counts["MID"]
         <= 5
     ):
-        raise ValueError(
+        raise ProposalValidationError(
             "Starting XI must contain "
             "2-5 midfielders."
         )
@@ -778,7 +786,7 @@ def validate_proposed_team(
         <= position_counts["FWD"]
         <= 3
     ):
-        raise ValueError(
+        raise ProposalValidationError(
             "Starting XI must contain "
             "1-3 forwards."
         )
@@ -790,25 +798,25 @@ def validate_proposed_team(
     ]
 
     if len(bench_goalkeepers) != 1:
-        raise ValueError(
+        raise ProposalValidationError(
             "Bench must contain "
             "exactly one goalkeeper."
         )
 
     if captain_id not in starter_ids:
-        raise ValueError(
+        raise ProposalValidationError(
             "Captain must be in "
             "the starting XI."
         )
 
     if vice_id not in starter_ids:
-        raise ValueError(
+        raise ProposalValidationError(
             "Vice-captain must be in "
             "the starting XI."
         )
 
     if captain_id == vice_id:
-        raise ValueError(
+        raise ProposalValidationError(
             "Captain and vice-captain "
             "must be different players."
         )
@@ -1345,12 +1353,12 @@ def update_proposal():
             vice_id,
         )
 
-    except ValueError as exc:
+    except ProposalValidationError as exc:
 
         return jsonify({
             "ok": False,
             "error":
-                str(exc),
+                exc.public_message,
         }), 400
 
 
@@ -1519,7 +1527,8 @@ def approve():
 
     except PlanApplyError as exc:
         return (
-            f"FPL changes were not applied: {exc}",
+            "FPL changes were not applied: "
+            f"{exc.public_message}",
             409,
         )
 
