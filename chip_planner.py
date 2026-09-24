@@ -2161,8 +2161,8 @@ def build_chip_planner(
                 )
 
                 card["evaluation"] = (
-                    f"Best projected first-half "
-                    f"window is GW"
+                    f"Best projected window through "
+                    f"GW{chip_horizon_end} is GW"
                     f"{best['gameweek']}: "
                     f"{candidate['name']} at "
                     f"{best['best_tc_uplift']:.1f} "
@@ -2170,9 +2170,10 @@ def build_chip_planner(
                     f"({ownership_text})."
                 )
                 card["note"] = (
-                    "The model now compares every "
-                    "remaining Gameweek through "
-                    "GW19. It shows both the best "
+                    "The model compares every "
+                    "remaining Gameweek in the "
+                    "current chip half. It shows "
+                    "both the best "
                     "captain already in the squad "
                     "and the best projected "
                     "league-wide candidate."
