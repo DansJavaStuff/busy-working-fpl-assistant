@@ -2,7 +2,12 @@ import unittest
 
 from chip_planner import (
     FIRST_HALF_END_GW,
+    SECOND_HALF_START_GW,
+    SEASON_END_GW,
+    _chip_boundary_status,
     _chip_cards,
+    _chip_horizon_end,
+    _chip_opportunity_summary,
     _future_team_state,
     _normalise_chip_name,
     _normalise_status,
@@ -96,6 +101,7 @@ class ChipTimingTests(unittest.TestCase):
         anchored = _players_at_gameweek(
             [player],
             18,
+            FIRST_HALF_END_GW,
         )[0]
 
         self.assertEqual(
@@ -148,6 +154,257 @@ class ChipTimingTests(unittest.TestCase):
         self.assertEqual(
             current_team["transfers"]["made"],
             2,
+        )
+
+
+
+class ChipBoundaryTests(unittest.TestCase):
+
+    def test_first_and_second_half_horizons_are_separate(self):
+        self.assertEqual(
+            _chip_horizon_end(19),
+            FIRST_HALF_END_GW,
+        )
+        self.assertEqual(
+            _chip_horizon_end(20),
+            SEASON_END_GW,
+        )
+
+    def test_wildcard_and_free_hit_cannot_be_played_in_gw1(self):
+        for name in (
+            "wildcard",
+            "freehit",
+        ):
+            card = {
+                "name": name,
+                "status": "available",
+                "start_event": 1,
+                "stop_event": 19,
+                "played_event": None,
+            }
+
+            result = _chip_boundary_status(
+                card,
+                1,
+                [card],
+            )
+
+            self.assertFalse(
+                result["available"]
+            )
+
+    def test_second_set_is_available_from_gw20(self):
+        first = {
+            "name": "bboost",
+            "number": 1,
+            "status": "used",
+            "start_event": 1,
+            "stop_event": 19,
+            "played_event": 7,
+        }
+        second = {
+            "name": "bboost",
+            "number": 2,
+            "status": "available",
+            "start_event": 20,
+            "stop_event": 38,
+            "played_event": None,
+        }
+
+        before = _chip_boundary_status(
+            second,
+            19,
+            [first, second],
+        )
+        after = _chip_boundary_status(
+            second,
+            20,
+            [first, second],
+        )
+
+        self.assertFalse(
+            before["available"]
+        )
+        self.assertTrue(
+            after["available"]
+        )
+
+    def test_first_half_chip_expires_after_gw19(self):
+        card = {
+            "name": "3xc",
+            "number": 1,
+            "status": "available",
+            "start_event": 1,
+            "stop_event": 19,
+            "played_event": None,
+        }
+
+        result = _chip_boundary_status(
+            card,
+            20,
+            [card],
+        )
+
+        self.assertFalse(
+            result["available"]
+        )
+
+    def test_free_hit_cannot_be_played_in_both_gw19_and_gw20(self):
+        first = {
+            "name": "freehit",
+            "number": 1,
+            "status": "used",
+            "start_event": 2,
+            "stop_event": 19,
+            "played_event": 19,
+        }
+        second = {
+            "name": "freehit",
+            "number": 2,
+            "status": "available",
+            "start_event": 20,
+            "stop_event": 38,
+            "played_event": None,
+        }
+
+        result = _chip_boundary_status(
+            second,
+            SECOND_HALF_START_GW,
+            [first, second],
+        )
+
+        self.assertFalse(
+            result["available"]
+        )
+        self.assertIn(
+            "GW19 and GW20",
+            result["reason"],
+        )
+
+    def test_other_chip_played_in_gameweek_blocks_another_chip(self):
+        played = {
+            "name": "bboost",
+            "number": 1,
+            "status": "used",
+            "start_event": 1,
+            "stop_event": 19,
+            "played_event": 8,
+        }
+        candidate = {
+            "name": "3xc",
+            "number": 1,
+            "status": "available",
+            "start_event": 1,
+            "stop_event": 19,
+            "played_event": None,
+        }
+
+        result = _chip_boundary_status(
+            candidate,
+            8,
+            [played, candidate],
+        )
+
+        self.assertFalse(
+            result["available"]
+        )
+        self.assertIn(
+            "Only one chip",
+            result["reason"],
+        )
+
+
+class ChipOpportunityTests(unittest.TestCase):
+
+    def test_opportunity_summary_picks_strongest_later_window(self):
+        timing_windows = [
+            {
+                "gameweek": 6,
+                "fixture_context": {
+                    "label": "normal fixture slate",
+                },
+                "bb_value": 4.0,
+                "wc_value": 3.0,
+                "fh_value": 2.0,
+            },
+            {
+                "gameweek": 7,
+                "fixture_context": {
+                    "label": "4 blank clubs",
+                },
+                "bb_value": 3.0,
+                "wc_value": 2.0,
+                "fh_value": 7.0,
+            },
+            {
+                "gameweek": 8,
+                "fixture_context": {
+                    "label": "2 double clubs",
+                },
+                "bb_value": 8.0,
+                "wc_value": 5.0,
+                "fh_value": 4.0,
+            },
+        ]
+
+        triple_captain = {
+            "windows": [
+                {
+                    "gameweek": 6,
+                    "fixture_context": {
+                        "label": "normal fixture slate",
+                    },
+                    "best_candidate": {
+                        "name": "Current Captain",
+                    },
+                    "best_tc_uplift": 5.0,
+                },
+                {
+                    "gameweek": 8,
+                    "fixture_context": {
+                        "label": "2 double clubs",
+                    },
+                    "best_candidate": {
+                        "name": "Double Captain",
+                    },
+                    "best_tc_uplift": 11.0,
+                },
+            ],
+        }
+
+        summary = _chip_opportunity_summary(
+            6,
+            None,
+            triple_captain,
+            None,
+            None,
+            timing_windows,
+        )
+
+        rows = {
+            row["short"]: row
+            for row in summary["rows"]
+        }
+
+        self.assertEqual(
+            rows["FH"]["best_later_gw"],
+            7,
+        )
+        self.assertEqual(
+            rows["BB"]["best_later_gw"],
+            8,
+        )
+        self.assertEqual(
+            rows["TC"]["best_later_gw"],
+            8,
+        )
+        self.assertEqual(
+            rows["TC"]["cost_of_waiting"],
+            -6.0,
+        )
+        self.assertIn(
+            "current FPL schedule",
+            summary["note"],
         )
 
 
