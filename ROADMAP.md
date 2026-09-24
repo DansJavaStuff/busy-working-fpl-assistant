@@ -88,6 +88,9 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Historical data foundation: versioned local SQLite store
 - [x] Rebuildable schema migrations
 - [x] Separate runtime data from Git-tracked code/reference data
+- [x] Add persistent SQLite caching for expensive chip calculations
+- [x] Invalidate cached chip analysis by squad / transfer / chip state and model version
+- [ ] Extend persistent derived-result caching to other expensive model pages where useful
 - [ ] Save pre-deadline weekly snapshots
 - [ ] Import historical fixture / Gameweek context
 - [ ] Build full GW-by-GW value curves for all four chips
