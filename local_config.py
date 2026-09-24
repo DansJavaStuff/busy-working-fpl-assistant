@@ -8,6 +8,14 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 ENV_FILE = PROJECT_ROOT / ".env"
 
 
+class LocalConfigError(ValueError):
+    """Configuration error whose message is safe to show in the UI."""
+
+    def __init__(self, public_message):
+        super().__init__(public_message)
+        self.public_message = public_message
+
+
 def _load(env_file=ENV_FILE):
     load_dotenv(
         dotenv_path=env_file,
@@ -94,7 +102,7 @@ def get_refresh_token(env_file=ENV_FILE):
 
 def _validate_value(name, value):
     if "\n" in value or "\r" in value:
-        raise ValueError(
+        raise LocalConfigError(
             f"{name} must be a single-line value."
         )
 
@@ -121,12 +129,12 @@ def save_local_config(
             str(entry_id).strip()
         )
     except (TypeError, ValueError):
-        raise ValueError(
+        raise LocalConfigError(
             "FPL Entry ID must be a number."
         ) from None
 
     if entry_id <= 0:
-        raise ValueError(
+        raise LocalConfigError(
             "FPL Entry ID must be greater than zero."
         )
 
@@ -181,7 +189,7 @@ def save_local_config(
     )
 
     if not existing_token:
-        raise ValueError(
+        raise LocalConfigError(
             "FPL refresh token is required "
             "for authenticated features."
         )
