@@ -152,10 +152,7 @@ def collect_if_due():
 
     entry_id = get_entry_id()
 
-    bootstrap = get_bootstrap(
-        force_refresh=True,
-        allow_stale=False,
-    )
+    bootstrap = get_bootstrap()
 
     season = _season_from_bootstrap(
         bootstrap
@@ -200,6 +197,11 @@ def collect_if_due():
                     "seconds_remaining"
                 ],
         }
+
+    bootstrap = get_bootstrap(
+        force_refresh=True,
+        allow_stale=False,
+    )
 
     fixtures = get_fixtures(
         force_refresh=True,
