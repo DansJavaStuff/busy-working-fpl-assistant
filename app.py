@@ -916,7 +916,7 @@ def chip_data():
             planner=planner,
         )
 
-    except Exception as exc:
+    except Exception:
         app.logger.exception(
             "Unable to build Chip Planner"
         )
@@ -924,7 +924,11 @@ def chip_data():
         return (
             render_template(
                 "chips_error.html",
-                error=str(exc),
+                error=(
+                    "The chip planner could not be "
+                    "built. Check the server log "
+                    "for details."
+                ),
             ),
             500,
         )
@@ -945,7 +949,7 @@ def chip_opportunity():
             opportunity=opportunity,
         )
 
-    except Exception as exc:
+    except Exception:
         app.logger.exception(
             "Unable to build chip opportunity"
         )
@@ -953,7 +957,11 @@ def chip_opportunity():
         return (
             render_template(
                 "chips_opportunity_error.html",
-                error=str(exc),
+                error=(
+                    "The chip opportunity analysis "
+                    "could not be built. Check the "
+                    "server log for details."
+                ),
             ),
             500,
         )
