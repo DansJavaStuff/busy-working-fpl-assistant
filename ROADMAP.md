@@ -94,6 +94,8 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Save append-only pre-deadline weekly snapshots
 - [x] Capture baseline plus T-60m / T-15m / T-10m / T-5m checkpoints
 - [x] Require fresh official public FPL data for deadline checkpoints
+- [x] Recover checkpoint captures after short Pi outages and record lateness
+- [x] Show snapshot collector health and checkpoint status on Gameweek HQ
 - [ ] Import historical fixture / Gameweek context
 - [ ] Build full GW-by-GW value curves for all four chips
 - [ ] Add fixture-certainty and model-confidence signals
