@@ -187,13 +187,13 @@ Implemented:
 - [x] Lazy-loaded / cached opportunity analysis
 - [x] Reuse normal optimiser scenarios to reduce duplicate chip computation
 
-Current hardening work:
+Hardening completed:
 
-- [ ] Add automated chip-planner regression tests
-- [ ] Encode / validate chip availability boundary rules explicitly
-- [ ] Verify opportunity scoring against representative real-world scenarios
-- [ ] Ensure GW19 -> GW20 refresh behaviour is handled correctly
-- [ ] Keep long-range timing estimates clearly separate from confirmed fixture opportunities
+- [x] Add automated chip-planner regression tests
+- [x] Encode / validate chip availability boundary rules explicitly
+- [x] Verify opportunity scoring against representative timing scenarios
+- [x] Ensure GW19 -> GW20 refresh behaviour is handled correctly
+- [x] Keep long-range timing estimates clearly separate from current fixture assignments
 
 Next mechanics:
 
@@ -262,7 +262,7 @@ The terminal tools should remain independently usable.
 - [x] Add first-run local setup for FPL Entry ID and refresh token
 - [x] Remove hard-coded personal FPL Entry ID from application code
 - [x] Add protected-main ruleset once CI check names are confirmed
-- [ ] Expand automated tests for chip-planner logic
+- [x] Expand automated tests for chip-planner logic
 - [ ] Cache external data where appropriate
 - [ ] Handle external-source failures gracefully
 - [ ] Continue improving player / team name matching
@@ -315,17 +315,15 @@ Good ideas that are deliberately not current priorities:
 
 ## Priority Order
 
-1. **Chip planner hardening** — current: tests, rule boundaries and opportunity-model validation.
-2. Blank / Double Gameweek and rearranged-fixture awareness.
-3. Smarter free-transfer valuation.
-4. Outfield playing-time confidence.
-5. Projection validation.
-6. Multi-gameweek transfer planning.
-7. Captaincy improvements.
-8. Price-change awareness.
-9. Weekly decision report.
-10. Hosted-service work: authentication, scheduling and deployment.
-11. Project rename and technical cleanup.
+1. **Smarter free-transfer valuation** — current next modelling priority.
+2. Outfield playing-time confidence.
+3. Projection validation.
+4. Multi-gameweek transfer planning.
+5. Captaincy improvements.
+6. Price-change awareness.
+7. Weekly decision report.
+8. Hosted-service work: authentication, scheduling and deployment.
+9. Project rename and technical cleanup.
 
 Budget-efficiency work has already been substantially implemented in the optimiser and can continue as refinement rather than blocking the chip-planner milestone.
 

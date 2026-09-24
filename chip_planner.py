@@ -20,6 +20,8 @@ from transfer_optimizer import (
 
 POST_BB_HORIZON_WEIGHT = 0.15
 FIRST_HALF_END_GW = 19
+SECOND_HALF_START_GW = 20
+SEASON_END_GW = 38
 
 CHIP_OPPORTUNITY_CACHE = Path(
     "data/chip_opportunity_cache.json"
@@ -45,6 +47,121 @@ CHIP_META = {
         "short": "FH",
     },
 }
+
+
+def _chip_horizon_end(planning_gameweek):
+    return (
+        FIRST_HALF_END_GW
+        if planning_gameweek <= FIRST_HALF_END_GW
+        else SEASON_END_GW
+    )
+
+
+def _chip_boundary_status(
+    card,
+    gameweek,
+    all_cards=None,
+):
+    all_cards = list(
+        all_cards or [card]
+    )
+
+    if card.get("status") != "available":
+        return {
+            "available": False,
+            "reason":
+                "This chip has already been used "
+                "or is not available to the entry.",
+        }
+
+    start_event = card.get(
+        "start_event"
+    )
+    stop_event = card.get(
+        "stop_event"
+    )
+
+    if (
+        start_event is not None
+        and gameweek < start_event
+    ):
+        return {
+            "available": False,
+            "reason":
+                f"Available from GW{start_event}.",
+        }
+
+    if (
+        stop_event is not None
+        and gameweek > stop_event
+    ):
+        return {
+            "available": False,
+            "reason":
+                f"Expired after GW{stop_event}.",
+        }
+
+    name = card.get("name")
+
+    if (
+        gameweek == 1
+        and name in {
+            "wildcard",
+            "freehit",
+        }
+    ):
+        return {
+            "available": False,
+            "reason":
+                "This chip cannot be played in GW1.",
+        }
+
+    if any(
+        other.get("played_event")
+        == gameweek
+        for other in all_cards
+    ):
+        return {
+            "available": False,
+            "reason":
+                "Only one chip can be played in "
+                "a Gameweek.",
+        }
+
+    if (
+        name == "freehit"
+        and gameweek == SECOND_HALF_START_GW
+    ):
+        first_half_free_hit = next(
+            (
+                other
+                for other in all_cards
+                if other.get("name")
+                == "freehit"
+                and other.get("number")
+                == 1
+            ),
+            None,
+        )
+
+        if (
+            first_half_free_hit is not None
+            and first_half_free_hit.get(
+                "played_event"
+            ) == FIRST_HALF_END_GW
+        ):
+            return {
+                "available": False,
+                "reason":
+                    "Free Hit cannot be played in "
+                    "both GW19 and GW20.",
+            }
+
+    return {
+        "available": True,
+        "reason":
+            "Available in this Gameweek.",
+    }
 
 
 def _opportunity_cache_key(
@@ -282,7 +399,10 @@ def _normalise_chip_name(chip):
     )
 
 
-def _chip_cards(current_team):
+def _chip_cards(
+    current_team,
+    planning_gameweek=None,
+):
     raw_chips = current_team.get(
         "chips",
         [],
@@ -343,6 +463,22 @@ def _chip_cards(current_team):
             "raw":
                 chip,
         })
+
+    if planning_gameweek is not None:
+        for card in cards:
+            boundary = (
+                _chip_boundary_status(
+                    card,
+                    planning_gameweek,
+                    cards,
+                )
+            )
+            card["available_now"] = (
+                boundary["available"]
+            )
+            card["availability_reason"] = (
+                boundary["reason"]
+            )
 
     return cards
 
@@ -1312,7 +1448,7 @@ def _wildcard_analysis(
 def _players_at_gameweek(
     players,
     gameweek,
-    end_gameweek=FIRST_HALF_END_GW,
+    end_gameweek,
 ):
     """
     Re-anchor already-calculated player projections
@@ -1384,10 +1520,12 @@ def _timing_window(
     players,
     current_team,
     gameweek,
+    end_gameweek,
 ):
     anchored = _players_at_gameweek(
         players,
         gameweek,
+        end_gameweek,
     )
 
     team = _future_team_state(
@@ -1520,17 +1658,19 @@ def _future_chip_windows(
     players,
     current_team,
     planning_gameweek,
+    end_gameweek,
 ):
     windows = []
 
     for gameweek in range(
         planning_gameweek,
-        FIRST_HALF_END_GW + 1,
+        end_gameweek + 1,
     ):
         window = _timing_window(
             players,
             current_team,
             gameweek,
+            end_gameweek,
         )
 
         if window is not None:
@@ -1744,8 +1884,11 @@ def _chip_opportunity_summary(
             (
                 "Timing windows hold today's squad, "
                 "selling values and bank constant. "
-                "They are opportunity snapshots, "
-                "not forecasts of future transfers."
+                "Future fixture assignments use the "
+                "current FPL schedule and may change "
+                "if matches are rearranged. They are "
+                "opportunity snapshots, not forecasts "
+                "of future transfers."
             ),
     }
 
@@ -1758,9 +1901,16 @@ def build_chip_planner(
     )
 
     current_team = get_my_team()
+
+    chip_horizon_end = (
+        _chip_horizon_end(
+            planning_gameweek
+        )
+    )
+
     players = load_players(
         projection_end_gameweek=
-            FIRST_HALF_END_GW,
+            chip_horizon_end,
         long_range_regression=True,
     )
 
@@ -1848,7 +1998,7 @@ def build_chip_planner(
             players,
             current_team,
             planning_gameweek,
-            FIRST_HALF_END_GW,
+            chip_horizon_end,
         )
     )
 
@@ -1880,6 +2030,7 @@ def build_chip_planner(
                 players,
                 current_team,
                 planning_gameweek,
+                chip_horizon_end,
             )
         )
 
@@ -1895,7 +2046,9 @@ def build_chip_planner(
         )
 
     cards = _chip_cards(
-        current_team
+        current_team,
+        planning_gameweek=
+            planning_gameweek,
     )
 
     by_name = {}
@@ -2008,8 +2161,8 @@ def build_chip_planner(
                 )
 
                 card["evaluation"] = (
-                    f"Best projected first-half "
-                    f"window is GW"
+                    f"Best projected window through "
+                    f"GW{chip_horizon_end} is GW"
                     f"{best['gameweek']}: "
                     f"{candidate['name']} at "
                     f"{best['best_tc_uplift']:.1f} "
@@ -2017,9 +2170,10 @@ def build_chip_planner(
                     f"({ownership_text})."
                 )
                 card["note"] = (
-                    "The model now compares every "
-                    "remaining Gameweek through "
-                    "GW19. It shows both the best "
+                    "The model compares every "
+                    "remaining Gameweek in the "
+                    "current chip half. It shows "
+                    "both the best "
                     "captain already in the squad "
                     "and the best projected "
                     "league-wide candidate."
@@ -2087,6 +2241,8 @@ def build_chip_planner(
     return {
         "gameweek":
             planning_gameweek,
+        "chip_horizon_end":
+            chip_horizon_end,
         "chips":
             display_cards,
         "bench":
@@ -2121,6 +2277,12 @@ def build_chip_opportunity(
 
     current_team = get_my_team()
 
+    chip_horizon_end = (
+        _chip_horizon_end(
+            planning_gameweek
+        )
+    )
+
     cache_key = (
         _opportunity_cache_key(
             planning_gameweek,
@@ -2138,7 +2300,7 @@ def build_chip_opportunity(
 
     players = load_players(
         projection_end_gameweek=
-            FIRST_HALF_END_GW,
+            chip_horizon_end,
         long_range_regression=True,
     )
 
@@ -2147,7 +2309,7 @@ def build_chip_opportunity(
             players,
             current_team,
             planning_gameweek,
-            FIRST_HALF_END_GW,
+            chip_horizon_end,
         )
     )
 
@@ -2156,6 +2318,7 @@ def build_chip_opportunity(
             players,
             current_team,
             planning_gameweek,
+            chip_horizon_end,
         )
     )
 

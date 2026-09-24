@@ -31,12 +31,12 @@ Current capabilities include:
 - Approve / Reject workflow and FPL write-layer tooling
 - Gameweek history view
 - Read-only chip planner for Wildcard, Free Hit, Bench Boost and Triple Captain
-- Future first-half chip-window comparison through GW19
+- Chip-window comparison through the active half-season boundary (GW19 or GW38)
 - Cached cross-chip opportunity analysis
 - Blank / Double Gameweek-aware projections using all fixtures assigned to each FPL Gameweek
 - Rearranged fixtures automatically follow their current FPL Gameweek assignment
 
-The current development priority is **chip planner hardening and special-Gameweek awareness**. Player projections now model each club as having 0, 1 or 2+ fixtures in a Gameweek, so blanks, doubles and rearranged fixtures feed naturally into normal optimisation and chip timing.
+The chip-planner hardening and special-Gameweek milestone is complete. Player projections model each club as having 0, 1 or 2+ fixtures in a Gameweek, chip timing respects the GW19/GW20 refresh boundary, and blank/double/rearranged fixtures feed naturally into normal optimisation and chip timing. The next modelling priority is smarter free-transfer valuation.
 
 ## Recommendation Philosophy
 
@@ -257,7 +257,7 @@ Future web work includes authentication, scheduled optimiser runs, hosted deploy
 
 Development priorities, technical debt and completed milestones are tracked in [ROADMAP.md](ROADMAP.md).
 
-The current main priority is **chip planner hardening**, followed by Blank / Double Gameweek and rearranged-fixture awareness.
+The current main priority is **smarter free-transfer valuation**, now that chip-planner hardening and special-Gameweek awareness are in place.
 
 The roadmap also tracks the future project rename because the existing `busy-working-fpl-assistant` repository name was inherited from the unrelated Busy Working Fantasy NFL project.
 
