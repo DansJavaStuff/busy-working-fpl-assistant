@@ -909,3 +909,68 @@ def get_gameweek_snapshots(
         })
 
     return result
+
+
+
+def get_gameweek_snapshot_payloads(
+    gameweek,
+    entry_id,
+    db_path=DEFAULT_DB_PATH,
+):
+    ensure_database(
+        db_path
+    )
+
+    with connect(
+        db_path
+    ) as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                snapshots.snapshot_type,
+                snapshots.captured_at,
+                snapshots.payload_json
+            FROM snapshots
+            JOIN gameweeks
+              ON gameweeks.id =
+                 snapshots.gameweek_id
+            WHERE gameweeks.gameweek = ?
+              AND snapshots.entry_id = ?
+              AND snapshots.snapshot_type
+                  LIKE 'pre_deadline_%'
+            ORDER BY
+                snapshots.captured_at
+            """,
+            (
+                int(gameweek),
+                int(entry_id),
+            ),
+        ).fetchall()
+
+    result = []
+
+    for row in rows:
+        try:
+            payload = json.loads(
+                row["payload_json"]
+            )
+        except (
+            TypeError,
+            json.JSONDecodeError,
+        ):
+            continue
+
+        result.append({
+            "snapshot_type":
+                row["snapshot_type"],
+            "captured_at":
+                row["captured_at"],
+            "checkpoint":
+                payload.get(
+                    "checkpoint"
+                ),
+            "payload":
+                payload,
+        })
+
+    return result
