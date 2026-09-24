@@ -685,3 +685,57 @@ def prune_expired_cache(
         )
 
         return cursor.rowcount
+
+
+
+def snapshot_exists(
+    season_id,
+    gameweek_id,
+    snapshot_type,
+    entry_id=None,
+    db_path=DEFAULT_DB_PATH,
+):
+    ensure_database(
+        db_path
+    )
+
+    with connect(
+        db_path
+    ) as connection:
+        if entry_id is None:
+            row = connection.execute(
+                """
+                SELECT 1
+                FROM snapshots
+                WHERE season_id = ?
+                  AND gameweek_id = ?
+                  AND snapshot_type = ?
+                  AND entry_id IS NULL
+                LIMIT 1
+                """,
+                (
+                    season_id,
+                    gameweek_id,
+                    snapshot_type,
+                ),
+            ).fetchone()
+        else:
+            row = connection.execute(
+                """
+                SELECT 1
+                FROM snapshots
+                WHERE season_id = ?
+                  AND gameweek_id = ?
+                  AND snapshot_type = ?
+                  AND entry_id = ?
+                LIMIT 1
+                """,
+                (
+                    season_id,
+                    gameweek_id,
+                    snapshot_type,
+                    int(entry_id),
+                ),
+            ).fetchone()
+
+    return row is not None
