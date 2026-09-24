@@ -102,6 +102,34 @@ The project also uses locally derived:
 
 External information supplements official FPL information rather than automatically overriding it.
 
+## Historical Data Store
+
+The project has a versioned local SQLite store for historical analysis, weekly snapshots and chip backtesting.
+
+The default database is:
+
+```text
+data/runtime/fpl_history.db
+```
+
+The runtime database is intentionally excluded from Git. The schema and migrations are tracked in `db/migrations/`, so a clean clone can recreate the database automatically. The Flask app applies pending migrations at startup; the same can be done manually with:
+
+```bash
+python3 tools/init_history_db.py
+```
+
+The initial schema separates:
+
+- seasons and Gameweeks
+- teams and fixtures
+- raw timestamped snapshots
+- modelled chip opportunities
+- measured chip outcomes
+
+JSON payload columns preserve source details that may be useful later without forcing every future field into the first schema. Small curated reference datasets may be committed under `data/historical/`; transient snapshots, caches and SQLite runtime files stay local.
+
+This gives future chip-pattern work a reproducible storage layer while keeping the database itself disposable and rebuildable.
+
 ## Main Scripts
 
 ### `transfer_optimizer.py`
