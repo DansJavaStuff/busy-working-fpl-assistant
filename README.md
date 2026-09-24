@@ -33,8 +33,10 @@ Current capabilities include:
 - Read-only chip planner for Wildcard, Free Hit, Bench Boost and Triple Captain
 - Future first-half chip-window comparison through GW19
 - Cached cross-chip opportunity analysis
+- Blank / Double Gameweek-aware projections using all fixtures assigned to each FPL Gameweek
+- Rearranged fixtures automatically follow their current FPL Gameweek assignment
 
-The current development priority is **chip planner hardening and special-Gameweek awareness**: regression-testing the chip logic and adding explicit Blank / Double Gameweek and rearranged-fixture handling.
+The current development priority is **chip planner hardening and special-Gameweek awareness**. Player projections now model each club as having 0, 1 or 2+ fixtures in a Gameweek, so blanks, doubles and rearranged fixtures feed naturally into normal optimisation and chip timing.
 
 ## Recommendation Philosophy
 
