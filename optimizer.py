@@ -29,6 +29,10 @@ from outfield_depth import (
     get_outfield_depth,
 )
 
+from fixture_schedule import (
+    build_fixture_calendar,
+)
+
 BUDGET = 1000  # FPL stores prices in tenths: £100.0m = 1000
 
 DEBUG = False
@@ -474,6 +478,15 @@ def build_fixture_scores(
             planning_gameweek + 4
         )
 
+    fixture_calendar = (
+        build_fixture_calendar(
+            fixtures,
+            teams.keys(),
+            start_gameweek=planning_gameweek,
+            end_gameweek=projection_end_gameweek,
+        )
+    )
+
     gw_weights = {
         gameweek: max(
             0.30,
@@ -702,7 +715,11 @@ def build_fixture_scores(
             "strength_source": away_strength_source,
         })
 
-    return fixture_scores, fixture_details
+    return (
+        fixture_scores,
+        fixture_details,
+        fixture_calendar,
+    )
 
 def calculate_availability_factor(
     fpl_status,
@@ -782,7 +799,11 @@ def load_players(
         for team in data["teams"]
     }
 
-    fixture_scores, fixture_details = (
+    (
+        fixture_scores,
+        fixture_details,
+        fixture_calendar,
+    ) = (
         build_fixture_scores(
             teams,
             team_data,
@@ -1022,6 +1043,22 @@ def load_players(
             []
         )
 
+        player_fixture_counts = {
+            gw: len(
+                fixture_calendar.get(
+                    gw,
+                    {},
+                ).get(
+                    p["team"],
+                    [],
+                )
+            )
+            for gw in range(
+                planning_gameweek,
+                projection_end_gameweek + 1,
+            )
+        }
+
         projection_input = {
             "current_season_games":completed_gameweeks, 
             "id": p["id"],
@@ -1123,6 +1160,8 @@ def load_players(
             ),
             "fixture_score": fixture_score,
             "fixtures": player_fixture_details,
+            "fixture_counts":
+                player_fixture_counts,
             "rating": rating,
             "xg90": xg90,
             "xa90": xa90,
