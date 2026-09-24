@@ -155,6 +155,92 @@
 
 </section>
 
+<section class="card collector-card">
+    <div class="collector-card-header">
+        <div>
+            <span class="collector-kicker">
+                DATA COLLECTION
+            </span>
+            <h2>
+                GW{{ report.gameweek }} snapshots
+            </h2>
+        </div>
+
+        {% set collector_state = snapshot_status.state %}
+        <span class="
+            collector-health
+            {% if collector_state and collector_state.status == 'error' %}
+                error
+            {% elif collector_state %}
+                healthy
+            {% else %}
+                unknown
+            {% endif %}
+        ">
+            {% if collector_state and collector_state.status == 'error' %}
+                ERROR
+            {% elif collector_state %}
+                HEALTHY
+            {% else %}
+                NO STATUS YET
+            {% endif %}
+        </span>
+    </div>
+
+    <div class="collector-grid">
+        {% for checkpoint in snapshot_status.checkpoints %}
+            <div class="
+                collector-checkpoint
+                {% if checkpoint.saved %}
+                    saved
+                {% else %}
+                    waiting
+                {% endif %}
+            ">
+                <strong>
+                    {{ checkpoint.label }}
+                </strong>
+
+                {% if checkpoint.saved %}
+                    <span>
+                        ✓ saved
+                    </span>
+
+                    {% if checkpoint.on_time is sameas false %}
+                        <small>
+                            captured late by
+                            {{ (checkpoint.late_by_seconds / 60)|round(1) }}
+                            min
+                        </small>
+                    {% else %}
+                        <small>
+                            captured
+                        </small>
+                    {% endif %}
+                {% else %}
+                    <span>
+                        waiting
+                    </span>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="collector-meta">
+        {% if collector_state %}
+            Last collector check:
+            {{ collector_state.checked_at }}
+            · status:
+            {{ collector_state.status }}
+            {% if collector_state.message %}
+                · {{ collector_state.message }}
+            {% endif %}
+        {% else %}
+            The snapshot collector has not reported a check yet.
+        {% endif %}
+    </div>
+</section>
+
     <section class="summary">
 
         <div>
