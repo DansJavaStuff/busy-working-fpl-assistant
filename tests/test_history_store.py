@@ -8,11 +8,14 @@ from history_store import (
     database_status,
     ensure_database,
     get_cached_result,
+    get_collector_state,
+    get_gameweek_snapshots,
     save_chip_opportunity,
     save_chip_outcome,
     save_cached_result,
     save_snapshot,
     snapshot_exists,
+    record_collector_state,
     upsert_gameweek,
     upsert_season,
 )
@@ -44,7 +47,7 @@ class HistoryStoreTests(unittest.TestCase):
             current_schema_version(
                 self.db_path
             ),
-            2,
+            3,
         )
 
         status = database_status(
@@ -56,7 +59,7 @@ class HistoryStoreTests(unittest.TestCase):
         )
         self.assertEqual(
             status["schema_version"],
-            2,
+            3,
         )
 
     def test_migrations_are_idempotent(self):
@@ -79,7 +82,7 @@ class HistoryStoreTests(unittest.TestCase):
 
         self.assertEqual(
             count,
-            2,
+            3,
         )
 
     def test_derived_cache_round_trip_and_expiry(self):
@@ -197,6 +200,77 @@ class HistoryStoreTests(unittest.TestCase):
                 entry_id=123,
                 db_path=self.db_path,
             )
+        )
+
+    def test_collector_state_and_snapshot_status(self):
+        ensure_database(
+            self.db_path
+        )
+
+        record_collector_state(
+            "not_due",
+            gameweek=6,
+            seconds_remaining=7200,
+            message="baseline",
+            checked_at=
+                "2026-09-24T21:00:00+00:00",
+            db_path=self.db_path,
+        )
+
+        state = get_collector_state(
+            db_path=self.db_path
+        )
+
+        self.assertEqual(
+            state["status"],
+            "not_due",
+        )
+        self.assertEqual(
+            state["gameweek"],
+            6,
+        )
+
+        season_id = upsert_season(
+            "2026-27",
+            db_path=self.db_path,
+        )
+        gameweek_id = upsert_gameweek(
+            season_id,
+            6,
+            db_path=self.db_path,
+        )
+
+        save_snapshot(
+            season_id,
+            gameweek_id,
+            "pre_deadline_t15m",
+            {
+                "checkpoint": "t15m",
+                "seconds_remaining": 720,
+                "late_by_seconds": 180,
+                "on_time": True,
+            },
+            entry_id=123,
+            db_path=self.db_path,
+        )
+
+        snapshots = get_gameweek_snapshots(
+            6,
+            123,
+            db_path=self.db_path,
+        )
+
+        self.assertEqual(
+            len(snapshots),
+            1,
+        )
+        self.assertEqual(
+            snapshots[0]["checkpoint"],
+            "t15m",
+        )
+        self.assertEqual(
+            snapshots[0]["late_by_seconds"],
+            180,
         )
 
     def test_can_store_core_historical_records(self):
