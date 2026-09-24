@@ -31,6 +31,7 @@ from chip_planner import (
 )
 
 from local_config import (
+    LocalConfigError,
     get_config_status,
     is_configured,
     save_local_config,
@@ -116,8 +117,8 @@ def setup():
                 entry_id,
                 refresh_token or None,
             )
-        except ValueError as exc:
-            error = str(exc)
+        except LocalConfigError as exc:
+            error = exc.public_message
         else:
             return redirect(
                 url_for("index")
