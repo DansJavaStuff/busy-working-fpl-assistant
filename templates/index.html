@@ -239,6 +239,48 @@
             The snapshot collector has not reported a check yet.
         {% endif %}
     </div>
+
+    {% set snapshot_analysis = snapshot_status.analysis %}
+
+    {% if snapshot_analysis.ready %}
+        <div class="snapshot-analysis">
+            <h3>
+                Snapshot changes
+            </h3>
+
+            {% for comparison in snapshot_analysis.comparisons %}
+                <div class="snapshot-change-row">
+                    <strong>
+                        {{ comparison.from_checkpoint }}
+                        →
+                        {{ comparison.to_checkpoint }}
+                    </strong>
+
+                    <span>
+                        {{ comparison.material_changes }}
+                        material
+                    </span>
+
+                    <small>
+                        availability {{ comparison.availability_changes }}
+                        · price {{ comparison.price_changes }}
+                        · fixtures {{ comparison.fixture_changes }}
+                        · team state
+                        {% if comparison.team_state_changed %}
+                            changed
+                        {% else %}
+                            unchanged
+                        {% endif %}
+                        · projection inputs {{ comparison.projection_input_changes }}
+                    </small>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="snapshot-analysis snapshot-analysis-pending">
+            Comparison analysis will appear after at least two checkpoints have been captured.
+        </div>
+    {% endif %}
 </section>
 
     <section class="summary">

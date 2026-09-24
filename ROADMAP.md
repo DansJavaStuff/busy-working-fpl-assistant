@@ -96,6 +96,9 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Require fresh official public FPL data for deadline checkpoints
 - [x] Recover checkpoint captures after short Pi outages and record lateness
 - [x] Show snapshot collector health and checkpoint status on Gameweek HQ
+- [x] Compare consecutive snapshots for material/dependency changes
+- [ ] Review checkpoint value after 4–5 complete Gameweeks and simplify T−15m / T−10m / T−5m if evidence shows they are redundant
+- [ ] Extend snapshot comparison to answer whether the optimiser/chip recommendation would actually have changed
 - [ ] Import historical fixture / Gameweek context
 - [ ] Build full GW-by-GW value curves for all four chips
 - [ ] Add fixture-certainty and model-confidence signals

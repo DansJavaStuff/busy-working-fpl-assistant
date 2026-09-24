@@ -2873,3 +2873,44 @@ span:last-child {
             repeat(2, minmax(0, 1fr));
     }
 }
+
+
+.snapshot-analysis {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #e7eaed;
+}
+
+.snapshot-analysis h3 {
+    margin: 0 0 8px;
+    font-size: .9rem;
+}
+
+.snapshot-change-row {
+    display: grid;
+    grid-template-columns:
+        minmax(120px, .8fr)
+        minmax(80px, .5fr)
+        minmax(0, 2fr);
+    gap: 10px;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid #f0f2f4;
+    font-size: .8rem;
+}
+
+.snapshot-change-row small {
+    opacity: .65;
+}
+
+.snapshot-analysis-pending {
+    font-size: .78rem;
+    opacity: .65;
+}
+
+@media (max-width: 700px) {
+    .snapshot-change-row {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+}
