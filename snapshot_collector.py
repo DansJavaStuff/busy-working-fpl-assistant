@@ -28,6 +28,13 @@ CHECKPOINT_TOLERANCE_SECONDS = (
     3 * 60
 )
 
+CHECKPOINT_WINDOWS = (
+    ("t60m", 60 * 60, 15 * 60),
+    ("t15m", 15 * 60, 10 * 60),
+    ("t10m", 10 * 60, 5 * 60),
+    ("t5m", 5 * 60, 0),
+)
+
 
 def _season_from_bootstrap(
     bootstrap,
@@ -76,30 +83,66 @@ def _season_from_bootstrap(
     }
 
 
-def checkpoint_for_seconds(
+def checkpoint_details_for_seconds(
     seconds_remaining,
 ):
     if seconds_remaining <= 0:
         return None
 
     if seconds_remaining > 60 * 60:
-        return "baseline"
+        return {
+            "label": "baseline",
+            "target_seconds": None,
+            "late_by_seconds": 0,
+            "on_time": True,
+        }
 
     for (
         label,
         target_seconds,
-    ) in CHECKPOINTS:
+        window_floor,
+    ) in CHECKPOINT_WINDOWS:
         if (
             seconds_remaining
             <= target_seconds
             and
-            target_seconds
-            - seconds_remaining
-            <= CHECKPOINT_TOLERANCE_SECONDS
+            seconds_remaining
+            > window_floor
         ):
-            return label
+            late_by = max(
+                0,
+                target_seconds
+                - seconds_remaining,
+            )
+
+            return {
+                "label": label,
+                "target_seconds":
+                    target_seconds,
+                "late_by_seconds":
+                    late_by,
+                "on_time":
+                    late_by
+                    <= CHECKPOINT_TOLERANCE_SECONDS,
+            }
 
     return None
+
+
+def checkpoint_for_seconds(
+    seconds_remaining,
+):
+    details = (
+        checkpoint_details_for_seconds(
+            seconds_remaining
+        )
+    )
+
+    return (
+        details["label"]
+        if details
+        else None
+    )
 
 
 def _snapshot_type(
@@ -131,12 +174,18 @@ def collect_if_due():
                 0,
         }
 
-    checkpoint = (
-        checkpoint_for_seconds(
+    checkpoint_details = (
+        checkpoint_details_for_seconds(
             deadline[
                 "seconds_remaining"
             ]
         )
+    )
+
+    checkpoint = (
+        checkpoint_details["label"]
+        if checkpoint_details
+        else None
     )
 
     if checkpoint is None:
@@ -235,6 +284,20 @@ def collect_if_due():
             deadline[
                 "seconds_remaining"
             ],
+        "target_seconds_remaining":
+            checkpoint_details.get(
+                "target_seconds"
+            ),
+        "late_by_seconds":
+            checkpoint_details.get(
+                "late_by_seconds",
+                0,
+            ),
+        "on_time":
+            checkpoint_details.get(
+                "on_time",
+                True,
+            ),
         "bootstrap":
             bootstrap,
         "fixtures":
@@ -269,4 +332,14 @@ def collect_if_due():
             deadline[
                 "seconds_remaining"
             ],
+        "late_by_seconds":
+            checkpoint_details.get(
+                "late_by_seconds",
+                0,
+            ),
+        "on_time":
+            checkpoint_details.get(
+                "on_time",
+                True,
+            ),
     }
