@@ -279,163 +279,157 @@ def project_gameweeks(
             planning_gameweek + 4
         )
 
+    fixture_counts = {}
+
     for gw in range(
         planning_gameweek,
         projection_end_gameweek + 1,
     ):
 
-        fixture = next(
-            (
-                f
-                for f in fixtures
-                if f["gw"] == gw
-            ),
-            None
+        gameweek_fixtures = [
+            fixture
+            for fixture in fixtures
+            if fixture["gw"] == gw
+        ]
+
+        fixture_counts[gw] = len(
+            gameweek_fixtures
         )
 
-        if fixture is None:
+        #
+        # A blank Gameweek is represented naturally by
+        # an empty fixture list.
+        #
+        if not gameweek_fixtures:
             projections[gw] = 0.0
             continue
 
-                #
-        # V4 fixture model:
         #
-        # Goalkeepers and defenders primarily care about
-        # the opponent's attacking strength.
+        # FPL ep_next is an event-level estimate. Keep the
+        # existing blend for a normal one-fixture planning
+        # Gameweek, but do not multiply an event-level
+        # estimate across every fixture in a Double GW.
         #
-        # Midfielders and forwards primarily care about
-        # the opponent's defensive strength.
-        #
-        if position in {
-            "GKP",
-            "DEF",
-        }:
-
-            multiplier = fixture.get(
-                "defence_multiplier",
-                fixture_multiplier(
-                    fixture["difficulty"]
-                )
-            )
-
-        else:
-
-            multiplier = fixture.get(
-                "attack_multiplier",
-                fixture_multiplier(
-                    fixture["difficulty"]
-                )
-            )
-
-        if (
+        use_ep_next = (
             gw == planning_gameweek
             and ep_next > 0
-        ):
+            and len(gameweek_fixtures) == 1
+        )
 
-            baseline = (
-                ep_next * 0.40
-                + projected_baseline * 0.60
-            )
+        projected_gameweek = 0.0
+
+        for fixture in gameweek_fixtures:
 
             #
-            # ep_next is already fixture-aware.
-            # Apply only 35% of our own fixture adjustment
-            # in the planning gameweek to avoid
-            # double-counting the fixture.
+            # Goalkeepers and defenders primarily care
+            # about opponent attacking strength.
+            # Midfielders and forwards primarily care
+            # about opponent defensive strength.
             #
+            if position in {
+                "GKP",
+                "DEF",
+            }:
 
-            gw1_multiplier = 1.0 + (
-                (multiplier - 1.0) * 0.35
-            )
+                multiplier = fixture.get(
+                    "defence_multiplier",
+                    fixture_multiplier(
+                        fixture["difficulty"]
+                    )
+                )
 
-            projected = (
-                baseline * gw1_multiplier
-            )
+            else:
 
-        else:
+                multiplier = fixture.get(
+                    "attack_multiplier",
+                    fixture_multiplier(
+                        fixture["difficulty"]
+                    )
+                )
 
-            baseline = projected_baseline
+            if use_ep_next:
 
-            projected = (
-                baseline * multiplier
-            )
-
-            projected *= (
-                expected_start_probability
-            )
-
-            if long_range_regression:
-
-                #
-                # Long-range chip planning must not
-                # let a small current-season sample
-                # dominate every future Gameweek.
-                #
-                # Blend the live model back toward
-                # the historically-regressed player
-                # prior. Proven players retain more
-                # of the live projection; players
-                # with little historical evidence
-                # regress more strongly.
-                #
-                horizon = (
-                    gw
-                    - planning_gameweek
+                baseline = (
+                    ep_next * 0.40
+                    + projected_baseline * 0.60
                 )
 
                 #
-                # Current-season form should earn
-                # influence gradually. Five matches
-                # is useful evidence, but nowhere
-                # near enough to let a 16.0 PPG start
-                # dominate projections through GW19.
+                # ep_next is already fixture-aware.
+                # Apply only 35% of our own fixture
+                # adjustment to avoid double counting.
                 #
-                # At 12 current-season matches the
-                # live model can carry at most 50%
-                # of a long-range projection. That
-                # influence also decays as the target
-                # Gameweek moves further away.
-                #
-                sample_weight = min(
-                    0.50,
-                    current_season_games / 12.0,
+                gw1_multiplier = 1.0 + (
+                    (multiplier - 1.0)
+                    * 0.35
                 )
 
-                horizon_weight = max(
-                    0.45,
-                    1.0
-                    - (
-                        max(
-                            0,
-                            horizon - 1,
-                        )
-                        * 0.04
-                    ),
+                projected_fixture = (
+                    baseline
+                    * gw1_multiplier
                 )
 
-                model_weight = (
-                    sample_weight
-                    * horizon_weight
-                )
+            else:
 
-                conservative_projection = (
-                    historical_baseline
+                projected_fixture = (
+                    projected_baseline
                     * multiplier
                     * expected_start_probability
                 )
 
-                projected = (
-                    projected
-                    * model_weight
-                    +
-                    conservative_projection
-                    * (
-                        1.0
-                        - model_weight
-                    )
-                )
+                if long_range_regression:
 
-        projections[gw] = projected
+                    horizon = (
+                        gw
+                        - planning_gameweek
+                    )
+
+                    sample_weight = min(
+                        0.50,
+                        current_season_games / 12.0,
+                    )
+
+                    horizon_weight = max(
+                        0.45,
+                        1.0
+                        - (
+                            max(
+                                0,
+                                horizon - 1,
+                            )
+                            * 0.04
+                        ),
+                    )
+
+                    model_weight = (
+                        sample_weight
+                        * horizon_weight
+                    )
+
+                    conservative_projection = (
+                        historical_baseline
+                        * multiplier
+                        * expected_start_probability
+                    )
+
+                    projected_fixture = (
+                        projected_fixture
+                        * model_weight
+                        +
+                        conservative_projection
+                        * (
+                            1.0
+                            - model_weight
+                        )
+                    )
+
+            projected_gameweek += (
+                projected_fixture
+            )
+
+        projections[gw] = (
+            projected_gameweek
+        )
 
     #
     # Diagnostic information.
@@ -455,6 +449,7 @@ def project_gameweeks(
         "historical_minutes": historical_minutes,
         "historical_reliability": historical_reliability,
         "player_prior": player_prior,
+        "fixture_counts": fixture_counts,
     }
 
     return projections
