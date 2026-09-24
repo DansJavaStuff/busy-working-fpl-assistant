@@ -242,10 +242,31 @@ The current main priority is **chip planner hardening**, followed by Blank / Dou
 
 The roadmap also tracks the future project rename because the existing `busy-working-fpl-assistant` repository name was inherited from the unrelated Busy Working Fantasy NFL project.
 
+## CI and Security
+
+The repository uses GitHub-native security features together with a lightweight CI pipeline.
+
+Repository-side checks include:
+
+- Python source compilation
+- Unit tests on Python 3.11 and 3.13
+- Ruff checks for undefined-name errors
+- `pip-audit` vulnerability checks against runtime dependencies
+- Weekly grouped Dependabot updates for Python packages and GitHub Actions
+
+GitHub CodeQL, Dependabot alerts, secret protection and push protection provide the platform-side scanning. Runtime dependencies are declared in `requirements.txt`; development / CI tools are in `requirements-dev.txt`.
+
+The Raspberry Pi still requires the system CBC solver used by PuLP:
+
+```bash
+sudo apt install coinor-cbc
+```
+
 ## Repository Principles
 
 - Keep secrets and refresh tokens outside Git.
 - Keep Mac development and Raspberry Pi runtime environments reproducible.
+- Require automated checks before treating changes as ready for the Raspberry Pi.
 - Cache external data where appropriate.
 - Handle external-source failures gracefully.
 - Keep README and roadmap aligned with implemented behaviour.
