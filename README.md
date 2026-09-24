@@ -156,6 +156,10 @@ For each Gameweek the current checkpoints are:
 
 Snapshots are append-only. The baseline is not overwritten by the later pre-deadline records. Each checkpoint is saved at most once per entry/Gameweek.
 
+Checkpoint windows are resilient to short outages. For example, if the Pi is unavailable at exactly T−15m but returns at T−12m, the T−15m checkpoint is still captured and marked with its actual lateness. If a whole checkpoint window is missed, the collector moves on to the next useful checkpoint rather than pretending stale data was captured on time.
+
+Gameweek HQ shows the current collector health, last check and saved/waiting state for baseline, T−60m, T−15m, T−10m and T−5m.
+
 When a snapshot is actually due, the collector bypasses the normal public-data cache and requires fresh official FPL bootstrap and fixture responses, then captures the authenticated current squad and public entry data. If a live public FPL request fails, that checkpoint is not silently filled with stale cached data.
 
 The timer can be inspected with:

@@ -33,12 +33,15 @@ from chip_planner import (
 from local_config import (
     LocalConfigError,
     get_config_status,
+    get_entry_id,
     is_configured,
     save_local_config,
 )
 
 from history_store import (
     ensure_database,
+    get_collector_state,
+    get_gameweek_snapshots,
 )
 
 import json
@@ -1089,6 +1092,74 @@ def collect_history_results(
     )
 
 
+def build_snapshot_status(
+    gameweek,
+):
+    state = get_collector_state()
+    snapshots = get_gameweek_snapshots(
+        gameweek,
+        get_entry_id(),
+    )
+
+    by_checkpoint = {
+        item.get("checkpoint"):
+            item
+        for item in snapshots
+        if item.get("checkpoint")
+    }
+
+    checkpoints = []
+
+    for key, label in (
+        ("baseline", "Baseline"),
+        ("t60m", "T−60m"),
+        ("t15m", "T−15m"),
+        ("t10m", "T−10m"),
+        ("t5m", "T−5m"),
+    ):
+        item = by_checkpoint.get(
+            key
+        )
+
+        checkpoints.append({
+            "key": key,
+            "label": label,
+            "saved":
+                item is not None,
+            "captured_at":
+                (
+                    item.get(
+                        "captured_at"
+                    )
+                    if item
+                    else None
+                ),
+            "on_time":
+                (
+                    item.get(
+                        "on_time",
+                        True,
+                    )
+                    if item
+                    else None
+                ),
+            "late_by_seconds":
+                (
+                    item.get(
+                        "late_by_seconds",
+                        0,
+                    )
+                    if item
+                    else 0
+                ),
+        })
+
+    return {
+        "state": state,
+        "checkpoints": checkpoints,
+    }
+
+
 @app.route("/")
 def index():
 
@@ -1113,6 +1184,10 @@ def index():
     return render_template(
         "index.html",
         report=report,
+        snapshot_status=
+            build_snapshot_status(
+                report["gameweek"]
+            ),
     )
 
 @app.route(

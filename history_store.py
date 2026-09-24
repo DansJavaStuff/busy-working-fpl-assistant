@@ -739,3 +739,173 @@ def snapshot_exists(
             ).fetchone()
 
     return row is not None
+
+
+
+def record_collector_state(
+    status,
+    gameweek=None,
+    seconds_remaining=None,
+    message=None,
+    collector_name="predeadline",
+    checked_at=None,
+    db_path=DEFAULT_DB_PATH,
+):
+    checked_at = (
+        checked_at
+        or utc_now_iso()
+    )
+
+    ensure_database(
+        db_path
+    )
+
+    with transaction(
+        db_path
+    ) as connection:
+        connection.execute(
+            """
+            INSERT INTO collector_state (
+                collector_name,
+                checked_at,
+                status,
+                gameweek,
+                seconds_remaining,
+                message
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(collector_name)
+            DO UPDATE SET
+                checked_at =
+                    excluded.checked_at,
+                status =
+                    excluded.status,
+                gameweek =
+                    excluded.gameweek,
+                seconds_remaining =
+                    excluded.seconds_remaining,
+                message =
+                    excluded.message
+            """,
+            (
+                collector_name,
+                checked_at,
+                status,
+                gameweek,
+                seconds_remaining,
+                message,
+            ),
+        )
+
+
+def get_collector_state(
+    collector_name="predeadline",
+    db_path=DEFAULT_DB_PATH,
+):
+    ensure_database(
+        db_path
+    )
+
+    with connect(
+        db_path
+    ) as connection:
+        row = connection.execute(
+            """
+            SELECT
+                collector_name,
+                checked_at,
+                status,
+                gameweek,
+                seconds_remaining,
+                message
+            FROM collector_state
+            WHERE collector_name = ?
+            """,
+            (
+                collector_name,
+            ),
+        ).fetchone()
+
+    return (
+        dict(row)
+        if row is not None
+        else None
+    )
+
+
+def get_gameweek_snapshots(
+    gameweek,
+    entry_id,
+    db_path=DEFAULT_DB_PATH,
+):
+    ensure_database(
+        db_path
+    )
+
+    with connect(
+        db_path
+    ) as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                snapshots.snapshot_type,
+                snapshots.captured_at,
+                snapshots.payload_json
+            FROM snapshots
+            JOIN gameweeks
+              ON gameweeks.id =
+                 snapshots.gameweek_id
+            WHERE gameweeks.gameweek = ?
+              AND snapshots.entry_id = ?
+              AND snapshots.snapshot_type
+                  LIKE 'pre_deadline_%'
+            ORDER BY
+                snapshots.captured_at
+            """,
+            (
+                int(gameweek),
+                int(entry_id),
+            ),
+        ).fetchall()
+
+    result = []
+
+    for row in rows:
+        payload = {}
+
+        try:
+            payload = json.loads(
+                row["payload_json"]
+            )
+        except (
+            TypeError,
+            json.JSONDecodeError,
+        ):
+            pass
+
+        result.append({
+            "snapshot_type":
+                row["snapshot_type"],
+            "captured_at":
+                row["captured_at"],
+            "checkpoint":
+                payload.get(
+                    "checkpoint"
+                ),
+            "seconds_remaining":
+                payload.get(
+                    "seconds_remaining"
+                ),
+            "late_by_seconds":
+                payload.get(
+                    "late_by_seconds",
+                    0,
+                ),
+            "on_time":
+                payload.get(
+                    "on_time",
+                    True,
+                ),
+        })
+
+    return result

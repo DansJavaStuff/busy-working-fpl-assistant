@@ -2773,3 +2773,103 @@ span:last-child {
         min-width: 650px;
     }
 }
+
+
+.collector-card {
+    border: 1px solid #e3e7ea;
+}
+
+.collector-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.collector-card-header h2 {
+    margin: 3px 0 0;
+}
+
+.collector-kicker {
+    display: block;
+    font-size: .7rem;
+    font-weight: 900;
+    letter-spacing: .09em;
+    opacity: .55;
+}
+
+.collector-health {
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: .68rem;
+    font-weight: 900;
+    letter-spacing: .05em;
+}
+
+.collector-health.healthy {
+    background: #dff7e8;
+    color: #176b3a;
+}
+
+.collector-health.error {
+    background: #fce8e6;
+    color: #a4261d;
+}
+
+.collector-health.unknown {
+    background: #eef1f3;
+    color: #555;
+}
+
+.collector-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(5, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.collector-checkpoint {
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #e6e9ec;
+}
+
+.collector-checkpoint strong,
+.collector-checkpoint span,
+.collector-checkpoint small {
+    display: block;
+}
+
+.collector-checkpoint span {
+    margin-top: 4px;
+    font-size: .78rem;
+}
+
+.collector-checkpoint small {
+    margin-top: 3px;
+    opacity: .65;
+}
+
+.collector-checkpoint.saved {
+    background: #f2fbf5;
+}
+
+.collector-checkpoint.waiting {
+    background: #fafbfc;
+    opacity: .72;
+}
+
+.collector-meta {
+    margin-top: 14px;
+    font-size: .75rem;
+    opacity: .65;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+    .collector-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+}
