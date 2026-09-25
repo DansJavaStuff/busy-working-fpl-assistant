@@ -448,3 +448,10 @@ For FH, BB and TC, the planner only treats a window as a live **CANDIDATE** when
 Wildcard is currently held by design in this confidence layer because the future WC timing model is still a simplified single-window comparison. A multi-Gameweek persistent-squad model is required before historical/confidence evidence should be allowed to promote a WC timing recommendation.
 
 Fixture certainty is presently a transparent horizon heuristic: current GW = high, next two GWs = medium, longer-range = low. It does not claim that future rearrangements are impossible.
+
+
+### Chip Planner decision-first UI
+
+The Chip Planner deliberately separates **model output** from **strategic recommendation**.
+
+The default view now leads with HOLD/CANDIDATE and a short reason. Detailed fixture certainty, historical analogues, cost-of-waiting diagnostics and the larger per-chip model tables are collapsed behind `Why?` / model-detail controls. The asynchronously calculated opportunity decision is also copied back onto each individual chip card so a large theoretical uplift is not visually mistaken for a recommendation to spend the chip.
