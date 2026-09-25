@@ -107,10 +107,11 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Build current-vs-historical pattern similarity across imported seasons
 - [x] Remove zero-signal historical filler from candidate-window output
 - [x] Require semantic chip-pattern compatibility so normal weeks do not get misleading blank/double analogues
-- [ ] Surface historical analogues inside Chip Planner opportunity rows
+- [x] Surface historical analogues inside Chip Planner opportunity rows
 - [ ] Build full GW-by-GW value curves for all four chips
-- [ ] Add fixture-certainty and model-confidence signals
-- [ ] Allow explicit HOLD / insufficient-data recommendations
+- [x] Add initial fixture-certainty and model-confidence signals
+- [x] Allow explicit HOLD / insufficient-data recommendations
+- [ ] Replace horizon-only fixture certainty with richer confirmation/rearrangement evidence where available
 - [ ] Build coordinated chip schedule with one-chip-per-GW constraints
 - [ ] Backtest historical chip patterns and outcomes
 - [ ] Explain useful historical analogues without overfitting to Gameweek number
