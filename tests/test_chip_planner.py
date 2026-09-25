@@ -12,6 +12,7 @@ from chip_planner import (
     _chip_recommendation,
     _current_squad_lineup,
     _fixture_certainty,
+    _fixed_squad_horizon_score,
     _future_team_state,
     _normalise_chip_name,
     _normalise_status,
@@ -438,6 +439,105 @@ class ChipBoundaryTests(unittest.TestCase):
         )
 
 
+class WildcardHorizonTests(unittest.TestCase):
+
+    def test_fixed_squad_horizon_scores_five_gameweeks(self):
+        positions = (
+            ["GKP"] * 2
+            + ["DEF"] * 5
+            + ["MID"] * 5
+            + ["FWD"] * 3
+        )
+        players = []
+
+        for player_id, position in enumerate(
+            positions,
+            start=1,
+        ):
+            player = {
+                "id": player_id,
+                "name": f"P{player_id}",
+                "position": position,
+                "cost": 50,
+            }
+
+            for gameweek in range(
+                6,
+                11,
+            ):
+                player[
+                    f"proj_gw{gameweek}"
+                ] = float(player_id)
+
+            players.append(
+                player
+            )
+
+        result = _fixed_squad_horizon_score(
+            players,
+            players,
+            6,
+            19,
+        )
+
+        self.assertIsNotNone(
+            result
+        )
+        self.assertEqual(
+            result["gameweeks"],
+            5,
+        )
+        self.assertEqual(
+            result["end_gameweek"],
+            10,
+        )
+        self.assertGreater(
+            result["score"],
+            0,
+        )
+
+    def test_fixed_squad_horizon_clips_at_chip_boundary(self):
+        positions = (
+            ["GKP"] * 2
+            + ["DEF"] * 5
+            + ["MID"] * 5
+            + ["FWD"] * 3
+        )
+        players = []
+
+        for player_id, position in enumerate(
+            positions,
+            start=1,
+        ):
+            player = {
+                "id": player_id,
+                "name": f"P{player_id}",
+                "position": position,
+                "cost": 50,
+                "proj_gw18": 5.0,
+                "proj_gw19": 5.0,
+            }
+            players.append(
+                player
+            )
+
+        result = _fixed_squad_horizon_score(
+            players,
+            players,
+            18,
+            19,
+        )
+
+        self.assertEqual(
+            result["gameweeks"],
+            2,
+        )
+        self.assertEqual(
+            result["end_gameweek"],
+            19,
+        )
+
+
 class ChipRecommendationTests(unittest.TestCase):
 
     def test_normal_week_holds_special_gameweek_chips(self):
@@ -589,10 +689,10 @@ class ChipRecommendationTests(unittest.TestCase):
             "low",
         )
 
-    def test_wildcard_is_held_until_multiweek_model_exists(self):
+    def test_strong_multiweek_wildcard_window_can_be_candidate(self):
         result = _chip_recommendation(
             "WC",
-            15.0,
+            8.0,
             {
                 "kind": "normal",
                 "blank_team_count": 0,
@@ -603,15 +703,46 @@ class ChipRecommendationTests(unittest.TestCase):
                 "reason": "current",
             },
             None,
+            {
+                "rank": 1,
+                "percentile": 100.0,
+                "window_count": 14,
+            },
+        )
+
+        self.assertEqual(
+            result["recommendation"],
+            "CANDIDATE",
+        )
+        self.assertIn(
+            "five-Gameweek",
+            result["reason"],
+        )
+
+    def test_ordinary_multiweek_wildcard_window_holds(self):
+        result = _chip_recommendation(
+            "WC",
+            2.0,
+            {
+                "kind": "normal",
+                "blank_team_count": 0,
+                "double_team_count": 0,
+            },
+            {
+                "level": "high",
+                "reason": "current",
+            },
+            None,
+            {
+                "rank": 6,
+                "percentile": 60.0,
+                "window_count": 14,
+            },
         )
 
         self.assertEqual(
             result["recommendation"],
             "HOLD",
-        )
-        self.assertIn(
-            "multi-Gameweek",
-            result["reason"],
         )
 
 
