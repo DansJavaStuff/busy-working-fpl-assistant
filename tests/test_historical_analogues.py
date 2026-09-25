@@ -209,6 +209,55 @@ class HistoricalAnalogueTests(
             },
         )
 
+    def test_normal_week_has_no_free_hit_analogue(self):
+        current = {
+            "blank_team_count": 0,
+            "double_team_count": 0,
+            "premium_blank_count": 0,
+            "premium_double_count": 0,
+            "mean_double_fixture_quality": 0.0,
+        }
+
+        rows = closest_historical_analogues(
+            "FH",
+            current,
+            limit=5,
+            db_path=self.db_path,
+        )
+
+        self.assertEqual(
+            rows,
+            [],
+        )
+
+    def test_normal_week_has_no_bb_or_tc_analogue(self):
+        current = {
+            "blank_team_count": 0,
+            "double_team_count": 0,
+            "premium_blank_count": 0,
+            "premium_double_count": 0,
+            "mean_double_fixture_quality": 0.0,
+        }
+
+        for chip in (
+            "BB",
+            "TC",
+        ):
+            with self.subTest(
+                chip=chip
+            ):
+                rows = closest_historical_analogues(
+                    chip,
+                    current,
+                    limit=5,
+                    db_path=self.db_path,
+                )
+
+                self.assertEqual(
+                    rows,
+                    [],
+                )
+
     def test_identical_shape_is_high_similarity(self):
         current = {
             "blank_team_count": 1,
