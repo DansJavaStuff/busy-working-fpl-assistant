@@ -87,6 +87,22 @@
 
             </div>
 
+            <div
+                class="chip-strategy-summary"
+                data-chip-strategy="{{ chip.short }}"
+            >
+                <span>Strategic decision</span>
+                <strong>Loading…</strong>
+                <small>
+                    Waiting for opportunity evidence.
+                </small>
+            </div>
+
+            <details class="chip-model-details">
+                <summary>
+                    Show GW{{ planner.gameweek }} model details
+                </summary>
+
             <div class="chip-metrics">
 
                 <div>
@@ -114,7 +130,7 @@
             </div>
 
             <div class="chip-evaluation">
-                <span>Current evaluation</span>
+                <span>GW{{ planner.gameweek }} model output</span>
                 <strong>
                     {{ chip.evaluation }}
                 </strong>
@@ -598,6 +614,8 @@
                 </p>
 
             {% endif %}
+
+            </details>
 
         </section>
 
