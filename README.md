@@ -418,3 +418,22 @@ python3 -m tools.show_historical_chip_windows 2025-26 TC
 ```
 
 Wildcard is not included in this first historical fixture-pattern score because its value is inherently multi-Gameweek and squad-state dependent; treating a single historical Gameweek as a WC score would be misleading.
+
+
+### Current vs historical chip analogues
+
+Historical chip-pattern rows are indexed across every imported season and zero-signal filler rows are excluded.
+
+A current or future Gameweek can be reduced to the same fixture-pattern feature vector and compared with the historical index. Similarity currently uses blank count, double count, stronger-team blank/double involvement and double-fixture quality.
+
+Examples:
+
+```bash
+python3 -m tools.show_current_chip_analogues 10 FH
+python3 -m tools.show_current_chip_analogues 10 BB
+python3 -m tools.show_current_chip_analogues 10 TC
+```
+
+The output reports the current fixture shape plus the closest non-zero historical analogues across all imported seasons.
+
+Similarity is descriptive evidence, not yet a PLAY recommendation. The next modelling layer combines this with current projected chip value, fixture certainty and explicit HOLD logic.
