@@ -10,6 +10,7 @@ from chip_planner import (
     _chip_horizon_end,
     _chip_opportunity_summary,
     _chip_recommendation,
+    _current_squad_lineup,
     _fixture_certainty,
     _future_team_state,
     _normalise_chip_name,
@@ -159,6 +160,126 @@ class ChipTimingTests(unittest.TestCase):
             2,
         )
 
+
+
+class ChipFastLineupTests(unittest.TestCase):
+
+    def test_current_squad_lineup_picks_valid_best_xi_without_solver(self):
+        players = []
+        positions = (
+            ["GKP"] * 2
+            + ["DEF"] * 5
+            + ["MID"] * 5
+            + ["FWD"] * 3
+        )
+
+        for player_id, position in enumerate(
+            positions,
+            start=1,
+        ):
+            projection = float(
+                player_id
+            )
+            players.append({
+                "id": player_id,
+                "name": f"P{player_id}",
+                "position": position,
+                "planning_gameweek": 6,
+                "proj_gw6": projection,
+            })
+
+        team = {
+            "picks": [
+                {
+                    "element": player["id"],
+                    "selling_price": 50,
+                }
+                for player in players
+            ]
+        }
+
+        result = _current_squad_lineup(
+            players,
+            team,
+            6,
+        )
+
+        self.assertIsNotNone(
+            result
+        )
+
+        starters = [
+            player
+            for player in result["squad"]
+            if player["starter"]
+        ]
+
+        self.assertEqual(
+            len(starters),
+            11,
+        )
+        self.assertEqual(
+            sum(
+                player["position"] == "GKP"
+                for player in starters
+            ),
+            1,
+        )
+        self.assertGreaterEqual(
+            sum(
+                player["position"] == "DEF"
+                for player in starters
+            ),
+            3,
+        )
+        self.assertGreaterEqual(
+            sum(
+                player["position"] == "MID"
+                for player in starters
+            ),
+            2,
+        )
+        self.assertGreaterEqual(
+            sum(
+                player["position"] == "FWD"
+                for player in starters
+            ),
+            1,
+        )
+        self.assertEqual(
+            sum(
+                bool(
+                    player["captain"]
+                )
+                for player in starters
+            ),
+            1,
+        )
+
+    def test_current_squad_lineup_returns_none_for_incomplete_squad(self):
+        result = _current_squad_lineup(
+            [
+                {
+                    "id": 1,
+                    "position": "GKP",
+                    "planning_gameweek": 6,
+                    "proj_gw6": 5.0,
+                }
+            ],
+            {
+                "picks": [
+                    {
+                        "element": 1,
+                        "selling_price": 50,
+                    }
+                ]
+            },
+            6,
+        )
+
+        self.assertIsNone(
+            result
+        )
 
 
 class ChipBoundaryTests(unittest.TestCase):
