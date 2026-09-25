@@ -113,7 +113,8 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Remove zero-transfer CBC solves from timing windows
 - [x] Cache individual chip timing windows by squad and projection inputs
 - [x] Add optional low-priority background chip-cache warmer
-- [ ] Use timing-curve distribution evidence to refine exceptional normal-GW chip opportunities
+- [x] Use timing-curve distribution evidence to refine exceptional normal-GW TC opportunities
+- [ ] Revisit exceptional normal-GW BB/FH rules once their model calibration is strong enough
 - [x] Add initial fixture-certainty and model-confidence signals
 - [x] Allow explicit HOLD / insufficient-data recommendations
 - [x] Make Chip Planner decision-first and collapse diagnostic evidence by default

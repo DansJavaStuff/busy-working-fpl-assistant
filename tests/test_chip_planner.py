@@ -471,6 +471,70 @@ class ChipRecommendationTests(unittest.TestCase):
                     "HOLD",
                 )
 
+    def test_early_half_top_tc_window_still_holds(self):
+        result = _chip_recommendation(
+            "TC",
+            8.9,
+            {
+                "kind": "normal",
+                "blank_team_count": 0,
+                "double_team_count": 0,
+            },
+            {
+                "level": "high",
+                "reason": "current",
+            },
+            None,
+            {
+                "rank": 1,
+                "percentile": 100.0,
+                "window_count": 14,
+            },
+        )
+
+        self.assertEqual(
+            result["recommendation"],
+            "HOLD",
+        )
+        self.assertIn(
+            "1 of 14",
+            result["reason"],
+        )
+        self.assertIn(
+            "future windows remain unresolved",
+            result["reason"],
+        )
+
+    def test_late_half_exceptional_normal_tc_can_be_candidate(self):
+        result = _chip_recommendation(
+            "TC",
+            8.9,
+            {
+                "kind": "normal",
+                "blank_team_count": 0,
+                "double_team_count": 0,
+            },
+            {
+                "level": "high",
+                "reason": "current",
+            },
+            None,
+            {
+                "rank": 1,
+                "percentile": 100.0,
+                "window_count": 4,
+            },
+        )
+
+        self.assertEqual(
+            result["recommendation"],
+            "CANDIDATE",
+        )
+        self.assertEqual(
+            result["model_confidence"],
+            "medium",
+        )
+
     def test_strong_near_term_special_pattern_becomes_candidate(self):
         result = _chip_recommendation(
             "TC",
