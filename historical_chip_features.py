@@ -460,8 +460,14 @@ def strongest_historical_windows(
         db_path=db_path,
     )
 
+    candidates = [
+        row
+        for row in rows
+        if row[signal_key] > 0
+    ]
+
     return sorted(
-        rows,
+        candidates,
         key=lambda row: (
             -row[signal_key],
             row["gameweek"],
