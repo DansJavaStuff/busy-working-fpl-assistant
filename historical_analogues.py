@@ -354,6 +354,47 @@ def current_gameweek_features(
     }
 
 
+def _structurally_applicable(
+    chip,
+    current_features,
+    historical_features,
+):
+    chip = str(chip).upper()
+
+    if chip == "FH":
+        if current_features.get(
+            "blank_team_count",
+            0,
+        ) <= 0:
+            return False
+
+        return (
+            historical_features.get(
+                "blank_team_count",
+                0,
+            ) > 0
+        )
+
+    if chip in {
+        "BB",
+        "TC",
+    }:
+        if current_features.get(
+            "double_team_count",
+            0,
+        ) <= 0:
+            return False
+
+        return (
+            historical_features.get(
+                "double_team_count",
+                0,
+            ) > 0
+        )
+
+    return False
+
+
 def closest_historical_analogues(
     chip,
     current_features,
@@ -386,6 +427,12 @@ def closest_historical_analogues(
     matches = []
 
     for row in index:
+        if not _structurally_applicable(
+            chip,
+            current_features,
+            row,
+        ):
+            continue
         match = dict(
             row
         )
