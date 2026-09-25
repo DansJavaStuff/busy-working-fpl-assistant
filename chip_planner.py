@@ -2,6 +2,8 @@ import hashlib
 import json
 
 from fpl_api import (
+    get_bootstrap,
+    get_fixtures,
     get_my_team,
     get_planning_gameweek,
 )
@@ -21,13 +23,17 @@ from history_store import (
     save_cached_result,
 )
 
+from historical_analogues import (
+    current_historical_analogues,
+)
+
 
 POST_BB_HORIZON_WEIGHT = 0.15
 FIRST_HALF_END_GW = 19
 SECOND_HALF_START_GW = 20
 SEASON_END_GW = 38
 
-CHIP_CACHE_MODEL_VERSION = "chip-planner-v1"
+CHIP_CACHE_MODEL_VERSION = "chip-planner-v2"
 CHIP_PLANNER_CACHE_TTL = 15 * 60
 CHIP_OPPORTUNITY_CACHE_TTL = 30 * 60
 
@@ -365,6 +371,237 @@ def _fixture_context(
             double_count,
         "label":
             label,
+    }
+
+
+def _fixture_certainty(
+    planning_gameweek,
+    gameweek,
+):
+    distance = max(
+        0,
+        int(gameweek)
+        - int(planning_gameweek),
+    )
+
+    if distance == 0:
+        return {
+            "level": "high",
+            "reason":
+                "Current Gameweek fixture "
+                "assignments are known.",
+        }
+
+    if distance <= 2:
+        return {
+            "level": "medium",
+            "reason":
+                "Near-term fixture assignments "
+                "are useful but can still change.",
+        }
+
+    return {
+        "level": "low",
+        "reason":
+            "Longer-range fixture assignments "
+            "may change as matches are rearranged.",
+    }
+
+
+def _historical_evidence(
+    short,
+    gameweek,
+    bootstrap,
+    fixtures,
+):
+    if short not in {
+        "FH",
+        "BB",
+        "TC",
+    }:
+        return None
+
+    if (
+        bootstrap is None
+        or fixtures is None
+    ):
+        return None
+
+    result = (
+        current_historical_analogues(
+            short,
+            gameweek,
+            limit=3,
+            bootstrap=bootstrap,
+            fixtures=fixtures,
+        )
+    )
+
+    analogues = result.get(
+        "analogues",
+        [],
+    )
+
+    return {
+        "current":
+            result.get(
+                "current",
+                {},
+            ),
+        "analogues":
+            analogues,
+        "best_similarity":
+            (
+                analogues[0][
+                    "similarity"
+                ]
+                if analogues
+                else None
+            ),
+        "best":
+            (
+                analogues[0]
+                if analogues
+                else None
+            ),
+    }
+
+
+def _chip_recommendation(
+    short,
+    value,
+    fixture_context,
+    certainty,
+    historical_evidence=None,
+):
+    kind = fixture_context.get(
+        "kind",
+        "normal",
+    )
+
+    if short == "WC":
+        return {
+            "recommendation":
+                "HOLD",
+            "model_confidence":
+                "low",
+            "reason":
+                (
+                    "Wildcard timing still uses "
+                    "a simplified future-squad "
+                    "comparison. Wait for the "
+                    "multi-Gameweek WC model."
+                ),
+        }
+
+    required_kind = (
+        "blank"
+        if short == "FH"
+        else "double"
+    )
+
+    has_structure = (
+        fixture_context.get(
+            "blank_team_count",
+            0,
+        ) > 0
+        if required_kind == "blank"
+        else fixture_context.get(
+            "double_team_count",
+            0,
+        ) > 0
+    )
+
+    if not has_structure:
+        return {
+            "recommendation":
+                "HOLD",
+            "model_confidence":
+                (
+                    "medium"
+                    if certainty["level"]
+                    in {
+                        "high",
+                        "medium",
+                    }
+                    else "low"
+                ),
+            "reason":
+                (
+                    "No relevant "
+                    f"{required_kind} fixture "
+                    "pattern is currently assigned."
+                ),
+        }
+
+    best_similarity = (
+        historical_evidence or {}
+    ).get(
+        "best_similarity"
+    )
+
+    if best_similarity is None:
+        return {
+            "recommendation":
+                "HOLD",
+            "model_confidence":
+                "low",
+            "reason":
+                (
+                    "A special fixture pattern "
+                    "exists, but there is no "
+                    "applicable historical analogue "
+                    "yet."
+                ),
+        }
+
+    if certainty["level"] == "low":
+        return {
+            "recommendation":
+                "HOLD",
+            "model_confidence":
+                "low",
+            "reason":
+                (
+                    "The fixture pattern is "
+                    "promising but still too "
+                    "far away to trust."
+                ),
+        }
+
+    if (
+        best_similarity >= 80
+        and value > 0
+    ):
+        return {
+            "recommendation":
+                "CANDIDATE",
+            "model_confidence":
+                (
+                    "high"
+                    if certainty["level"]
+                    == "high"
+                    else "medium"
+                ),
+            "reason":
+                (
+                    "Positive model value plus "
+                    "a strong historical pattern "
+                    "match. Keep under review."
+                ),
+        }
+
+    return {
+        "recommendation":
+            "HOLD",
+        "model_confidence":
+            "medium",
+        "reason":
+            (
+                "The special fixture shape is "
+                "present, but historical support "
+                "is not strong enough yet."
+            ),
     }
 
 
@@ -1701,6 +1938,8 @@ def _chip_opportunity_summary(
     wildcard,
     free_hit,
     timing_windows,
+    bootstrap=None,
+    fixtures=None,
 ):
     rows = []
 
@@ -1748,6 +1987,45 @@ def _chip_opportunity_summary(
             else None
         )
 
+        now_certainty = _fixture_certainty(
+            planning_gameweek,
+            planning_gameweek,
+        )
+        now_history = _historical_evidence(
+            short,
+            planning_gameweek,
+            bootstrap,
+            fixtures,
+        )
+        decision = _chip_recommendation(
+            short,
+            now_value,
+            current_timing[
+                "fixture_context"
+            ],
+            now_certainty,
+            now_history,
+        )
+
+        later_certainty = (
+            _fixture_certainty(
+                planning_gameweek,
+                later["gameweek"],
+            )
+            if later
+            else None
+        )
+        later_history = (
+            _historical_evidence(
+                short,
+                later["gameweek"],
+                bootstrap,
+                fixtures,
+            )
+            if later
+            else None
+        )
+
         rows.append({
             "chip": chip,
             "short": short,
@@ -1780,6 +2058,26 @@ def _chip_opportunity_summary(
                     else None
                 ),
             "status": "comparable",
+            "recommendation":
+                decision["recommendation"],
+            "recommendation_reason":
+                decision["reason"],
+            "fixture_certainty":
+                now_certainty["level"],
+            "fixture_certainty_reason":
+                now_certainty["reason"],
+            "model_confidence":
+                decision["model_confidence"],
+            "historical":
+                now_history,
+            "best_later_fixture_certainty":
+                (
+                    later_certainty["level"]
+                    if later_certainty
+                    else None
+                ),
+            "best_later_historical":
+                later_history,
         })
 
     add_timing_row(
@@ -1836,6 +2134,49 @@ def _chip_opportunity_summary(
             else None
         )
 
+        now_certainty = _fixture_certainty(
+            planning_gameweek,
+            planning_gameweek,
+        )
+        now_history = _historical_evidence(
+            "TC",
+            planning_gameweek,
+            bootstrap,
+            fixtures,
+        )
+        decision = _chip_recommendation(
+            "TC",
+            now_value,
+            current_tc[
+                "fixture_context"
+            ],
+            now_certainty,
+            now_history,
+        )
+
+        later_certainty = (
+            _fixture_certainty(
+                planning_gameweek,
+                best_later_tc[
+                    "gameweek"
+                ],
+            )
+            if best_later_tc
+            else None
+        )
+        later_history = (
+            _historical_evidence(
+                "TC",
+                best_later_tc[
+                    "gameweek"
+                ],
+                bootstrap,
+                fixtures,
+            )
+            if best_later_tc
+            else None
+        )
+
         rows.append({
             "chip": "Triple Captain",
             "short": "TC",
@@ -1874,6 +2215,26 @@ def _chip_opportunity_summary(
                 ),
             "status":
                 "comparable",
+            "recommendation":
+                decision["recommendation"],
+            "recommendation_reason":
+                decision["reason"],
+            "fixture_certainty":
+                now_certainty["level"],
+            "fixture_certainty_reason":
+                now_certainty["reason"],
+            "model_confidence":
+                decision["model_confidence"],
+            "historical":
+                now_history,
+            "best_later_fixture_certainty":
+                (
+                    later_certainty["level"]
+                    if later_certainty
+                    else None
+                ),
+            "best_later_historical":
+                later_history,
         })
 
     add_timing_row(
@@ -2084,6 +2445,8 @@ def build_chip_planner(
                 wildcard,
                 free_hit,
                 timing_windows,
+                bootstrap=get_bootstrap(),
+                fixtures=get_fixtures(),
             )
         )
 
@@ -2392,6 +2755,8 @@ def build_chip_opportunity(
             None,
             None,
             timing_windows,
+            bootstrap=get_bootstrap(),
+            fixtures=get_fixtures(),
         )
     )
 
