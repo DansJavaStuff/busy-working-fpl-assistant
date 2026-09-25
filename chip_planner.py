@@ -35,11 +35,12 @@ FIRST_HALF_END_GW = 19
 SECOND_HALF_START_GW = 20
 SEASON_END_GW = 38
 
-CHIP_CACHE_MODEL_VERSION = "chip-planner-v4"
+CHIP_CACHE_MODEL_VERSION = "chip-planner-v5"
 CHIP_TIMING_WINDOW_MODEL_VERSION = "chip-timing-window-v1"
 CHIP_PLANNER_CACHE_TTL = 15 * 60
 CHIP_OPPORTUNITY_CACHE_TTL = 30 * 60
 CHIP_TIMING_WINDOW_CACHE_TTL = 12 * 60 * 60
+NORMAL_TC_CANDIDATE_MAX_WINDOWS = 4
 
 
 CHIP_META = {
@@ -477,6 +478,7 @@ def _chip_recommendation(
     fixture_context,
     certainty,
     historical_evidence=None,
+    curve_evidence=None,
 ):
     kind = fixture_context.get(
         "kind",
@@ -517,6 +519,80 @@ def _chip_recommendation(
     )
 
     if not has_structure:
+        curve_evidence = (
+            curve_evidence
+            or {}
+        )
+        current_rank = (
+            curve_evidence.get(
+                "rank"
+            )
+        )
+        window_count = (
+            curve_evidence.get(
+                "window_count"
+            )
+        )
+        percentile = (
+            curve_evidence.get(
+                "percentile"
+            )
+        )
+
+        if (
+            short == "TC"
+            and certainty["level"]
+            == "high"
+            and current_rank == 1
+            and percentile is not None
+            and percentile >= 95
+            and window_count is not None
+            and window_count
+            <= NORMAL_TC_CANDIDATE_MAX_WINDOWS
+        ):
+            return {
+                "recommendation":
+                    "CANDIDATE",
+                "model_confidence":
+                    "medium",
+                "reason":
+                    (
+                        "This is the strongest "
+                        "remaining modelled TC window "
+                        "and only a few windows remain, "
+                        "despite no Double Gameweek."
+                    ),
+            }
+
+        if (
+            short == "TC"
+            and current_rank == 1
+            and window_count
+        ):
+            return {
+                "recommendation":
+                    "HOLD",
+                "model_confidence":
+                    (
+                        "medium"
+                        if certainty["level"]
+                        in {
+                            "high",
+                            "medium",
+                        }
+                        else "low"
+                    ),
+                "reason":
+                    (
+                        "This is currently the strongest "
+                        f"modelled TC window (1 of "
+                        f"{window_count}), but too many "
+                        "future windows remain unresolved "
+                        "to spend the chip on a normal "
+                        "fixture slate yet."
+                    ),
+            }
+
         return {
             "recommendation":
                 "HOLD",
@@ -2332,6 +2408,25 @@ def _build_timing_curve(
         if point["best"]
     )
 
+    for point in points:
+        point_value = point["value"]
+        point["rank"] = (
+            1
+            + sum(
+                value > point_value
+                for value in ranked_values
+            )
+        )
+        point["percentile"] = round(
+            100
+            * sum(
+                value <= point_value
+                for value in ranked_values
+            )
+            / len(ranked_values),
+            1,
+        )
+
     return {
         "short": short,
         "points": points,
@@ -2402,6 +2497,51 @@ def _chip_opportunity_summary(
 ):
     rows = []
 
+    curves = _chip_timing_curves(
+        planning_gameweek,
+        timing_windows,
+        triple_captain,
+    )
+    curves_by_short = {
+        curve["short"]: curve
+        for curve in curves
+    }
+
+    def curve_evidence_for(
+        short,
+        gameweek,
+    ):
+        curve = curves_by_short.get(
+            short,
+            {}
+        )
+        point = next(
+            (
+                item
+                for item in curve.get(
+                    "points",
+                    [],
+                )
+                if item["gameweek"]
+                == gameweek
+            ),
+            None,
+        )
+        if point is None:
+            return None
+        return {
+            "rank":
+                point.get("rank"),
+            "percentile":
+                point.get(
+                    "percentile"
+                ),
+            "window_count":
+                curve.get(
+                    "window_count"
+                ),
+        }
+
     current_timing = next(
         (
             window
@@ -2464,6 +2604,10 @@ def _chip_opportunity_summary(
             ],
             now_certainty,
             now_history,
+            curve_evidence_for(
+                short,
+                planning_gameweek,
+            ),
         )
 
         later_certainty = (
@@ -2646,6 +2790,10 @@ def _chip_opportunity_summary(
             ],
             now_certainty,
             now_history,
+            curve_evidence_for(
+                "TC",
+                planning_gameweek,
+            ),
         )
 
         later_certainty = (
@@ -2788,11 +2936,7 @@ def _chip_opportunity_summary(
         "rows":
             rows,
         "curves":
-            _chip_timing_curves(
-                planning_gameweek,
-                timing_windows,
-                triple_captain,
-            ),
+            curves,
         "note":
             (
                 "Timing windows hold today's squad, "
