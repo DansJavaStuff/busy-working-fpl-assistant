@@ -120,6 +120,8 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Make Chip Planner decision-first and collapse diagnostic evidence by default
 - [x] Mirror strategic HOLD/CANDIDATE decisions onto individual chip cards
 - [ ] Replace horizon-only fixture certainty with richer confirmation/rearrangement evidence where available
+- [x] Replace one-week Wildcard timing with persistent five-Gameweek squad value
+- [x] Let Wildcard participate in HOLD/CANDIDATE logic using multi-Gameweek uplift
 - [ ] Build coordinated chip schedule with one-chip-per-GW constraints
 - [ ] Backtest historical chip patterns and outcomes
 - [ ] Explain useful historical analogues without overfitting to Gameweek number
