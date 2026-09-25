@@ -111,6 +111,8 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [ ] Build full GW-by-GW value curves for all four chips
 - [x] Add initial fixture-certainty and model-confidence signals
 - [x] Allow explicit HOLD / insufficient-data recommendations
+- [x] Make Chip Planner decision-first and collapse diagnostic evidence by default
+- [x] Mirror strategic HOLD/CANDIDATE decisions onto individual chip cards
 - [ ] Replace horizon-only fixture certainty with richer confirmation/rearrangement evidence where available
 - [ ] Build coordinated chip schedule with one-chip-per-GW constraints
 - [ ] Backtest historical chip patterns and outcomes

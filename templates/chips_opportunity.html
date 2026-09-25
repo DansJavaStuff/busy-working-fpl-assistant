@@ -5,28 +5,30 @@
     </span>
 
     <h2>
-        GW{{ opportunity.gameweek }} comparison
+        GW{{ opportunity.gameweek }} strategy
     </h2>
 
     <p>
-        Timing value is shown on a consistent
-        current-squad basis so each chip can be compared
-        with its own later windows.
+        Strategic decisions are shown first.
+        Model diagnostics and historical evidence
+        are available when you want to inspect them.
     </p>
 
     <div class="chip-opportunity-table">
 
         <div class="chip-opportunity-row header">
             <span>Chip</span>
-            <span>Now</span>
+            <span>GW{{ opportunity.gameweek }} model value</span>
             <span>Best later</span>
-            <span>Cost of waiting</span>
-            <span>Decision / evidence</span>
+            <span>Decision</span>
         </div>
 
         {% for row in opportunity.rows %}
 
-            <div class="chip-opportunity-row">
+            <div
+                class="chip-opportunity-row"
+                data-chip="{{ row.short }}"
+            >
 
                 <strong>{{ row.short }}</strong>
 
@@ -43,71 +45,98 @@
                     {% endif %}
                 </span>
 
-                <span
-                    class="
-                        {% if row.cost_of_waiting is not none
-                              and row.cost_of_waiting > 0.049 %}
-                            negative
-                        {% endif %}
-                    "
-                >
-                    {% if row.cost_of_waiting is not none %}
-                        {{ "%.1f"|format(row.cost_of_waiting) }}
-                    {% else %}
-                        —
-                    {% endif %}
-                </span>
-
-                <small>
-                    <strong>
+                <div class="chip-decision-cell">
+                    <strong
+                        class="
+                            decision-label
+                            {% if row.recommendation == 'CANDIDATE' %}
+                                candidate
+                            {% else %}
+                                hold
+                            {% endif %}
+                        "
+                    >
                         {{ row.recommendation }}
                     </strong>
-                    · confidence {{ row.model_confidence }}
-                    · fixture certainty {{ row.fixture_certainty }}
-                    <br>
-                    {{ row.recommendation_reason }}
-                    <br>
-                    {{ row.now_context }}
 
-                    {% if row.historical %}
-                        <br>
-                        {% if row.historical.best %}
-                            Historical analogue:
-                            {{ row.historical.best.season }}
-                            GW{{ row.historical.best.gameweek }}
-                            · {{ "%.1f"|format(row.historical.best_similarity) }}% similar
-                        {% else %}
-                            Historical analogue:
-                            none applicable
-                        {% endif %}
-                    {% endif %}
+                    <span class="decision-confidence">
+                        {{ row.model_confidence }}
+                        confidence
+                    </span>
 
-                    {% if row.best_later_fixture_context %}
-                        <br>
-                        Best later:
-                        {{ row.best_later_fixture_context }}
-                        {% if row.best_later_fixture_certainty %}
-                            · certainty {{ row.best_later_fixture_certainty }}
-                        {% endif %}
-                        {% if row.best_later_recommendation %}
-                            · {{ row.best_later_recommendation }}
-                            · confidence {{ row.best_later_model_confidence }}
-                        {% endif %}
-                    {% endif %}
+                    <small class="decision-reason">
+                        {{ row.recommendation_reason }}
+                    </small>
 
-                    {% if row.best_later_historical %}
-                        <br>
-                        {% if row.best_later_historical.best %}
-                            Later analogue:
-                            {{ row.best_later_historical.best.season }}
-                            GW{{ row.best_later_historical.best.gameweek }}
-                            · {{ "%.1f"|format(row.best_later_historical.best_similarity) }}% similar
-                        {% else %}
-                            Later analogue:
-                            none applicable
-                        {% endif %}
-                    {% endif %}
-                </small>
+                    <details class="chip-evidence-details">
+                        <summary>
+                            Why?
+                        </summary>
+
+                        <div class="chip-evidence-body">
+                            <p>
+                                <strong>Current context:</strong>
+                                {{ row.now_context }}
+                            </p>
+
+                            <p>
+                                <strong>Fixture certainty:</strong>
+                                {{ row.fixture_certainty }}
+                                — {{ row.fixture_certainty_reason }}
+                            </p>
+
+                            {% if row.historical %}
+                                <p>
+                                    <strong>Historical analogue:</strong>
+                                    {% if row.historical.best %}
+                                        {{ row.historical.best.season }}
+                                        GW{{ row.historical.best.gameweek }}
+                                        · {{ "%.1f"|format(row.historical.best_similarity) }}% similar
+                                    {% else %}
+                                        none applicable
+                                    {% endif %}
+                                </p>
+                            {% endif %}
+
+                            {% if row.best_later_fixture_context %}
+                                <p>
+                                    <strong>Best later:</strong>
+                                    GW{{ row.best_later_gw }}
+                                    · {{ row.best_later_fixture_context }}
+                                    {% if row.best_later_fixture_certainty %}
+                                        · certainty {{ row.best_later_fixture_certainty }}
+                                    {% endif %}
+                                    {% if row.best_later_recommendation %}
+                                        · {{ row.best_later_recommendation }}
+                                        · {{ row.best_later_model_confidence }} confidence
+                                    {% endif %}
+                                </p>
+                            {% endif %}
+
+                            {% if row.best_later_historical %}
+                                <p>
+                                    <strong>Later historical analogue:</strong>
+                                    {% if row.best_later_historical.best %}
+                                        {{ row.best_later_historical.best.season }}
+                                        GW{{ row.best_later_historical.best.gameweek }}
+                                        · {{ "%.1f"|format(row.best_later_historical.best_similarity) }}% similar
+                                    {% else %}
+                                        none applicable
+                                    {% endif %}
+                                </p>
+                            {% endif %}
+
+                            <p>
+                                <strong>Cost of waiting:</strong>
+                                {% if row.cost_of_waiting is not none %}
+                                    {{ "%.1f"|format(row.cost_of_waiting) }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </p>
+                        </div>
+                    </details>
+                </div>
 
             </div>
 
@@ -115,16 +144,21 @@
 
     </div>
 
-    <p class="chip-note">
-        <strong>Cost of waiting</strong> is the
-        projected chip value lost by skipping this
-        Gameweek for the best currently-scored later
-        window. A negative number means a better later
-        window is projected. <strong>HOLD</strong> means the
-        evidence is not yet strong enough to spend the chip;
-        <strong>CANDIDATE</strong> means the window is worth
-        active review, not an automatic instruction to play it.
-        {{ opportunity.note }}
-    </p>
+    <details class="chip-method-details">
+        <summary>
+            How to read this
+        </summary>
+
+        <p class="chip-note">
+            <strong>Model value</strong> is the theoretical
+            uplift if the chip were used in that Gameweek;
+            it is not itself a recommendation.
+            <strong>HOLD</strong> means the evidence is not
+            strong enough to spend the chip.
+            <strong>CANDIDATE</strong> means the window is
+            worth active review, not an automatic instruction
+            to play it. {{ opportunity.note }}
+        </p>
+    </details>
 
 </section>

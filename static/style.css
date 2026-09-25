@@ -2736,11 +2736,10 @@ span:last-child {
 .chip-opportunity-row {
     display: grid;
     grid-template-columns:
-        .65fr
-        .75fr
-        1.1fr
-        1fr
-        1.6fr;
+        .55fr
+        .9fr
+        1.05fr
+        2.2fr;
     gap: 10px;
     align-items: center;
     padding: 10px 12px;
@@ -2770,7 +2769,7 @@ span:last-child {
     }
 
     .chip-opportunity-row {
-        min-width: 650px;
+        min-width: 560px;
     }
 }
 
@@ -2912,5 +2911,120 @@ span:last-child {
     .snapshot-change-row {
         grid-template-columns: 1fr;
         gap: 2px;
+    }
+}
+
+
+.chip-strategy-summary {
+    margin-top: 16px;
+    padding: 13px 14px;
+    border-radius: 10px;
+    background: #f7f5f8;
+    border: 1px solid rgba(53, 24, 62, .08);
+}
+
+.chip-strategy-summary > span {
+    display: block;
+    color: var(--hq-muted);
+    font-size: .64rem;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.chip-strategy-summary > strong {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 1.15rem;
+}
+
+.chip-strategy-summary > small {
+    display: block;
+    margin-top: 4px;
+    color: var(--hq-muted);
+    line-height: 1.35;
+}
+
+.decision-label.hold {
+    color: var(--hq-muted);
+}
+
+.decision-label.candidate {
+    color: var(--hq-green);
+}
+
+.chip-model-details {
+    margin-top: 12px;
+    border-top: 1px solid rgba(53, 24, 62, .08);
+    padding-top: 10px;
+}
+
+.chip-model-details > summary,
+.chip-evidence-details > summary,
+.chip-method-details > summary {
+    cursor: pointer;
+    color: var(--hq-plum);
+    font-size: .75rem;
+    font-weight: 900;
+    letter-spacing: .03em;
+}
+
+.chip-model-details > summary {
+    padding: 4px 0;
+}
+
+.chip-decision-cell {
+    min-width: 0;
+}
+
+.chip-decision-cell > strong,
+.chip-decision-cell > span,
+.chip-decision-cell > small {
+    display: block;
+}
+
+.chip-decision-cell > span {
+    margin-top: 2px;
+    color: var(--hq-muted);
+    font-size: .72rem;
+    font-weight: 700;
+}
+
+.chip-decision-cell > small {
+    margin-top: 4px;
+    line-height: 1.35;
+}
+
+.chip-evidence-details {
+    margin-top: 7px;
+}
+
+.chip-evidence-body {
+    margin-top: 7px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    background: #f7f8f9;
+}
+
+.chip-evidence-body p {
+    margin: 0 0 6px;
+    color: var(--hq-muted);
+    font-size: .75rem;
+    line-height: 1.35;
+}
+
+.chip-evidence-body p:last-child {
+    margin-bottom: 0;
+}
+
+.chip-method-details {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(53, 24, 62, .08);
+}
+
+@media (max-width: 700px) {
+    .chip-strategy-summary > small {
+        font-size: .75rem;
     }
 }
