@@ -437,3 +437,14 @@ python3 -m tools.show_current_chip_analogues 10 TC
 The output reports the current fixture shape plus the closest non-zero historical analogues across all imported seasons.
 
 Similarity is descriptive evidence, not yet a PLAY recommendation. The next modelling layer combines this with current projected chip value, fixture certainty and explicit HOLD logic.
+
+
+### Chip HOLD and confidence layer
+
+Chip opportunity rows now combine the modelled chip uplift with simple fixture-timing certainty and the historical analogue layer.
+
+For FH, BB and TC, the planner only treats a window as a live **CANDIDATE** when the relevant special fixture shape is present, there is strong historical support, the projected chip value is positive, and the fixture window is not too far away. Otherwise it explicitly returns **HOLD**.
+
+Wildcard is currently held by design in this confidence layer because the future WC timing model is still a simplified single-window comparison. A multi-Gameweek persistent-squad model is required before historical/confidence evidence should be allowed to promote a WC timing recommendation.
+
+Fixture certainty is presently a transparent horizon heuristic: current GW = high, next two GWs = medium, longer-range = low. It does not claim that future rearrangements are impossible.
