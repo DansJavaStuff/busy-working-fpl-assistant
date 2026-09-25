@@ -1931,6 +1931,216 @@ def _future_chip_windows(
     return windows
 
 
+def _build_timing_curve(
+    short,
+    windows,
+    value_key,
+    planning_gameweek,
+):
+    points = []
+
+    for window in windows:
+        value = float(
+            window.get(
+                value_key,
+                0.0,
+            )
+            or 0.0
+        )
+
+        fixture_context = (
+            window.get(
+                "fixture_context",
+                {},
+            )
+            or {}
+        )
+
+        points.append({
+            "gameweek":
+                int(
+                    window["gameweek"]
+                ),
+            "value":
+                value,
+            "fixture_label":
+                fixture_context.get(
+                    "label",
+                    "fixture slate unknown",
+                ),
+            "fixture_kind":
+                fixture_context.get(
+                    "kind",
+                    "normal",
+                ),
+            "certainty":
+                _fixture_certainty(
+                    planning_gameweek,
+                    window["gameweek"],
+                )["level"],
+            "current":
+                int(
+                    window["gameweek"]
+                ) == int(
+                    planning_gameweek
+                ),
+        })
+
+    if not points:
+        return {
+            "short": short,
+            "points": [],
+            "best_gameweek": None,
+            "best_value": None,
+            "current_rank": None,
+            "window_count": 0,
+            "current_percentile": None,
+        }
+
+    best_value = max(
+        point["value"]
+        for point in points
+    )
+
+    current_point = next(
+        (
+            point
+            for point in points
+            if point["current"]
+        ),
+        None,
+    )
+
+    ranked_values = sorted(
+        (
+            point["value"]
+            for point in points
+        ),
+        reverse=True,
+    )
+
+    current_rank = None
+    current_percentile = None
+
+    if current_point is not None:
+        current_value = (
+            current_point["value"]
+        )
+        current_rank = (
+            1
+            + sum(
+                value > current_value
+                for value
+                in ranked_values
+            )
+        )
+        current_percentile = round(
+            100
+            * sum(
+                value <= current_value
+                for value
+                in ranked_values
+            )
+            / len(
+                ranked_values
+            ),
+            1,
+        )
+
+    positive_peak = max(
+        best_value,
+        0.0,
+    )
+
+    for point in points:
+        if positive_peak <= 0:
+            point["bar_height"] = 8.0
+        else:
+            point["bar_height"] = round(
+                max(
+                    8.0,
+                    min(
+                        100.0,
+                        100
+                        * max(
+                            0.0,
+                            point["value"],
+                        )
+                        / positive_peak,
+                    ),
+                ),
+                1,
+            )
+
+        point["best"] = (
+            point["value"]
+            == best_value
+        )
+
+    best_point = next(
+        point
+        for point in points
+        if point["best"]
+    )
+
+    return {
+        "short": short,
+        "points": points,
+        "best_gameweek":
+            best_point[
+                "gameweek"
+            ],
+        "best_value":
+            best_value,
+        "current_rank":
+            current_rank,
+        "window_count":
+            len(points),
+        "current_percentile":
+            current_percentile,
+    }
+
+
+def _chip_timing_curves(
+    planning_gameweek,
+    timing_windows,
+    triple_captain,
+):
+    tc_windows = (
+        triple_captain.get(
+            "windows",
+            [],
+        )
+    )
+
+    return [
+        _build_timing_curve(
+            "BB",
+            timing_windows,
+            "bb_value",
+            planning_gameweek,
+        ),
+        _build_timing_curve(
+            "TC",
+            tc_windows,
+            "best_tc_uplift",
+            planning_gameweek,
+        ),
+        _build_timing_curve(
+            "WC",
+            timing_windows,
+            "wc_value",
+            planning_gameweek,
+        ),
+        _build_timing_curve(
+            "FH",
+            timing_windows,
+            "fh_value",
+            planning_gameweek,
+        ),
+    ]
+
+
 def _chip_opportunity_summary(
     planning_gameweek,
     bench_boost,
@@ -2328,6 +2538,12 @@ def _chip_opportunity_summary(
             planning_gameweek,
         "rows":
             rows,
+        "curves":
+            _chip_timing_curves(
+                planning_gameweek,
+                timing_windows,
+                triple_captain,
+            ),
         "note":
             (
                 "Timing windows hold today's squad, "

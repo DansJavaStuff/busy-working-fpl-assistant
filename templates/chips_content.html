@@ -54,6 +54,7 @@
                 chip-card
                 {{ chip.status }}
                 {% if chip.name == "bboost"
+                      or chip.name == "3xc"
                       or chip.name == "wildcard"
                       or chip.name == "freehit" %}
                     chip-card-wide

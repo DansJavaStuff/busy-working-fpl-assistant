@@ -108,7 +108,9 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Remove zero-signal historical filler from candidate-window output
 - [x] Require semantic chip-pattern compatibility so normal weeks do not get misleading blank/double analogues
 - [x] Surface historical analogues inside Chip Planner opportunity rows
-- [ ] Build full GW-by-GW value curves for all four chips
+- [x] Build full GW-by-GW value curves for all four chips
+- [x] Rank the current Gameweek within each remaining chip-half value distribution
+- [ ] Use timing-curve distribution evidence to refine exceptional normal-GW chip opportunities
 - [x] Add initial fixture-certainty and model-confidence signals
 - [x] Allow explicit HOLD / insufficient-data recommendations
 - [x] Make Chip Planner decision-first and collapse diagnostic evidence by default

@@ -455,3 +455,12 @@ Fixture certainty is presently a transparent horizon heuristic: current GW = hig
 The Chip Planner deliberately separates **model output** from **strategic recommendation**.
 
 The default view now leads with HOLD/CANDIDATE and a short reason. Detailed fixture certainty, historical analogues, cost-of-waiting diagnostics and the larger per-chip model tables are collapsed behind `Why?` / model-detail controls. The asynchronously calculated opportunity decision is also copied back onto each individual chip card so a large theoretical uplift is not visually mistaken for a recommendation to spend the chip.
+
+
+### Full chip timing curves
+
+The Chip Opportunity view now includes a full Gameweek-by-Gameweek model-value curve for BB, TC, WC and FH across the active chip half.
+
+Each curve shows every remaining Gameweek, highlights the current Gameweek and the strongest model-value window, and reports where the current Gameweek ranks within the remaining horizon. This is descriptive context rather than an automatic PLAY recommendation.
+
+The Wildcard curve remains explicitly provisional until the future WC model is upgraded from a simplified one-window squad comparison to a persistent multi-Gameweek model.
