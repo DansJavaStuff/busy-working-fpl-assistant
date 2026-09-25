@@ -3281,6 +3281,7 @@ def build_chip_opportunity(
             current_team,
             planning_gameweek,
             chip_horizon_end,
+            force_refresh=force_refresh,
         )
     )
 
