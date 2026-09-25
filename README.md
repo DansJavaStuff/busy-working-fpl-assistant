@@ -464,3 +464,8 @@ The Chip Opportunity view now includes a full Gameweek-by-Gameweek model-value c
 Each curve shows every remaining Gameweek, highlights the current Gameweek and the strongest model-value window, and reports where the current Gameweek ranks within the remaining horizon. This is descriptive context rather than an automatic PLAY recommendation.
 
 The Wildcard curve remains explicitly provisional until the future WC model is upgraded from a simplified one-window squad comparison to a persistent multi-Gameweek model.
+
+
+### Timing-curve cache shape
+
+The chip-planner cache model version must be bumped whenever the cached opportunity payload changes shape. The timing-curve release uses `chip-planner-v3` so older cached v2 opportunity rows cannot hide the newly-added `curves` data.
