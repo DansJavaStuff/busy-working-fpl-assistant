@@ -110,6 +110,9 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Surface historical analogues inside Chip Planner opportunity rows
 - [x] Build full GW-by-GW value curves for all four chips
 - [x] Rank the current Gameweek within each remaining chip-half value distribution
+- [x] Remove zero-transfer CBC solves from timing windows
+- [x] Cache individual chip timing windows by squad and projection inputs
+- [x] Add optional low-priority background chip-cache warmer
 - [ ] Use timing-curve distribution evidence to refine exceptional normal-GW chip opportunities
 - [x] Add initial fixture-certainty and model-confidence signals
 - [x] Allow explicit HOLD / insufficient-data recommendations
