@@ -5,6 +5,7 @@ import re
 import requests
 
 from history_store import (
+    DEFAULT_DB_PATH,
     ensure_database,
     record_historical_import,
     transaction,
@@ -494,14 +495,13 @@ def _upsert_fixtures(
                 ),
                 (
                     None
-                    if _optional_bool(
-                        row.get("finished")
-                    ) is None
-                    else int(
+                    if (
+                        finished :=
                         _optional_bool(
                             row.get("finished")
                         )
-                    )
+                    ) is None
+                    else int(finished)
                 ),
                 SOURCE_REPO,
                 source_updated_at,
@@ -573,42 +573,20 @@ def import_historical_season(
         **kwargs,
     )
 
-    actual_db_path = (
+    effective_db_path = (
         db_path
         if db_path is not None
-        else None
+        else DEFAULT_DB_PATH
     )
-
-    gameweek_kwargs = {}
-
-    if actual_db_path is not None:
-        gameweek_kwargs[
-            "db_path"
-        ] = actual_db_path
 
     gameweek_ids = (
         _gameweek_ids(
             season_id,
-            db_path=(
-                actual_db_path
-                if actual_db_path
-                is not None
-                else ensure_database()
-            ),
+            db_path=effective_db_path,
         )
     )
 
     imported_at = utc_now_iso()
-
-    from history_store import (
-        DEFAULT_DB_PATH,
-    )
-
-    effective_db_path = (
-        actual_db_path
-        if actual_db_path is not None
-        else DEFAULT_DB_PATH
-    )
 
     with transaction(
         effective_db_path
