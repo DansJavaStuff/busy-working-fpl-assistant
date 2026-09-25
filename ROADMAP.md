@@ -106,6 +106,7 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Keep historical fixture-pattern scores separate from realised chip-point outcomes
 - [x] Build current-vs-historical pattern similarity across imported seasons
 - [x] Remove zero-signal historical filler from candidate-window output
+- [x] Require semantic chip-pattern compatibility so normal weeks do not get misleading blank/double analogues
 - [ ] Surface historical analogues inside Chip Planner opportunity rows
 - [ ] Build full GW-by-GW value curves for all four chips
 - [ ] Add fixture-certainty and model-confidence signals
