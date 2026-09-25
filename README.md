@@ -494,3 +494,14 @@ python3 -m tools.warm_chip_opportunity_cache
 ```
 
 The cache model version is bumped when timing logic changes so stale derived results are not reused.
+
+
+### Curve-aware chip decisions
+
+Timing-curve rank and percentile are now used as supporting decision evidence.
+
+The planner remains conservative early in a chip half: a normal single-fixture TC week can rank first simply because future Double Gameweeks have not yet been assigned. In that situation the model keeps **HOLD** but explains that the current week is the strongest presently-modelled TC window.
+
+A normal-GW Triple Captain can become a **CANDIDATE** late in the chip half when it is the strongest remaining modelled window, sits at the top of the remaining distribution and only a small number of windows remain. Blank/Double Gameweek structure and historical analogue evidence continue to support special-GW candidates.
+
+Bench Boost and Free Hit still require their relevant special-fixture structure in this first curve-aware pass; Wildcard remains HOLD until the multi-Gameweek WC model is implemented.
