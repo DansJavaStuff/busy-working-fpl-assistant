@@ -58,8 +58,9 @@ def main():
 
     if not result["analogues"]:
         print(
-            "No non-zero historical "
-            "analogues are available."
+            "No applicable historical "
+            "analogue yet for this "
+            "fixture shape."
         )
         return
 
