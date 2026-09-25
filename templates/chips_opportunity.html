@@ -21,7 +21,7 @@
             <span>Now</span>
             <span>Best later</span>
             <span>Cost of waiting</span>
-            <span>Context</span>
+            <span>Decision / evidence</span>
         </div>
 
         {% for row in opportunity.rows %}
@@ -59,11 +59,49 @@
                 </span>
 
                 <small>
+                    <strong>
+                        {{ row.recommendation }}
+                    </strong>
+                    · confidence {{ row.model_confidence }}
+                    · fixture certainty {{ row.fixture_certainty }}
+                    <br>
+                    {{ row.recommendation_reason }}
+                    <br>
                     {{ row.now_context }}
+
+                    {% if row.historical %}
+                        <br>
+                        {% if row.historical.best %}
+                            Historical analogue:
+                            {{ row.historical.best.season }}
+                            GW{{ row.historical.best.gameweek }}
+                            · {{ "%.1f"|format(row.historical.best_similarity) }}% similar
+                        {% else %}
+                            Historical analogue:
+                            none applicable
+                        {% endif %}
+                    {% endif %}
+
                     {% if row.best_later_fixture_context %}
                         <br>
                         Best later:
                         {{ row.best_later_fixture_context }}
+                        {% if row.best_later_fixture_certainty %}
+                            · certainty {{ row.best_later_fixture_certainty }}
+                        {% endif %}
+                    {% endif %}
+
+                    {% if row.best_later_historical %}
+                        <br>
+                        {% if row.best_later_historical.best %}
+                            Later analogue:
+                            {{ row.best_later_historical.best.season }}
+                            GW{{ row.best_later_historical.best.gameweek }}
+                            · {{ "%.1f"|format(row.best_later_historical.best_similarity) }}% similar
+                        {% else %}
+                            Later analogue:
+                            none applicable
+                        {% endif %}
                     {% endif %}
                 </small>
 
@@ -78,7 +116,11 @@
         projected chip value lost by skipping this
         Gameweek for the best currently-scored later
         window. A negative number means a better later
-        window is projected. {{ opportunity.note }}
+        window is projected. <strong>HOLD</strong> means the
+        evidence is not yet strong enough to spend the chip;
+        <strong>CANDIDATE</strong> means the window is worth
+        active review, not an automatic instruction to play it.
+        {{ opportunity.note }}
     </p>
 
 </section>
