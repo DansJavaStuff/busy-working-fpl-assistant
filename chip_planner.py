@@ -2926,6 +2926,10 @@ def _chip_opportunity_summary(
                 later["fixture_context"],
                 later_certainty,
                 later_history,
+                curve_evidence_for(
+                    short,
+                    later["gameweek"],
+                ),
             )
             if later
             else None
@@ -3211,7 +3215,7 @@ def _chip_opportunity_summary(
         "Wildcard",
         "WC",
         "wc_value",
-        "unrestricted vs hold",
+        "five-Gameweek persistent squad vs no-chip baseline",
     )
 
     add_timing_row(
