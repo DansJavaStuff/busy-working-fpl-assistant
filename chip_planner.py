@@ -1998,7 +1998,6 @@ def _timing_window(
             current_team,
             gameweek,
             end_gameweek,
-            force_refresh=force_refresh,
         )
     )
 
@@ -2171,6 +2170,7 @@ def _future_chip_windows(
             current_team,
             gameweek,
             end_gameweek,
+            force_refresh=force_refresh,
         )
 
         if window is not None:
