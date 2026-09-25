@@ -185,7 +185,10 @@
                     </small>
                 </div>
 
-                <div class="chip-curve-bars">
+                <div
+                    class="chip-curve-bars"
+                    style="--curve-count: {{ curve.window_count }};"
+                >
                     {% for point in curve.points %}
                         <div
                             class="
