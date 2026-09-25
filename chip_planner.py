@@ -2025,6 +2025,17 @@ def _chip_opportunity_summary(
             if later
             else None
         )
+        later_decision = (
+            _chip_recommendation(
+                short,
+                later_value,
+                later["fixture_context"],
+                later_certainty,
+                later_history,
+            )
+            if later
+            else None
+        )
 
         rows.append({
             "chip": chip,
@@ -2078,6 +2089,30 @@ def _chip_opportunity_summary(
                 ),
             "best_later_historical":
                 later_history,
+            "best_later_recommendation":
+                (
+                    later_decision[
+                        "recommendation"
+                    ]
+                    if later_decision
+                    else None
+                ),
+            "best_later_model_confidence":
+                (
+                    later_decision[
+                        "model_confidence"
+                    ]
+                    if later_decision
+                    else None
+                ),
+            "best_later_recommendation_reason":
+                (
+                    later_decision[
+                        "reason"
+                    ]
+                    if later_decision
+                    else None
+                ),
         })
 
     add_timing_row(
@@ -2176,6 +2211,19 @@ def _chip_opportunity_summary(
             if best_later_tc
             else None
         )
+        later_decision = (
+            _chip_recommendation(
+                "TC",
+                later_value,
+                best_later_tc[
+                    "fixture_context"
+                ],
+                later_certainty,
+                later_history,
+            )
+            if best_later_tc
+            else None
+        )
 
         rows.append({
             "chip": "Triple Captain",
@@ -2235,6 +2283,30 @@ def _chip_opportunity_summary(
                 ),
             "best_later_historical":
                 later_history,
+            "best_later_recommendation":
+                (
+                    later_decision[
+                        "recommendation"
+                    ]
+                    if later_decision
+                    else None
+                ),
+            "best_later_model_confidence":
+                (
+                    later_decision[
+                        "model_confidence"
+                    ]
+                    if later_decision
+                    else None
+                ),
+            "best_later_recommendation_reason":
+                (
+                    later_decision[
+                        "reason"
+                    ]
+                    if later_decision
+                    else None
+                ),
         })
 
     add_timing_row(
