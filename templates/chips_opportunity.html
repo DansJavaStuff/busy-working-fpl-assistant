@@ -89,6 +89,10 @@
                         {% if row.best_later_fixture_certainty %}
                             · certainty {{ row.best_later_fixture_certainty }}
                         {% endif %}
+                        {% if row.best_later_recommendation %}
+                            · {{ row.best_later_recommendation }}
+                            · confidence {{ row.best_later_model_confidence }}
+                        {% endif %}
                     {% endif %}
 
                     {% if row.best_later_historical %}
