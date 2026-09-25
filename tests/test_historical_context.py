@@ -9,9 +9,60 @@ from historical_context import (
 from historical_importer import (
     import_historical_season,
 )
-from test_historical_importer import (
-    FakeSession,
-)
+TEAMS_CSV = """id,name,short_name,strength
+1,Alpha,ALP,3
+2,Beta,BET,2
+3,Gamma,GAM,3
+4,Delta,DEL,2
+"""
+
+FIXTURES_CSV = """id,event,team_h,team_a,team_h_score,team_a_score,kickoff_time,finished,team_h_difficulty,team_a_difficulty
+10,1,1,2,2,0,2025-08-16T14:00:00Z,True,2,4
+11,1,3,1,1,1,2025-08-17T14:00:00Z,True,3,3
+12,2,1,4,2,1,2025-08-23T14:00:00Z,True,2,4
+13,2,2,3,0,0,2025-08-24T14:00:00Z,True,3,3
+"""
+
+
+class FakeResponse:
+
+    def __init__(
+        self,
+        text,
+    ):
+        self.text = text
+
+    def raise_for_status(self):
+        return None
+
+
+class FakeSession:
+
+    def get(
+        self,
+        url,
+        timeout=None,
+        headers=None,
+    ):
+        del timeout, headers
+
+        if url.endswith(
+            "/teams.csv"
+        ):
+            return FakeResponse(
+                TEAMS_CSV
+            )
+
+        if url.endswith(
+            "/fixtures.csv"
+        ):
+            return FakeResponse(
+                FIXTURES_CSV
+            )
+
+        raise AssertionError(
+            f"Unexpected URL: {url}"
+        )
 
 
 class HistoricalContextTests(
