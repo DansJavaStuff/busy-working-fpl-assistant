@@ -144,6 +144,91 @@
 
     </div>
 
+    <section class="chip-curves">
+        <div class="chip-curves-header">
+            <div>
+                <span class="team-label">
+                    TIMING CURVES
+                </span>
+                <h3>
+                    Remaining chip-half model values
+                </h3>
+            </div>
+            <small>
+                Descriptive only — taller bars mean a
+                higher model value within that chip.
+            </small>
+        </div>
+
+        {% for curve in opportunity.curves %}
+            <div class="chip-curve-card">
+                <div class="chip-curve-summary">
+                    <div>
+                        <strong>{{ curve.short }}</strong>
+                        {% if curve.best_gameweek %}
+                            <span>
+                                Best: GW{{ curve.best_gameweek }}
+                                · +{{ "%.1f"|format(curve.best_value) }}
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <small>
+                        {% if curve.current_rank %}
+                            GW{{ opportunity.gameweek }} ranks
+                            {{ curve.current_rank }}
+                            of {{ curve.window_count }}
+                            · {{ "%.0f"|format(curve.current_percentile) }}th percentile
+                        {% else %}
+                            Current GW not scored
+                        {% endif %}
+                    </small>
+                </div>
+
+                <div class="chip-curve-bars">
+                    {% for point in curve.points %}
+                        <div
+                            class="
+                                chip-curve-point
+                                {% if point.current %}current{% endif %}
+                                {% if point.best %}best{% endif %}
+                            "
+                            title="
+                                GW{{ point.gameweek }}:
+                                {{ "%.1f"|format(point.value) }} pts ·
+                                {{ point.fixture_label }} ·
+                                {{ point.certainty }} certainty
+                            "
+                        >
+                            <span class="chip-curve-value">
+                                {{ "%.1f"|format(point.value) }}
+                            </span>
+
+                            <div class="chip-curve-track">
+                                <div
+                                    class="chip-curve-bar"
+                                    style="height: {{ point.bar_height }}%;"
+                                ></div>
+                            </div>
+
+                            <strong>
+                                GW{{ point.gameweek }}
+                            </strong>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {% if curve.short == "WC" %}
+                    <small class="chip-curve-caveat">
+                        WC curve is provisional: it still uses the
+                        simplified future-squad timing model rather
+                        than a persistent multi-Gameweek Wildcard plan.
+                    </small>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </section>
+
     <details class="chip-method-details">
         <summary>
             How to read this
