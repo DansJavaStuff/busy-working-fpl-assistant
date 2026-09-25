@@ -1,5 +1,6 @@
 import hashlib
 import json
+from itertools import combinations
 
 from fpl_api import (
     get_bootstrap,
@@ -33,9 +34,11 @@ FIRST_HALF_END_GW = 19
 SECOND_HALF_START_GW = 20
 SEASON_END_GW = 38
 
-CHIP_CACHE_MODEL_VERSION = "chip-planner-v3"
+CHIP_CACHE_MODEL_VERSION = "chip-planner-v4"
+CHIP_TIMING_WINDOW_MODEL_VERSION = "chip-timing-window-v1"
 CHIP_PLANNER_CACHE_TTL = 15 * 60
 CHIP_OPPORTUNITY_CACHE_TTL = 30 * 60
+CHIP_TIMING_WINDOW_CACHE_TTL = 12 * 60 * 60
 
 
 CHIP_META = {
@@ -1697,6 +1700,220 @@ def _wildcard_analysis(
     }
 
 
+def _current_squad_lineup(
+    players,
+    current_team,
+    gameweek,
+):
+    """
+    Pick the best XI/captain from the 15 players already
+    owned without invoking CBC.
+
+    For a zero-transfer timing window the selected squad is
+    fixed, so the multi-GW selected-player term in the MILP
+    objective is constant. Exhaustively checking the tiny
+    set of possible starting XIs is therefore equivalent for
+    the GW/captain decision and far cheaper than solving over
+    the full player pool.
+    """
+    players_by_id = {
+        player["id"]: player
+        for player in players
+    }
+
+    squad = []
+
+    for pick in current_team.get(
+        "picks",
+        [],
+    ):
+        player = players_by_id.get(
+            pick.get("element")
+        )
+
+        if player is None:
+            return None
+
+        squad.append(
+            player.copy()
+        )
+
+    if len(squad) != 15:
+        return None
+
+    best = None
+    best_score = None
+
+    for starter_indices in combinations(
+        range(len(squad)),
+        11,
+    ):
+        starter_set = set(
+            starter_indices
+        )
+        starters = [
+            squad[index]
+            for index in starter_indices
+        ]
+
+        position_counts = {
+            "GKP": 0,
+            "DEF": 0,
+            "MID": 0,
+            "FWD": 0,
+        }
+
+        for player in starters:
+            position = player.get(
+                "position"
+            )
+            if position in position_counts:
+                position_counts[
+                    position
+                ] += 1
+
+        if position_counts["GKP"] != 1:
+            continue
+        if position_counts["DEF"] < 3:
+            continue
+        if position_counts["MID"] < 2:
+            continue
+        if position_counts["FWD"] < 1:
+            continue
+
+        captain = max(
+            starters,
+            key=calculate_captain_score,
+        )
+
+        score = (
+            sum(
+                _projection(
+                    player,
+                    gameweek,
+                )
+                for player in starters
+            )
+            + calculate_captain_score(
+                captain
+            )
+        )
+
+        if (
+            best_score is None
+            or score > best_score
+        ):
+            best_score = score
+            best = (
+                starter_set,
+                captain["id"],
+            )
+
+    if best is None:
+        return None
+
+    starter_set, captain_id = best
+    result_squad = []
+
+    for index, player in enumerate(
+        squad
+    ):
+        item = player.copy()
+        item["starter"] = (
+            index in starter_set
+        )
+        item["captain"] = (
+            item["id"] == captain_id
+        )
+        result_squad.append(
+            item
+        )
+
+    return {
+        "squad":
+            result_squad,
+        "hit_cost":
+            0,
+        "transfers":
+            0,
+    }
+
+
+def _timing_window_cache_key(
+    players,
+    current_team,
+    gameweek,
+    end_gameweek,
+):
+    projection_rows = []
+
+    for player in players:
+        projection_rows.append({
+            "id":
+                player.get("id"),
+            "cost":
+                player.get("cost"),
+            "can_select":
+                player.get(
+                    "can_select",
+                    True,
+                ),
+            "gw":
+                round(
+                    _projection(
+                        player,
+                        gameweek,
+                    ),
+                    4,
+                ),
+            "horizon":
+                [
+                    round(
+                        _projection(
+                            player,
+                            gw,
+                        ),
+                        4,
+                    )
+                    for gw in range(
+                        gameweek,
+                        min(
+                            end_gameweek,
+                            gameweek + 4,
+                        ) + 1,
+                    )
+                ],
+        })
+
+    payload = {
+        "gameweek":
+            int(gameweek),
+        "end_gameweek":
+            int(end_gameweek),
+        "team":
+            _chip_cache_context(
+                gameweek,
+                _future_team_state(
+                    current_team
+                ),
+            ),
+        "players":
+            projection_rows,
+    }
+
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode(
+        "utf-8"
+    )
+
+    return hashlib.sha256(
+        encoded
+    ).hexdigest()
+
+
 def _players_at_gameweek(
     players,
     gameweek,
@@ -1773,7 +1990,28 @@ def _timing_window(
     current_team,
     gameweek,
     end_gameweek,
+    force_refresh=False,
 ):
+    cache_key = (
+        _timing_window_cache_key(
+            players,
+            current_team,
+            gameweek,
+            end_gameweek,
+            force_refresh=force_refresh,
+        )
+    )
+
+    if not force_refresh:
+        cached = get_cached_result(
+            "chip_timing_window",
+            cache_key,
+            CHIP_TIMING_WINDOW_MODEL_VERSION,
+        )
+
+        if cached is not None:
+            return cached
+
     anchored = _players_at_gameweek(
         players,
         gameweek,
@@ -1784,11 +2022,10 @@ def _timing_window(
         current_team
     )
 
-    hold = optimise_transfers(
+    hold = _current_squad_lineup(
         anchored,
         team,
         gameweek,
-        0,
     )
 
     if hold is None:
@@ -1890,7 +2127,7 @@ def _timing_window(
         )
     )
 
-    return {
+    result = {
         "gameweek": gameweek,
         "fixture_context":
             _fixture_context(
@@ -1905,12 +2142,23 @@ def _timing_window(
             free_hit_gw - hold_gw,
     }
 
+    save_cached_result(
+        "chip_timing_window",
+        cache_key,
+        CHIP_TIMING_WINDOW_MODEL_VERSION,
+        result,
+        CHIP_TIMING_WINDOW_CACHE_TTL,
+    )
+
+    return result
+
 
 def _future_chip_windows(
     players,
     current_team,
     planning_gameweek,
     end_gameweek,
+    force_refresh=False,
 ):
     windows = []
 
@@ -2722,6 +2970,7 @@ def build_chip_planner(
                 current_team,
                 planning_gameweek,
                 chip_horizon_end,
+                force_refresh=force_refresh,
             )
         )
 
