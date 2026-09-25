@@ -8,6 +8,8 @@ from chip_planner import (
     _chip_cards,
     _chip_horizon_end,
     _chip_opportunity_summary,
+    _chip_recommendation,
+    _fixture_certainty,
     _future_team_state,
     _normalise_chip_name,
     _normalise_status,
@@ -310,6 +312,119 @@ class ChipBoundaryTests(unittest.TestCase):
         )
         self.assertIn(
             "Only one chip",
+            result["reason"],
+        )
+
+
+class ChipRecommendationTests(unittest.TestCase):
+
+    def test_normal_week_holds_special_gameweek_chips(self):
+        certainty = _fixture_certainty(
+            6,
+            6,
+        )
+
+        for short in (
+            "FH",
+            "BB",
+            "TC",
+        ):
+            with self.subTest(
+                short=short
+            ):
+                result = _chip_recommendation(
+                    short,
+                    10.0,
+                    {
+                        "kind": "normal",
+                        "blank_team_count": 0,
+                        "double_team_count": 0,
+                    },
+                    certainty,
+                    None,
+                )
+
+                self.assertEqual(
+                    result["recommendation"],
+                    "HOLD",
+                )
+
+    def test_strong_near_term_special_pattern_becomes_candidate(self):
+        result = _chip_recommendation(
+            "TC",
+            9.0,
+            {
+                "kind": "double",
+                "blank_team_count": 0,
+                "double_team_count": 4,
+            },
+            {
+                "level": "medium",
+                "reason": "near term",
+            },
+            {
+                "best_similarity": 88.0,
+            },
+        )
+
+        self.assertEqual(
+            result["recommendation"],
+            "CANDIDATE",
+        )
+        self.assertEqual(
+            result["model_confidence"],
+            "medium",
+        )
+
+    def test_long_range_special_pattern_still_holds(self):
+        result = _chip_recommendation(
+            "FH",
+            12.0,
+            {
+                "kind": "blank",
+                "blank_team_count": 6,
+                "double_team_count": 0,
+            },
+            {
+                "level": "low",
+                "reason": "long range",
+            },
+            {
+                "best_similarity": 95.0,
+            },
+        )
+
+        self.assertEqual(
+            result["recommendation"],
+            "HOLD",
+        )
+        self.assertEqual(
+            result["model_confidence"],
+            "low",
+        )
+
+    def test_wildcard_is_held_until_multiweek_model_exists(self):
+        result = _chip_recommendation(
+            "WC",
+            15.0,
+            {
+                "kind": "normal",
+                "blank_team_count": 0,
+                "double_team_count": 0,
+            },
+            {
+                "level": "high",
+                "reason": "current",
+            },
+            None,
+        )
+
+        self.assertEqual(
+            result["recommendation"],
+            "HOLD",
+        )
+        self.assertIn(
+            "multi-Gameweek",
             result["reason"],
         )
 
