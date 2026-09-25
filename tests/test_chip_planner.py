@@ -4,6 +4,7 @@ from chip_planner import (
     FIRST_HALF_END_GW,
     SECOND_HALF_START_GW,
     SEASON_END_GW,
+    _build_timing_curve,
     _chip_boundary_status,
     _chip_cards,
     _chip_horizon_end,
@@ -426,6 +427,101 @@ class ChipRecommendationTests(unittest.TestCase):
         self.assertIn(
             "multi-Gameweek",
             result["reason"],
+        )
+
+
+class ChipCurveTests(unittest.TestCase):
+
+    def test_curve_ranks_current_gameweek_against_remaining_windows(self):
+        windows = [
+            {
+                "gameweek": 6,
+                "fixture_context": {
+                    "label": "normal fixture slate",
+                    "kind": "normal",
+                },
+                "bb_value": 6.0,
+            },
+            {
+                "gameweek": 7,
+                "fixture_context": {
+                    "label": "normal fixture slate",
+                    "kind": "normal",
+                },
+                "bb_value": 4.0,
+            },
+            {
+                "gameweek": 8,
+                "fixture_context": {
+                    "label": "2 double clubs",
+                    "kind": "double",
+                },
+                "bb_value": 9.0,
+            },
+        ]
+
+        curve = _build_timing_curve(
+            "BB",
+            windows,
+            "bb_value",
+            6,
+        )
+
+        self.assertEqual(
+            curve["best_gameweek"],
+            8,
+        )
+        self.assertEqual(
+            curve["current_rank"],
+            2,
+        )
+        self.assertEqual(
+            curve["window_count"],
+            3,
+        )
+        self.assertAlmostEqual(
+            curve["current_percentile"],
+            66.7,
+            places=1,
+        )
+
+    def test_curve_marks_current_and_best_points(self):
+        windows = [
+            {
+                "gameweek": 6,
+                "fixture_context": {
+                    "label": "normal",
+                },
+                "fh_value": 12.0,
+            },
+            {
+                "gameweek": 7,
+                "fixture_context": {
+                    "label": "blank",
+                },
+                "fh_value": 15.0,
+            },
+        ]
+
+        curve = _build_timing_curve(
+            "FH",
+            windows,
+            "fh_value",
+            6,
+        )
+
+        self.assertTrue(
+            curve["points"][0]["current"]
+        )
+        self.assertFalse(
+            curve["points"][0]["best"]
+        )
+        self.assertTrue(
+            curve["points"][1]["best"]
+        )
+        self.assertEqual(
+            curve["points"][1]["bar_height"],
+            100.0,
         )
 
 
