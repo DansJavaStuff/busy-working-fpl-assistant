@@ -160,7 +160,16 @@
             </small>
         </div>
 
-        {% for curve in opportunity.curves %}
+        {% set curves = opportunity.curves|default([]) %}
+
+        {% if not curves %}
+            <div class="chip-curve-empty">
+                Timing curves are not available in this cached result.
+                Refresh the analysis to rebuild them.
+            </div>
+        {% endif %}
+
+        {% for curve in curves %}
             <div class="chip-curve-card">
                 <div class="chip-curve-summary">
                     <div>
