@@ -47,7 +47,7 @@ class HistoryStoreTests(unittest.TestCase):
             current_schema_version(
                 self.db_path
             ),
-            3,
+            4,
         )
 
         status = database_status(
@@ -59,7 +59,7 @@ class HistoryStoreTests(unittest.TestCase):
         )
         self.assertEqual(
             status["schema_version"],
-            3,
+            4,
         )
 
     def test_migrations_are_idempotent(self):
@@ -82,7 +82,7 @@ class HistoryStoreTests(unittest.TestCase):
 
         self.assertEqual(
             count,
-            3,
+            4,
         )
 
     def test_derived_cache_round_trip_and_expiry(self):
