@@ -505,3 +505,20 @@ The planner remains conservative early in a chip half: a normal single-fixture T
 A normal-GW Triple Captain can become a **CANDIDATE** late in the chip half when it is the strongest remaining modelled window, sits at the top of the remaining distribution and only a small number of windows remain. Blank/Double Gameweek structure and historical analogue evidence continue to support special-GW candidates.
 
 Bench Boost and Free Hit still require their relevant special-fixture structure in this first curve-aware pass; Wildcard remains HOLD until the multi-Gameweek WC model is implemented.
+
+
+### Persistent multi-Gameweek Wildcard timing
+
+Wildcard timing is now evaluated over a persistent horizon of up to five Gameweeks instead of only the immediate Gameweek.
+
+For each candidate Wildcard week the model:
+
+- builds an unrestricted 15-player squad using the existing multi-Gameweek optimiser
+- keeps that rebuilt squad fixed across the next five Gameweeks (or to the chip-half boundary)
+- re-selects the best legal XI and captain from that fixed squad each Gameweek
+- compares it with a no-chip baseline using the stronger of today's squad held constant or one free transfer made at the start of the same window
+- reports the cumulative projected-points uplift over that horizon
+
+This deliberately avoids pretending that the model knows a perfect sequence of future weekly transfers. It gives Wildcard a persistent squad value while keeping the comparison understandable and reproducible.
+
+Wildcard HOLD/CANDIDATE logic now uses this five-Gameweek uplift plus the timing-curve rank/percentile and fixture certainty. A CANDIDATE remains a review signal rather than an instruction to activate the chip.

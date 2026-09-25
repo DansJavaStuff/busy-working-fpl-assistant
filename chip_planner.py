@@ -35,12 +35,14 @@ FIRST_HALF_END_GW = 19
 SECOND_HALF_START_GW = 20
 SEASON_END_GW = 38
 
-CHIP_CACHE_MODEL_VERSION = "chip-planner-v5"
-CHIP_TIMING_WINDOW_MODEL_VERSION = "chip-timing-window-v1"
+CHIP_CACHE_MODEL_VERSION = "chip-planner-v6"
+CHIP_TIMING_WINDOW_MODEL_VERSION = "chip-timing-window-v2"
 CHIP_PLANNER_CACHE_TTL = 15 * 60
 CHIP_OPPORTUNITY_CACHE_TTL = 30 * 60
 CHIP_TIMING_WINDOW_CACHE_TTL = 12 * 60 * 60
 NORMAL_TC_CANDIDATE_MAX_WINDOWS = 4
+WILDCARD_HORIZON_GAMEWEEKS = 5
+WILDCARD_CANDIDATE_MIN_UPLIFT = 5.0
 
 
 CHIP_META = {
@@ -486,17 +488,88 @@ def _chip_recommendation(
     )
 
     if short == "WC":
+        curve_evidence = (
+            curve_evidence
+            or {}
+        )
+        rank = curve_evidence.get(
+            "rank"
+        )
+        percentile = curve_evidence.get(
+            "percentile"
+        )
+        window_count = curve_evidence.get(
+            "window_count"
+        )
+
+        if certainty["level"] == "low":
+            return {
+                "recommendation":
+                    "HOLD",
+                "model_confidence":
+                    "low",
+                "reason":
+                    (
+                        "The multi-Gameweek Wildcard "
+                        "uplift is promising, but this "
+                        "window is still too far away "
+                        "to trust the fixture horizon."
+                    ),
+            }
+
+        if (
+            value >= WILDCARD_CANDIDATE_MIN_UPLIFT
+            and rank is not None
+            and percentile is not None
+            and percentile >= 85
+            and rank
+            <= max(
+                2,
+                round(
+                    (window_count or 1)
+                    * 0.2
+                ),
+            )
+        ):
+            return {
+                "recommendation":
+                    "CANDIDATE",
+                "model_confidence":
+                    (
+                        "high"
+                        if certainty["level"]
+                        == "high"
+                        else "medium"
+                    ),
+                "reason":
+                    (
+                        "Wildcarding now projects a "
+                        f"{value:.1f}-point gain over "
+                        "the five-Gameweek no-chip "
+                        "baseline and ranks near the "
+                        "top of the remaining windows."
+                    ),
+            }
+
         return {
             "recommendation":
                 "HOLD",
             "model_confidence":
-                "low",
+                (
+                    "medium"
+                    if certainty["level"]
+                    in {
+                        "high",
+                        "medium",
+                    }
+                    else "low"
+                ),
             "reason":
                 (
-                    "Wildcard timing still uses "
-                    "a simplified future-squad "
-                    "comparison. Wait for the "
-                    "multi-Gameweek WC model."
+                    "The five-Gameweek Wildcard "
+                    "uplift is not exceptional enough "
+                    "relative to the remaining windows "
+                    "to spend the chip yet."
                 ),
         }
 
@@ -1916,6 +1989,200 @@ def _current_squad_lineup(
     }
 
 
+def _team_for_fixed_squad(
+    squad,
+):
+    return {
+        "picks": [
+            {
+                "element":
+                    player["id"],
+                "selling_price":
+                    player.get(
+                        "cost",
+                        0,
+                    ),
+            }
+            for player in squad
+        ],
+        "transfers": {
+            "bank": 0,
+            "limit": 1,
+            "made": 0,
+            "cost": 4,
+        },
+    }
+
+
+def _fixed_squad_horizon_score(
+    players,
+    squad,
+    start_gameweek,
+    end_gameweek,
+):
+    horizon_end = min(
+        end_gameweek,
+        start_gameweek
+        + WILDCARD_HORIZON_GAMEWEEKS
+        - 1,
+    )
+    team = _team_for_fixed_squad(
+        squad
+    )
+    total = 0.0
+    weekly = []
+
+    for gameweek in range(
+        start_gameweek,
+        horizon_end + 1,
+    ):
+        anchored = _players_at_gameweek(
+            players,
+            gameweek,
+            end_gameweek,
+        )
+        lineup = _current_squad_lineup(
+            anchored,
+            team,
+            gameweek,
+        )
+
+        if lineup is None:
+            return None
+
+        score = _normal_gw_projection(
+            lineup,
+            gameweek,
+        )
+        total += score
+        weekly.append({
+            "gameweek":
+                gameweek,
+            "score":
+                score,
+        })
+
+    return {
+        "score":
+            total,
+        "weekly":
+            weekly,
+        "start_gameweek":
+            start_gameweek,
+        "end_gameweek":
+            horizon_end,
+        "gameweeks":
+            len(weekly),
+    }
+
+
+def _wildcard_multiweek_value(
+    players,
+    anchored,
+    team,
+    wildcard_squad,
+    gameweek,
+    end_gameweek,
+):
+    hold_squad = (
+        _current_squad_lineup(
+            anchored,
+            team,
+            gameweek,
+        )
+    )
+
+    if hold_squad is None:
+        return None
+
+    baseline_squad = (
+        hold_squad["squad"]
+    )
+    baseline_type = "hold"
+
+    one_transfer = optimise_transfers(
+        anchored,
+        team,
+        gameweek,
+        1,
+    )
+
+    if one_transfer is not None:
+        hold_horizon = (
+            _fixed_squad_horizon_score(
+                players,
+                baseline_squad,
+                gameweek,
+                end_gameweek,
+            )
+        )
+        transfer_horizon = (
+            _fixed_squad_horizon_score(
+                players,
+                one_transfer["squad"],
+                gameweek,
+                end_gameweek,
+            )
+        )
+
+        if (
+            hold_horizon is not None
+            and transfer_horizon
+            is not None
+            and transfer_horizon["score"]
+            > hold_horizon["score"]
+        ):
+            baseline_squad = (
+                one_transfer["squad"]
+            )
+            baseline_type = (
+                "one_free_transfer"
+            )
+
+    baseline = (
+        _fixed_squad_horizon_score(
+            players,
+            baseline_squad,
+            gameweek,
+            end_gameweek,
+        )
+    )
+    wildcard = (
+        _fixed_squad_horizon_score(
+            players,
+            wildcard_squad,
+            gameweek,
+            end_gameweek,
+        )
+    )
+
+    if (
+        baseline is None
+        or wildcard is None
+    ):
+        return None
+
+    return {
+        "value":
+            wildcard["score"]
+            - baseline["score"],
+        "baseline_score":
+            baseline["score"],
+        "wildcard_score":
+            wildcard["score"],
+        "baseline_type":
+            baseline_type,
+        "gameweeks":
+            wildcard["gameweeks"],
+        "end_gameweek":
+            wildcard["end_gameweek"],
+        "baseline_weekly":
+            baseline["weekly"],
+        "wildcard_weekly":
+            wildcard["weekly"],
+    }
+
+
 def _timing_window_cache_key(
     players,
     current_team,
@@ -2170,6 +2437,17 @@ def _timing_window(
         )
     )
 
+    wildcard_multiweek = (
+        _wildcard_multiweek_value(
+            players,
+            anchored,
+            team,
+            wildcard_squad,
+            gameweek,
+            end_gameweek,
+        )
+    )
+
     free_hit_squad = optimise_squad(
         anchored,
         budget_limit=budget,
@@ -2213,7 +2491,20 @@ def _timing_window(
         "hold_gw": hold_gw,
         "bb_value": bb_value,
         "wc_value":
-            wildcard_gw - hold_gw,
+            (
+                wildcard_multiweek[
+                    "value"
+                ]
+                if wildcard_multiweek
+                is not None
+                else wildcard_gw
+                - hold_gw
+            ),
+        "wc_horizon":
+            wildcard_multiweek,
+        "wc_gw_value":
+            wildcard_gw
+            - hold_gw,
         "fh_value":
             free_hit_gw - hold_gw,
     }
@@ -2635,6 +2926,10 @@ def _chip_opportunity_summary(
                 later["fixture_context"],
                 later_certainty,
                 later_history,
+                curve_evidence_for(
+                    short,
+                    later["gameweek"],
+                ),
             )
             if later
             else None
@@ -2920,7 +3215,7 @@ def _chip_opportunity_summary(
         "Wildcard",
         "WC",
         "wc_value",
-        "unrestricted vs hold",
+        "five-Gameweek persistent squad vs no-chip baseline",
     )
 
     add_timing_row(
