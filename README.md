@@ -469,3 +469,28 @@ The Wildcard curve remains explicitly provisional until the future WC model is u
 ### Timing-curve cache shape
 
 The chip-planner cache model version must be bumped whenever the cached opportunity payload changes shape. The timing-curve release uses `chip-planner-v3` so older cached v2 opportunity rows cannot hide the newly-added `curves` data.
+
+
+### Chip timing performance
+
+Full chip timing curves are solver-heavy, so the timing path has three performance safeguards:
+
+- zero-transfer/hold timing windows choose the best XI and captain directly from the fixed 15-player squad instead of invoking CBC over the full player pool
+- each Gameweek timing window is cached independently in SQLite for up to 12 hours, with the cache key including the squad state and the player projection inputs used by that Gameweek
+- an optional low-priority systemd timer can keep the overall opportunity cache warm in the background
+
+Install the background cache warmer once on the Raspberry Pi:
+
+```bash
+sh tools/install_chip_cache_timer.sh
+```
+
+It checks every 20 minutes. When the normal 30-minute opportunity cache is still fresh it is effectively a cheap cache hit; when that cache needs rebuilding, the longer-lived per-Gameweek timing-window cache avoids repeating unchanged CBC work.
+
+A manual warm-up can also be run with:
+
+```bash
+python3 -m tools.warm_chip_opportunity_cache
+```
+
+The cache model version is bumped when timing logic changes so stale derived results are not reused.
