@@ -974,3 +974,305 @@ def get_gameweek_snapshot_payloads(
         })
 
     return result
+
+
+
+def upsert_team(
+    season_id,
+    fpl_team_id,
+    name,
+    short_name=None,
+    source="official_fpl",
+    strength=None,
+    strength_overall_home=None,
+    strength_overall_away=None,
+    strength_attack_home=None,
+    strength_attack_away=None,
+    strength_defence_home=None,
+    strength_defence_away=None,
+    db_path=DEFAULT_DB_PATH,
+):
+    ensure_database(
+        db_path
+    )
+
+    with transaction(
+        db_path
+    ) as connection:
+        connection.execute(
+            """
+            INSERT INTO teams (
+                season_id,
+                fpl_team_id,
+                name,
+                short_name,
+                source,
+                strength,
+                strength_overall_home,
+                strength_overall_away,
+                strength_attack_home,
+                strength_attack_away,
+                strength_defence_home,
+                strength_defence_away
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(
+                season_id,
+                fpl_team_id
+            )
+            DO UPDATE SET
+                name =
+                    excluded.name,
+                short_name =
+                    excluded.short_name,
+                source =
+                    excluded.source,
+                strength =
+                    excluded.strength,
+                strength_overall_home =
+                    excluded.strength_overall_home,
+                strength_overall_away =
+                    excluded.strength_overall_away,
+                strength_attack_home =
+                    excluded.strength_attack_home,
+                strength_attack_away =
+                    excluded.strength_attack_away,
+                strength_defence_home =
+                    excluded.strength_defence_home,
+                strength_defence_away =
+                    excluded.strength_defence_away
+            """,
+            (
+                season_id,
+                fpl_team_id,
+                name,
+                short_name,
+                source,
+                strength,
+                strength_overall_home,
+                strength_overall_away,
+                strength_attack_home,
+                strength_attack_away,
+                strength_defence_home,
+                strength_defence_away,
+            ),
+        )
+
+        row = connection.execute(
+            """
+            SELECT id
+            FROM teams
+            WHERE season_id = ?
+              AND fpl_team_id = ?
+            """,
+            (
+                season_id,
+                fpl_team_id,
+            ),
+        ).fetchone()
+
+        return int(
+            row["id"]
+        )
+
+
+def upsert_fixture(
+    season_id,
+    fpl_fixture_id,
+    gameweek_id,
+    home_team_id,
+    away_team_id,
+    kickoff_time=None,
+    home_difficulty=None,
+    away_difficulty=None,
+    home_score=None,
+    away_score=None,
+    finished=None,
+    source="official_fpl",
+    source_updated_at=None,
+    db_path=DEFAULT_DB_PATH,
+):
+    ensure_database(
+        db_path
+    )
+
+    with transaction(
+        db_path
+    ) as connection:
+        connection.execute(
+            """
+            INSERT INTO fixtures (
+                season_id,
+                fpl_fixture_id,
+                gameweek_id,
+                home_team_id,
+                away_team_id,
+                kickoff_time,
+                home_difficulty,
+                away_difficulty,
+                home_score,
+                away_score,
+                finished,
+                source,
+                source_updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(
+                season_id,
+                fpl_fixture_id
+            )
+            DO UPDATE SET
+                gameweek_id =
+                    excluded.gameweek_id,
+                home_team_id =
+                    excluded.home_team_id,
+                away_team_id =
+                    excluded.away_team_id,
+                kickoff_time =
+                    excluded.kickoff_time,
+                home_difficulty =
+                    excluded.home_difficulty,
+                away_difficulty =
+                    excluded.away_difficulty,
+                home_score =
+                    excluded.home_score,
+                away_score =
+                    excluded.away_score,
+                finished =
+                    excluded.finished,
+                source =
+                    excluded.source,
+                source_updated_at =
+                    excluded.source_updated_at
+            """,
+            (
+                season_id,
+                fpl_fixture_id,
+                gameweek_id,
+                home_team_id,
+                away_team_id,
+                kickoff_time,
+                home_difficulty,
+                away_difficulty,
+                home_score,
+                away_score,
+                (
+                    None
+                    if finished is None
+                    else int(bool(finished))
+                ),
+                source,
+                source_updated_at,
+            ),
+        )
+
+
+def record_historical_import(
+    season_id,
+    source_repo,
+    requested_ref,
+    resolved_commit,
+    files,
+    imported_at=None,
+    db_path=DEFAULT_DB_PATH,
+):
+    imported_at = (
+        imported_at
+        or utc_now_iso()
+    )
+
+    ensure_database(
+        db_path
+    )
+
+    with transaction(
+        db_path
+    ) as connection:
+        connection.execute(
+            """
+            INSERT INTO historical_imports (
+                season_id,
+                source_repo,
+                requested_ref,
+                resolved_commit,
+                imported_at,
+                files_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(
+                season_id,
+                source_repo,
+                resolved_commit
+            )
+            DO UPDATE SET
+                requested_ref =
+                    excluded.requested_ref,
+                imported_at =
+                    excluded.imported_at,
+                files_json =
+                    excluded.files_json
+            """,
+            (
+                season_id,
+                source_repo,
+                requested_ref,
+                resolved_commit,
+                imported_at,
+                _json_text(
+                    files
+                ),
+            ),
+        )
+
+
+def get_historical_imports(
+    db_path=DEFAULT_DB_PATH,
+):
+    ensure_database(
+        db_path
+    )
+
+    with connect(
+        db_path
+    ) as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                seasons.season_key,
+                historical_imports.source_repo,
+                historical_imports.requested_ref,
+                historical_imports.resolved_commit,
+                historical_imports.imported_at,
+                historical_imports.files_json
+            FROM historical_imports
+            JOIN seasons
+              ON seasons.id =
+                 historical_imports.season_id
+            ORDER BY
+                seasons.starts_year,
+                historical_imports.imported_at
+            """
+        ).fetchall()
+
+    result = []
+
+    for row in rows:
+        item = dict(row)
+
+        try:
+            item["files"] = json.loads(
+                item.pop(
+                    "files_json"
+                )
+            )
+        except (
+            TypeError,
+            json.JSONDecodeError,
+        ):
+            item["files"] = []
+
+        result.append(
+            item
+        )
+
+    return result

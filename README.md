@@ -134,6 +134,34 @@ The same SQLite database also provides a persistent cache for expensive derived 
 
 The Chip Planner currently uses a 15-minute cache for the main page and a 30-minute cache for the slower future-opportunity analysis. Supplying `?refresh=1` to the corresponding data endpoint bypasses the cache and recalculates immediately.
 
+### Historical fixture import
+
+Historical team and fixture context can be imported into the local SQLite database from the community-maintained `vaastav/Fantasy-Premier-League` dataset.
+
+The importer resolves the requested Git ref to a concrete Git commit before downloading files, and stores that commit alongside the imported season. This makes later backtests reproducible even if the upstream dataset changes.
+
+The default import covers the five completed seasons from 2021-22 through 2025-26:
+
+```bash
+python3 -m tools.import_historical_fpl
+```
+
+Specific seasons can be selected:
+
+```bash
+python3 -m tools.import_historical_fpl 2024-25 2025-26
+```
+
+The importer currently loads `teams.csv` and `fixtures.csv`, including historical FPL fixture difficulty, team-strength fields, results and the Gameweek to which each fixture was assigned. From those assignments the assistant can reconstruct normal, blank, double and mixed blank/double Gameweeks.
+
+After import, inspect detected special Gameweeks with:
+
+```bash
+python3 -m tools.show_historical_special_gameweeks 2025-26
+```
+
+Historical expected-points fields are deliberately not imported as pre-deadline model evidence at this stage. The source dataset documents that its scraped `xP` can contain post-Gameweek information, which would create look-ahead bias in a backtest.
+
 ### Pre-deadline snapshots
 
 A small systemd timer can collect append-only snapshots of what FPL data was actually available before each deadline. This is designed for later backtesting so historical models do not accidentally use information that only became known afterwards.
