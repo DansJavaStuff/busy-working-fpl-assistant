@@ -393,3 +393,28 @@ sudo apt install coinor-cbc
 This is a personal hobby project.
 
 It is not affiliated with or endorsed by the Premier League, Fantasy Premier League or RotoWire.
+
+
+### Historical chip-pattern features
+
+Imported historical fixtures can now be reduced to chip-relevant fixture-pattern features.
+
+The current feature layer measures:
+
+- blank severity
+- double-gameweek concentration
+- whether stronger historical teams were involved
+- average fixture quality for teams with doubles
+- separate fixture-pattern signals for Free Hit, Bench Boost and Triple Captain
+
+These signals are deliberately **not** treated as realised chip points or as a recommendation by themselves. They are structural historical features that can later be compared with current/future Gameweeks and combined with player projections, fixture certainty and HOLD thresholds.
+
+Inspect the strongest fixture-pattern windows for an imported season with:
+
+```bash
+python3 -m tools.show_historical_chip_windows 2025-26 FH
+python3 -m tools.show_historical_chip_windows 2025-26 BB
+python3 -m tools.show_historical_chip_windows 2025-26 TC
+```
+
+Wildcard is not included in this first historical fixture-pattern score because its value is inherently multi-Gameweek and squad-state dependent; treating a single historical Gameweek as a WC score would be misleading.
