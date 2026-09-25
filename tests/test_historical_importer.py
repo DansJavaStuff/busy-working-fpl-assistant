@@ -16,11 +16,15 @@ from history_store import (
 TEAMS_CSV = """id,name,short_name,strength,strength_overall_home,strength_overall_away,strength_attack_home,strength_attack_away,strength_defence_home,strength_defence_away
 1,Alpha,ALP,3,1200,1190,1210,1180,1205,1175
 2,Beta,BET,2,1100,1090,1110,1080,1105,1075
+3,Gamma,GAM,3,1150,1140,1160,1130,1155,1125
+4,Delta,DEL,2,1050,1040,1060,1030,1055,1025
 """
 
 FIXTURES_CSV = """id,event,team_h,team_a,team_h_score,team_a_score,kickoff_time,finished,team_h_difficulty,team_a_difficulty
 10,1,1,2,2,0,2025-08-16T14:00:00Z,True,2,4
-11,2,2,1,1,1,2025-08-23T14:00:00Z,True,3,3
+11,1,3,1,1,1,2025-08-17T14:00:00Z,True,3,3
+12,2,1,4,2,1,2025-08-23T14:00:00Z,True,2,4
+13,2,2,3,0,0,2025-08-24T14:00:00Z,True,3,3
 """
 
 
@@ -108,11 +112,11 @@ class HistoricalImporterTests(
 
             self.assertEqual(
                 result["teams"],
-                2,
+                4,
             )
             self.assertEqual(
                 result["fixtures"],
-                2,
+                4,
             )
             self.assertEqual(
                 result[
@@ -154,11 +158,11 @@ class HistoricalImporterTests(
 
             self.assertEqual(
                 team_count,
-                2,
+                4,
             )
             self.assertEqual(
                 fixture_count,
-                2,
+                4,
             )
             self.assertEqual(
                 gameweek_count,
