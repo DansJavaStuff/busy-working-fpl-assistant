@@ -102,6 +102,9 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Import historical fixture / Gameweek context
 - [x] Pin historical imports to an upstream source commit for reproducibility
 - [x] Reconstruct historical blank / double Gameweek structure from imported fixtures
+- [x] Derive historical FH / BB / TC fixture-pattern features
+- [x] Keep historical fixture-pattern scores separate from realised chip-point outcomes
+- [ ] Build current-vs-historical pattern similarity
 - [ ] Build full GW-by-GW value curves for all four chips
 - [ ] Add fixture-certainty and model-confidence signals
 - [ ] Allow explicit HOLD / insufficient-data recommendations
