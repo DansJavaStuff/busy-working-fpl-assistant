@@ -37,6 +37,7 @@ SIGNAL_KEYS = {
     "BB": "bench_boost_signal",
     "TC": "triple_captain_signal",
 }
+TC_CAPTAINABLE_POOL_SIZE = 20
 
 
 def _normalise_position(position):
@@ -76,6 +77,14 @@ def _eligible_players(rows):
                 int(
                     row.get(
                         "total_points",
+                        0,
+                    )
+                    or 0
+                ),
+            "selected":
+                int(
+                    row.get(
+                        "selected",
                         0,
                     )
                     or 0
@@ -485,9 +494,226 @@ def _best_lineup_from_squad(
     }
 
 
+def _score_fixed_squad(
+    squad,
+):
+    best_lineup = None
+
+    for indices in combinations(
+        range(len(squad)),
+        11,
+    ):
+        starters = [
+            squad[index]
+            for index in indices
+        ]
+
+        counts = {
+            position: 0
+            for position in (
+                POSITION_LIMITS
+            )
+        }
+
+        for player in starters:
+            counts[
+                player["position"]
+            ] += 1
+
+        if any(
+            counts[position]
+            < STARTER_MINIMUMS[
+                position
+            ]
+            or counts[position]
+            > STARTER_MAXIMUMS[
+                position
+            ]
+            for position in counts
+        ):
+            continue
+
+        starter_points = sum(
+            player["total_points"]
+            for player in starters
+        )
+        captain = max(
+            starters,
+            key=lambda player:
+                player[
+                    "total_points"
+                ],
+        )
+        score = (
+            starter_points
+            + captain[
+                "total_points"
+            ]
+        )
+
+        if (
+            best_lineup is None
+            or score
+            > best_lineup[
+                "score"
+            ]
+        ):
+            best_lineup = {
+                "score":
+                    score,
+                "starter_points":
+                    starter_points,
+                "captain_points":
+                    captain[
+                        "total_points"
+                    ],
+                "captain":
+                    captain[
+                        "player_name"
+                    ],
+            }
+
+    return best_lineup
+
+
+def _solve_template_squad(
+    rows,
+):
+    players = _eligible_players(
+        rows
+    )
+
+    if not players:
+        return None
+
+    problem = pulp.LpProblem(
+        "historical_template_squad",
+        pulp.LpMaximize,
+    )
+
+    selected = {
+        index: pulp.LpVariable(
+            f"template_{index}",
+            cat="Binary",
+        )
+        for index in range(
+            len(players)
+        )
+    }
+
+    problem += (
+        pulp.lpSum(
+            selected.values()
+        )
+        == 15
+    )
+
+    problem += (
+        pulp.lpSum(
+            players[index][
+                "value"
+            ]
+            * selected[index]
+            for index in selected
+        )
+        <= BUDGET
+    )
+
+    for position, count in (
+        POSITION_LIMITS.items()
+    ):
+        problem += (
+            pulp.lpSum(
+                selected[index]
+                for index, player
+                in enumerate(players)
+                if player[
+                    "position"
+                ] == position
+            )
+            == count
+        )
+
+    teams = {
+        player["team_name"]
+        for player in players
+    }
+
+    for team in teams:
+        problem += (
+            pulp.lpSum(
+                selected[index]
+                for index, player
+                in enumerate(players)
+                if player[
+                    "team_name"
+                ] == team
+            )
+            <= 3
+        )
+
+    problem += pulp.lpSum(
+        players[index][
+            "selected"
+        ]
+        * selected[index]
+        for index in selected
+    )
+
+    status = problem.solve(
+        _cbc_solver()
+    )
+
+    if pulp.LpStatus[
+        status
+    ] != "Optimal":
+        return None
+
+    squad = [
+        players[index]
+        for index in selected
+        if pulp.value(
+            selected[index]
+        ) > 0.5
+    ]
+
+    score = _score_fixed_squad(
+        squad
+    )
+
+    if score is None:
+        return None
+
+    return {
+        **score,
+        "squad_cost":
+            sum(
+                player["value"]
+                for player in squad
+            ),
+        "ownership_total":
+            sum(
+                player["selected"]
+                for player in squad
+            ),
+        "squad":
+            squad,
+    }
+
+
 def _tc_realised_ceiling(rows):
     eligible = [
-        row
+        {
+            **row,
+            "selected":
+                int(
+                    row.get(
+                        "selected",
+                        0,
+                    )
+                    or 0
+                ),
+        }
         for row in rows
         if int(
             row.get(
@@ -501,8 +727,27 @@ def _tc_realised_ceiling(rows):
     if not eligible:
         return None
 
-    player = max(
+    captainable = sorted(
         eligible,
+        key=lambda row: (
+            -row["selected"],
+            -int(
+                row.get(
+                    "value",
+                    0,
+                )
+                or 0
+            ),
+            row[
+                "player_name"
+            ],
+        ),
+    )[
+        :TC_CAPTAINABLE_POOL_SIZE
+    ]
+
+    player = max(
+        captainable,
         key=lambda row:
             int(
                 row.get(
@@ -524,6 +769,14 @@ def _tc_realised_ceiling(rows):
             player[
                 "player_name"
             ],
+        "selected":
+            player[
+                "selected"
+            ],
+        "pool_size":
+            len(
+                captainable
+            ),
     }
 
 
@@ -657,7 +910,7 @@ def _outcome_for_chip(
 
         return {
             "metric":
-                "tc_increment_ceiling",
+                "tc_captainable_increment_ceiling",
             "value":
                 float(
                     outcome[
@@ -677,21 +930,41 @@ def _outcome_for_chip(
                 "FH",
             )
         )
+        baseline = (
+            _solve_template_squad(
+                rows
+            )
+        )
 
-        if outcome is None:
+        if (
+            outcome is None
+            or baseline is None
+        ):
             return None
 
         return {
             "metric":
-                "fh_score_ceiling",
+                "fh_template_uplift_ceiling",
             "value":
                 float(
                     outcome[
                         "score"
                     ]
+                    - baseline[
+                        "score"
+                    ]
                 ),
-            "detail":
-                outcome,
+            "detail": {
+                "free_hit":
+                    outcome,
+                "template":
+                    {
+                        key: value
+                        for key, value
+                        in baseline.items()
+                        if key != "squad"
+                    },
+            },
         }
 
     if chip == "BB":

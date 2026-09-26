@@ -594,10 +594,10 @@ python3 -m tools.backtest_historical_chip_outcomes
 
 The first realised-outcome pass reports:
 
-- **TC** — the highest actual FPL score by any player in the Gameweek, which is the hindsight ceiling for the extra Triple Captain multiplier
-- **FH** — the highest hindsight legal one-week XI + captain score under the normal £100.0m, 15-player, formation and max-three-per-team constraints
+- **TC** — the highest actual FPL score among the 20 most-owned players in that Gameweek, a more realistic retrospective captainable ceiling than allowing any surprise scorer
+- **FH** — the hindsight-optimal legal Free Hit XI + captain score minus the actual-points score of a legal template squad built from the most-owned players, so the metric measures relative escape value rather than raw Gameweek scoring
 - **BB** — the hindsight bench-points ceiling from a legal 15-player squad optimised for total realised points
 
 It then reports the Spearman rank relationship between each historical fixture-pattern signal and its realised opportunity metric, plus the highest-signal and highest-outcome historical windows.
 
-These are **retrospective opportunity ceilings**, not claims that a real manager could have selected those exact players before the deadline. The report is intentionally marked `lookahead_safe = False`: actual points are outcome data, and the archived historical team-strength/FDR fields have not yet been proven to be pre-deadline snapshots. Use this to diagnose whether the fixture-pattern features contain useful signal, but do not retune the live decision thresholds from this report alone.
+These are **retrospective opportunity ceilings**, not claims that a real manager could have selected those exact players before the deadline. The FH template baseline and TC captainable pool use archived ownership counts as plausibility filters; those ownership fields have not yet been proven to be exact pre-deadline snapshots. The report is intentionally marked `lookahead_safe = False`: actual points are outcome data, and the archived historical team-strength/FDR fields have not yet been proven to be pre-deadline snapshots. Use this to diagnose whether the fixture-pattern features contain useful signal, but do not retune the live decision thresholds from this report alone.

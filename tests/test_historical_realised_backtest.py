@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from historical_realised_backtest import (
     _rankdata,
+    _score_fixed_squad,
     _spearman,
     _tc_realised_ceiling,
     backtest_historical_chip_outcomes,
@@ -42,34 +43,83 @@ class HistoricalRealisedBacktestTests(
             -1.0,
         )
 
-    def test_tc_ceiling_uses_highest_actual_scorer(self):
+    def test_tc_ceiling_uses_most_owned_captainable_pool(self):
+        rows = []
+
+        for index in range(
+            1,
+            23,
+        ):
+            rows.append({
+                "player_name":
+                    f"P{index}",
+                "total_points":
+                    (
+                        30
+                        if index == 22
+                        else index
+                    ),
+                "minutes":
+                    90,
+                "selected":
+                    1000 - index,
+                "value":
+                    100,
+            })
+
         result = _tc_realised_ceiling(
-            [
-                {
-                    "player_name": "A",
-                    "total_points": 12,
-                    "minutes": 90,
-                },
-                {
-                    "player_name": "B",
-                    "total_points": 18,
-                    "minutes": 90,
-                },
-                {
-                    "player_name": "C",
-                    "total_points": 20,
-                    "minutes": 0,
-                },
-            ]
+            rows
         )
 
         self.assertEqual(
             result["score"],
-            18,
+            20,
         )
         self.assertEqual(
             result["player"],
-            "B",
+            "P20",
+        )
+        self.assertEqual(
+            result["pool_size"],
+            20,
+        )
+
+    def test_score_fixed_squad_uses_best_valid_xi_and_captain(self):
+        positions = (
+            ["GKP"] * 2
+            + ["DEF"] * 5
+            + ["MID"] * 5
+            + ["FWD"] * 3
+        )
+        squad = []
+
+        for index, position in enumerate(
+            positions,
+            start=1,
+        ):
+            squad.append({
+                "player_name":
+                    f"P{index}",
+                "position":
+                    position,
+                "total_points":
+                    index,
+            })
+
+        result = _score_fixed_squad(
+            squad
+        )
+
+        self.assertIsNotNone(
+            result
+        )
+        self.assertEqual(
+            result["captain_points"],
+            15,
+        )
+        self.assertGreater(
+            result["score"],
+            result["starter_points"],
         )
 
     @patch(
