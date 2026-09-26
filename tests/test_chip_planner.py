@@ -1119,8 +1119,53 @@ class ChipCurveTests(unittest.TestCase):
         )
         self.assertAlmostEqual(
             curve["current_percentile"],
-            66.7,
+            50.0,
             places=1,
+        )
+
+    def test_curve_percentile_runs_from_worst_zero_to_best_hundred(self):
+        windows = [
+            {
+                "gameweek": 6,
+                "fixture_context": {
+                    "label": "normal",
+                },
+                "bb_value": 1.0,
+            },
+            {
+                "gameweek": 7,
+                "fixture_context": {
+                    "label": "normal",
+                },
+                "bb_value": 2.0,
+            },
+            {
+                "gameweek": 8,
+                "fixture_context": {
+                    "label": "normal",
+                },
+                "bb_value": 3.0,
+            },
+        ]
+
+        curve = _build_timing_curve(
+            "BB",
+            windows,
+            "bb_value",
+            6,
+        )
+
+        self.assertEqual(
+            curve["current_rank"],
+            3,
+        )
+        self.assertEqual(
+            curve["current_percentile"],
+            0.0,
+        )
+        self.assertEqual(
+            curve["points"][2]["percentile"],
+            100.0,
         )
 
     def test_curve_marks_current_and_best_points(self):
