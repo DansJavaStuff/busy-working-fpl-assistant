@@ -35,8 +35,8 @@ FIRST_HALF_END_GW = 19
 SECOND_HALF_START_GW = 20
 SEASON_END_GW = 38
 
-CHIP_CACHE_MODEL_VERSION = "chip-planner-v6"
-CHIP_TIMING_WINDOW_MODEL_VERSION = "chip-timing-window-v2"
+CHIP_CACHE_MODEL_VERSION = "chip-planner-v7"
+CHIP_TIMING_WINDOW_MODEL_VERSION = "chip-timing-window-v3"
 CHIP_PLANNER_CACHE_TTL = 15 * 60
 CHIP_OPPORTUNITY_CACHE_TTL = 30 * 60
 CHIP_TIMING_WINDOW_CACHE_TTL = 12 * 60 * 60
@@ -2039,7 +2039,7 @@ def _fixed_squad_horizon_score(
         anchored = _players_at_gameweek(
             players,
             gameweek,
-            end_gameweek,
+            projection_end_gameweek,
         )
         lineup = _current_squad_lineup(
             anchored,
@@ -2144,7 +2144,7 @@ def _wildcard_multiweek_value(
             players,
             baseline_squad,
             gameweek,
-            end_gameweek,
+            projection_end_gameweek,
         )
     )
     wildcard = (
@@ -2187,7 +2187,7 @@ def _timing_window_cache_key(
     players,
     current_team,
     gameweek,
-    end_gameweek,
+    projection_end_gameweek,
 ):
     projection_rows = []
 
@@ -2222,7 +2222,7 @@ def _timing_window_cache_key(
                     for gw in range(
                         gameweek,
                         min(
-                            end_gameweek,
+                            projection_end_gameweek,
                             gameweek + 4,
                         ) + 1,
                     )
@@ -2232,8 +2232,10 @@ def _timing_window_cache_key(
     payload = {
         "gameweek":
             int(gameweek),
-        "end_gameweek":
-            int(end_gameweek),
+        "projection_end_gameweek":
+            int(
+                projection_end_gameweek
+            ),
         "team":
             _chip_cache_context(
                 gameweek,
@@ -2333,7 +2335,7 @@ def _timing_window(
     players,
     current_team,
     gameweek,
-    end_gameweek,
+    projection_end_gameweek,
     force_refresh=False,
 ):
     cache_key = (
@@ -2358,7 +2360,7 @@ def _timing_window(
     anchored = _players_at_gameweek(
         players,
         gameweek,
-        end_gameweek,
+        projection_end_gameweek,
     )
 
     team = _future_team_state(
@@ -2524,20 +2526,21 @@ def _future_chip_windows(
     players,
     current_team,
     planning_gameweek,
-    end_gameweek,
+    activation_end_gameweek,
+    projection_end_gameweek,
     force_refresh=False,
 ):
     windows = []
 
     for gameweek in range(
         planning_gameweek,
-        end_gameweek + 1,
+        activation_end_gameweek + 1,
     ):
         window = _timing_window(
             players,
             current_team,
             gameweek,
-            end_gameweek,
+            projection_end_gameweek,
             force_refresh=force_refresh,
         )
 
@@ -3287,9 +3290,16 @@ def build_chip_planner(
             }
             return cached
 
+    projection_horizon_end = min(
+        SEASON_END_GW,
+        chip_horizon_end
+        + WILDCARD_HORIZON_GAMEWEEKS
+        - 1,
+    )
+
     players = load_players(
         projection_end_gameweek=
-            chip_horizon_end,
+            projection_horizon_end,
         long_range_regression=True,
     )
 
@@ -3410,6 +3420,7 @@ def build_chip_planner(
                 current_team,
                 planning_gameweek,
                 chip_horizon_end,
+                projection_horizon_end,
                 force_refresh=force_refresh,
             )
         )
