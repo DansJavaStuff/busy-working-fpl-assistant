@@ -563,3 +563,20 @@ python3 -m tools.backtest_historical_chip_patterns
 The report shows the distribution of best-match similarity and the proportion of historical cases clearing 70%, 75%, 80%, 85% and 90% similarity thresholds.
 
 This is deliberately a **fixture-pattern calibration**, not a realised-points backtest. The imported historical database currently contains fixture/team context but not the player-by-player Gameweek points needed to validate realised BB/TC/FH point outcomes without inventing hindsight. Player/outcome import is the next historical-data step before changing decision thresholds from outcome evidence.
+
+
+### Historical player/Gameweek outcomes
+
+Historical realised player outcomes can be imported into the local SQLite history database from the same pinned `vaastav/Fantasy-Premier-League` source used for fixture history.
+
+Run:
+
+```bash
+python3 -m tools.import_historical_player_outcomes
+```
+
+The importer reads each season's `gws/merged_gw.csv`, aggregates multiple fixture rows for the same player/Gameweek (so Double Gameweek points and minutes are summed correctly), and stores player name, position, team, actual FPL points, minutes, starts, price, ownership count and fixture-row count.
+
+If the fixture-history import already exists, the outcome importer automatically reuses that exact source commit rather than silently mixing data revisions. Historical import provenance keeps the union of all imported files for that commit.
+
+These rows are **outcomes only**. They are intended for retrospective validation and must not be fed back into pre-deadline/live model inputs.

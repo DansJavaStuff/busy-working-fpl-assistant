@@ -1188,6 +1188,45 @@ def record_historical_import(
     with transaction(
         db_path
     ) as connection:
+        existing = connection.execute(
+            """
+            SELECT files_json
+            FROM historical_imports
+            WHERE season_id = ?
+              AND source_repo = ?
+              AND resolved_commit = ?
+            """,
+            (
+                season_id,
+                source_repo,
+                resolved_commit,
+            ),
+        ).fetchone()
+
+        merged_files = list(files)
+
+        if existing is not None:
+            try:
+                merged_files.extend(
+                    json.loads(
+                        existing[
+                            "files_json"
+                        ]
+                    )
+                )
+            except (
+                TypeError,
+                json.JSONDecodeError,
+            ):
+                pass
+
+        merged_files = sorted(
+            {
+                str(path)
+                for path in merged_files
+            }
+        )
+
         connection.execute(
             """
             INSERT INTO historical_imports (
@@ -1219,7 +1258,7 @@ def record_historical_import(
                 resolved_commit,
                 imported_at,
                 _json_text(
-                    files
+                    merged_files
                 ),
             ),
         )
