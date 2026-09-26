@@ -384,6 +384,10 @@ def _solve_realised_squad(
                     player["value"]
                     for player in picked
                 ),
+            "starters":
+                starter_rows,
+            "squad":
+                picked,
         }
 
     selected_points = sum(
@@ -571,6 +575,8 @@ def _score_fixed_squad(
                     captain[
                         "player_name"
                     ],
+                "starters":
+                    starters,
             }
 
     return best_lineup
@@ -698,6 +704,153 @@ def _solve_template_squad(
             ),
         "squad":
             squad,
+    }
+
+
+def _player_diagnostic(
+    player,
+):
+    return {
+        "player":
+            player[
+                "player_name"
+            ],
+        "position":
+            player[
+                "position"
+            ],
+        "team":
+            player[
+                "team_name"
+            ],
+        "points":
+            player[
+                "total_points"
+            ],
+        "fixture_rows":
+            int(
+                player.get(
+                    "fixture_rows",
+                    0,
+                )
+                or 0
+            ),
+        "value":
+            player[
+                "value"
+            ],
+        "selected":
+            player[
+                "selected"
+            ],
+    }
+
+
+def _lineup_diagnostic(
+    players,
+):
+    return {
+        "player_count":
+            len(players),
+        "player_fixtures":
+            sum(
+                int(
+                    player.get(
+                        "fixture_rows",
+                        0,
+                    )
+                    or 0
+                )
+                for player in players
+            ),
+        "zero_fixture_players":
+            sum(
+                1
+                for player in players
+                if int(
+                    player.get(
+                        "fixture_rows",
+                        0,
+                    )
+                    or 0
+                ) == 0
+            ),
+        "players": [
+            _player_diagnostic(
+                player
+            )
+            for player in sorted(
+                players,
+                key=lambda row: (
+                    row["position"],
+                    -row["total_points"],
+                    row["player_name"],
+                ),
+            )
+        ],
+    }
+
+
+def _fh_outcome_detail(
+    outcome,
+    baseline,
+    rows,
+):
+    eligible = _eligible_players(
+        rows
+    )
+    zero_fixture_pool_players = sum(
+        1
+        for player in eligible
+        if int(
+            player.get(
+                "fixture_rows",
+                0,
+            )
+            or 0
+        ) == 0
+    )
+
+    return {
+        "free_hit": {
+            key: value
+            for key, value
+            in outcome.items()
+            if key not in {
+                "starters",
+                "squad",
+            }
+        },
+        "template": {
+            key: value
+            for key, value
+            in baseline.items()
+            if key not in {
+                "starters",
+                "squad",
+            }
+        },
+        "free_hit_xi":
+            _lineup_diagnostic(
+                outcome[
+                    "starters"
+                ]
+            ),
+        "template_xi":
+            _lineup_diagnostic(
+                baseline[
+                    "starters"
+                ]
+            ),
+        "player_pool": {
+            "eligible_players":
+                len(eligible),
+            "zero_fixture_players":
+                zero_fixture_pool_players,
+            "can_measure_template_blankers":
+                zero_fixture_pool_players
+                > 0,
+        },
     }
 
 
@@ -954,17 +1107,12 @@ def _outcome_for_chip(
                         "score"
                     ]
                 ),
-            "detail": {
-                "free_hit":
+            "detail":
+                _fh_outcome_detail(
                     outcome,
-                "template":
-                    {
-                        key: value
-                        for key, value
-                        in baseline.items()
-                        if key != "squad"
-                    },
-            },
+                    baseline,
+                    rows,
+                ),
         }
 
     if chip == "BB":
@@ -1069,6 +1217,63 @@ def _fh_archetype_summaries(
         })
 
     return summaries
+
+
+def _fh_extreme_diagnostics(
+    cases,
+    limit=10,
+):
+    diagnostics = []
+
+    for case in sorted(
+        cases,
+        key=lambda row: (
+            -row["outcome"],
+            row["season"],
+            row["gameweek"],
+        ),
+    )[:int(limit)]:
+        detail = (
+            case.get("detail")
+            or {}
+        )
+        free_hit = (
+            detail.get("free_hit")
+            or {}
+        )
+        template = (
+            detail.get("template")
+            or {}
+        )
+
+        diagnostics.append({
+            "season":
+                case["season"],
+            "gameweek":
+                case["gameweek"],
+            "kind":
+                case["kind"],
+            "signal":
+                case["signal"],
+            "uplift":
+                case["outcome"],
+            "template_score":
+                template.get("score"),
+            "free_hit_score":
+                free_hit.get("score"),
+            "template_captain":
+                template.get("captain"),
+            "free_hit_captain":
+                free_hit.get("captain"),
+            "template_xi":
+                detail.get("template_xi"),
+            "free_hit_xi":
+                detail.get("free_hit_xi"),
+            "player_pool":
+                detail.get("player_pool"),
+        })
+
+    return diagnostics
 
 
 def backtest_historical_chip_outcomes(
@@ -1215,6 +1420,14 @@ def backtest_historical_chip_outcomes(
             "archetypes":
                 (
                     _fh_archetype_summaries(
+                        cases
+                    )
+                    if chip == "FH"
+                    else []
+                ),
+            "fh_diagnostics":
+                (
+                    _fh_extreme_diagnostics(
                         cases
                     )
                     if chip == "FH"
