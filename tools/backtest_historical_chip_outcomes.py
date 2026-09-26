@@ -48,6 +48,25 @@ def main():
             "  Mean realised outcome:",
             chip["outcome_mean"],
         )
+
+        if chip.get(
+            "archetypes"
+        ):
+            print(
+                "  FH archetypes:"
+            )
+
+            for archetype in chip[
+                "archetypes"
+            ]:
+                print(
+                    "   ",
+                    f"{archetype['label']}: "
+                    f"{archetype['case_count']} cases · "
+                    f"Spearman {archetype['spearman']} · "
+                    f"mean outcome "
+                    f"{archetype['outcome_mean']}",
+                )
         print(
             "  Highest signal:"
         )
