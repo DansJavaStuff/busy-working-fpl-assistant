@@ -2039,7 +2039,7 @@ def _fixed_squad_horizon_score(
         anchored = _players_at_gameweek(
             players,
             gameweek,
-            projection_end_gameweek,
+            end_gameweek,
         )
         lineup = _current_squad_lineup(
             anchored,
@@ -2082,7 +2082,7 @@ def _wildcard_multiweek_value(
     team,
     wildcard_squad,
     gameweek,
-    end_gameweek,
+    projection_end_gameweek,
 ):
     hold_squad = (
         _current_squad_lineup(
@@ -2113,7 +2113,7 @@ def _wildcard_multiweek_value(
                 players,
                 baseline_squad,
                 gameweek,
-                end_gameweek,
+                projection_end_gameweek,
             )
         )
         transfer_horizon = (
@@ -2121,7 +2121,7 @@ def _wildcard_multiweek_value(
                 players,
                 one_transfer["squad"],
                 gameweek,
-                end_gameweek,
+                projection_end_gameweek,
             )
         )
 
@@ -2152,7 +2152,7 @@ def _wildcard_multiweek_value(
             players,
             wildcard_squad,
             gameweek,
-            end_gameweek,
+            projection_end_gameweek,
         )
     )
 
@@ -2343,7 +2343,7 @@ def _timing_window(
             players,
             current_team,
             gameweek,
-            end_gameweek,
+            projection_end_gameweek,
         )
     )
 
@@ -2446,7 +2446,7 @@ def _timing_window(
             team,
             wildcard_squad,
             gameweek,
-            end_gameweek,
+            projection_end_gameweek,
         )
     )
 
