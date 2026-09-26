@@ -73,6 +73,19 @@ def _chip_horizon_end(planning_gameweek):
     )
 
 
+def _wildcard_projection_horizon_end(
+    activation_end_gameweek,
+):
+    return min(
+        SEASON_END_GW,
+        int(
+            activation_end_gameweek
+        )
+        + WILDCARD_HORIZON_GAMEWEEKS
+        - 1,
+    )
+
+
 def _chip_boundary_status(
     card,
     gameweek,
@@ -3290,11 +3303,10 @@ def build_chip_planner(
             }
             return cached
 
-    projection_horizon_end = min(
-        SEASON_END_GW,
-        chip_horizon_end
-        + WILDCARD_HORIZON_GAMEWEEKS
-        - 1,
+    projection_horizon_end = (
+        _wildcard_projection_horizon_end(
+            chip_horizon_end
+        )
     )
 
     players = load_players(
