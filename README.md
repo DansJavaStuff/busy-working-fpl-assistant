@@ -522,3 +522,12 @@ For each candidate Wildcard week the model:
 This deliberately avoids pretending that the model knows a perfect sequence of future weekly transfers. It gives Wildcard a persistent squad value while keeping the comparison understandable and reproducible.
 
 Wildcard HOLD/CANDIDATE logic now uses this five-Gameweek uplift plus the timing-curve rank/percentile and fixture certainty. A CANDIDATE remains a review signal rather than an instruction to activate the chip.
+
+
+### Wildcard activation vs value horizon
+
+Wildcard availability and Wildcard value use different boundaries.
+
+The first Wildcard must still be activated by GW19, but a squad created by a GW18/GW19 Wildcard continues into GW20+ and therefore its five-Gameweek value horizon is allowed to cross the chip refresh boundary. The projection loader now carries enough future Gameweeks to value that persistent squad fairly.
+
+For example, a GW19 first-half Wildcard is activated legally in GW19 but can be valued across GW19–GW23. Only the end of the FPL season truncates the five-Gameweek Wildcard value horizon.
