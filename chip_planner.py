@@ -35,7 +35,7 @@ FIRST_HALF_END_GW = 19
 SECOND_HALF_START_GW = 20
 SEASON_END_GW = 38
 
-CHIP_CACHE_MODEL_VERSION = "chip-planner-v8"
+CHIP_CACHE_MODEL_VERSION = "chip-planner-v9"
 CHIP_TIMING_WINDOW_MODEL_VERSION = "chip-timing-window-v3"
 CHIP_PLANNER_CACHE_TTL = 15 * 60
 CHIP_OPPORTUNITY_CACHE_TTL = 30 * 60
@@ -2666,17 +2666,21 @@ def _build_timing_curve(
                 in ranked_values
             )
         )
-        current_percentile = round(
-            100
-            * sum(
-                value <= current_value
-                for value
-                in ranked_values
+        current_percentile = (
+            100.0
+            if len(ranked_values) == 1
+            else round(
+                100
+                * (
+                    len(ranked_values)
+                    - current_rank
+                )
+                / (
+                    len(ranked_values)
+                    - 1
+                ),
+                1,
             )
-            / len(
-                ranked_values
-            ),
-            1,
         )
 
     positive_peak = max(
@@ -2724,14 +2728,21 @@ def _build_timing_curve(
                 for value in ranked_values
             )
         )
-        point["percentile"] = round(
-            100
-            * sum(
-                value <= point_value
-                for value in ranked_values
+        point["percentile"] = (
+            100.0
+            if len(ranked_values) == 1
+            else round(
+                100
+                * (
+                    len(ranked_values)
+                    - point["rank"]
+                )
+                / (
+                    len(ranked_values)
+                    - 1
+                ),
+                1,
             )
-            / len(ranked_values),
-            1,
         )
 
     return {
