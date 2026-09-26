@@ -601,3 +601,15 @@ The first realised-outcome pass reports:
 It then reports the Spearman rank relationship between each historical fixture-pattern signal and its realised opportunity metric, plus the highest-signal and highest-outcome historical windows.
 
 These are **retrospective opportunity ceilings**, not claims that a real manager could have selected those exact players before the deadline. The FH template baseline and TC captainable pool use archived ownership counts as plausibility filters; those ownership fields have not yet been proven to be exact pre-deadline snapshots. The report is intentionally marked `lookahead_safe = False`: actual points are outcome data, and the archived historical team-strength/FDR fields have not yet been proven to be pre-deadline snapshots. Use this to diagnose whether the fixture-pattern features contain useful signal, but do not retune the live decision thresholds from this report alone.
+
+
+### Free Hit archetype diagnostics
+
+The realised historical FH backtest now reports separate summaries for:
+
+- **blank-only** Gameweeks
+- **mixed blank + double** Gameweeks
+
+This matters because the current historical `free_hit_signal` is explicitly a blank-severity feature. A mixed Gameweek can create Free Hit value through both blank avoidance and attacking Double Gameweek players, so combining both archetypes into one correlation can make the blank signal look misleadingly weak or negative.
+
+The split is diagnostic only. No new live FH threshold is introduced from these retrospective results.

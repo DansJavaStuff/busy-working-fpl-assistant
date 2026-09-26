@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from historical_realised_backtest import (
+    _fh_archetype_summaries,
     _rankdata,
     _score_fixed_squad,
     _spearman,
@@ -120,6 +121,62 @@ class HistoricalRealisedBacktestTests(
         self.assertGreater(
             result["score"],
             result["starter_points"],
+        )
+
+    def test_fh_archetypes_are_summarised_separately(self):
+        summaries = _fh_archetype_summaries(
+            [
+                {
+                    "kind": "blank",
+                    "signal": 10.0,
+                    "outcome": 20.0,
+                },
+                {
+                    "kind": "blank",
+                    "signal": 20.0,
+                    "outcome": 30.0,
+                },
+                {
+                    "kind": "blank_double",
+                    "signal": 5.0,
+                    "outcome": 40.0,
+                },
+                {
+                    "kind": "blank_double",
+                    "signal": 15.0,
+                    "outcome": 25.0,
+                },
+            ]
+        )
+
+        by_key = {
+            row["key"]: row
+            for row in summaries
+        }
+
+        self.assertEqual(
+            by_key["blank_only"][
+                "case_count"
+            ],
+            2,
+        )
+        self.assertEqual(
+            by_key["blank_only"][
+                "spearman"
+            ],
+            1.0,
+        )
+        self.assertEqual(
+            by_key["blank_double"][
+                "case_count"
+            ],
+            2,
+        )
+        self.assertEqual(
+            by_key["blank_double"][
+                "spearman"
+            ],
+            -1.0,
         )
 
     @patch(
