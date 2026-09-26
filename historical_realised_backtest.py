@@ -997,6 +997,80 @@ def _outcome_for_chip(
     )
 
 
+def _case_summary(cases):
+    signals = [
+        row["signal"]
+        for row in cases
+    ]
+    outcomes = [
+        row["outcome"]
+        for row in cases
+    ]
+
+    return {
+        "case_count":
+            len(cases),
+        "spearman":
+            _spearman(
+                signals,
+                outcomes,
+            ),
+        "outcome_mean":
+            (
+                round(
+                    mean(outcomes),
+                    2,
+                )
+                if outcomes
+                else None
+            ),
+    }
+
+
+def _fh_archetype_summaries(
+    cases,
+):
+    definitions = (
+        (
+            "blank_only",
+            "Blank-only",
+            lambda row:
+                row["kind"]
+                == "blank",
+        ),
+        (
+            "blank_double",
+            "Mixed blank + double",
+            lambda row:
+                row["kind"]
+                == "blank_double",
+        ),
+    )
+
+    summaries = []
+
+    for key, label, predicate in (
+        definitions
+    ):
+        matching = [
+            row
+            for row in cases
+            if predicate(row)
+        ]
+        summary = _case_summary(
+            matching
+        )
+        summaries.append({
+            "key":
+                key,
+            "label":
+                label,
+            **summary,
+        })
+
+    return summaries
+
+
 def backtest_historical_chip_outcomes(
     seasons,
     db_path=DEFAULT_DB_PATH,
@@ -1094,14 +1168,9 @@ def backtest_historical_chip_outcomes(
                         ],
                 })
 
-        signals = [
-            row["signal"]
-            for row in cases
-        ]
-        outcomes = [
-            row["outcome"]
-            for row in cases
-        ]
+        summary = _case_summary(
+            cases
+        )
 
         strongest_signal = sorted(
             cases,
@@ -1124,7 +1193,9 @@ def backtest_historical_chip_outcomes(
             "chip":
                 chip,
             "case_count":
-                len(cases),
+                summary[
+                    "case_count"
+                ],
             "metric":
                 (
                     cases[0][
@@ -1134,18 +1205,20 @@ def backtest_historical_chip_outcomes(
                     else None
                 ),
             "spearman":
-                _spearman(
-                    signals,
-                    outcomes,
-                ),
+                summary[
+                    "spearman"
+                ],
             "outcome_mean":
+                summary[
+                    "outcome_mean"
+                ],
+            "archetypes":
                 (
-                    round(
-                        mean(outcomes),
-                        2,
+                    _fh_archetype_summaries(
+                        cases
                     )
-                    if outcomes
-                    else None
+                    if chip == "FH"
+                    else []
                 ),
             "strongest_signal":
                 strongest_signal,
