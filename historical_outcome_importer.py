@@ -13,6 +13,7 @@ from history_store import (
     DEFAULT_DB_PATH,
     connect,
     ensure_database,
+    get_historical_imports,
     record_historical_import,
     transaction,
     upsert_gameweek,
@@ -20,6 +21,41 @@ from history_store import (
     utc_now_iso,
 )
 
+
+
+
+
+
+def _existing_source_commit(
+    seasons,
+    db_path,
+):
+    wanted = {
+        str(season)
+        for season in seasons
+    }
+
+    imports = get_historical_imports(
+        db_path=db_path
+    )
+
+    commits = {
+        row["resolved_commit"]
+        for row in imports
+        if row["season_key"] in wanted
+        and row["source_repo"]
+        == SOURCE_REPO
+        and row.get(
+            "resolved_commit"
+        )
+    }
+
+    if len(commits) == 1:
+        return next(
+            iter(commits)
+        )
+
+    return None
 
 
 def _aggregate_rows(rows):
@@ -131,7 +167,11 @@ def import_historical_player_outcomes(
 
     if resolved_commit is None:
         resolved_commit = (
-            resolve_source_commit(
+            _existing_source_commit(
+                [season_key],
+                db_path,
+            )
+            or resolve_source_commit(
                 source_ref,
                 session=session,
             )
@@ -290,6 +330,7 @@ def import_historical_player_outcomes(
 def import_historical_player_outcomes_all(
     seasons=DEFAULT_SEASONS,
     source_ref=DEFAULT_SOURCE_REF,
+    resolved_commit=None,
     session=None,
     db_path=DEFAULT_DB_PATH,
 ):
@@ -298,12 +339,17 @@ def import_historical_player_outcomes_all(
         or requests.Session()
     )
 
-    resolved_commit = (
-        resolve_source_commit(
-            source_ref,
-            session=session,
+    if resolved_commit is None:
+        resolved_commit = (
+            _existing_source_commit(
+                seasons,
+                db_path,
+            )
+            or resolve_source_commit(
+                source_ref,
+                session=session,
+            )
         )
-    )
 
     results = []
 
