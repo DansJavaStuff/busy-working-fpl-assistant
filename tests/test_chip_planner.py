@@ -17,6 +17,7 @@ from chip_planner import (
     _normalise_chip_name,
     _normalise_status,
     _players_at_gameweek,
+    _wildcard_projection_horizon_end,
 )
 
 
@@ -496,7 +497,7 @@ class WildcardHorizonTests(unittest.TestCase):
             0,
         )
 
-    def test_fixed_squad_horizon_clips_at_chip_boundary(self):
+    def test_first_half_wildcard_value_can_cross_into_second_half(self):
         positions = (
             ["GKP"] * 2
             + ["DEF"] * 5
@@ -514,9 +515,16 @@ class WildcardHorizonTests(unittest.TestCase):
                 "name": f"P{player_id}",
                 "position": position,
                 "cost": 50,
-                "proj_gw18": 5.0,
-                "proj_gw19": 5.0,
             }
+
+            for gameweek in range(
+                18,
+                23,
+            ):
+                player[
+                    f"proj_gw{gameweek}"
+                ] = 5.0
+
             players.append(
                 player
             )
@@ -525,16 +533,31 @@ class WildcardHorizonTests(unittest.TestCase):
             players,
             players,
             18,
-            19,
+            22,
         )
 
         self.assertEqual(
             result["gameweeks"],
-            2,
+            5,
         )
         self.assertEqual(
             result["end_gameweek"],
-            19,
+            22,
+        )
+
+    def test_first_half_activation_boundary_extends_projection_horizon(self):
+        self.assertEqual(
+            _wildcard_projection_horizon_end(
+                FIRST_HALF_END_GW
+            ),
+            23,
+        )
+
+        self.assertEqual(
+            _wildcard_projection_horizon_end(
+                SEASON_END_GW
+            ),
+            SEASON_END_GW,
         )
 
 
