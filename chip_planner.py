@@ -4220,6 +4220,7 @@ def build_chip_opportunity(
             None,
             None,
             timing_windows,
+            current_team=current_team,
             bootstrap=get_bootstrap(),
             fixtures=get_fixtures(),
         )
