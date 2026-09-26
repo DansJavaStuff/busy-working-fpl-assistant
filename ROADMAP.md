@@ -129,6 +129,7 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Backtest historical chip-pattern similarity with leave-one-season-out calibration
 - [x] Import historical player/Gameweek outcomes for realised chip-point backtesting
 - [x] Add retrospective realised chip-opportunity ceiling backtest
+- [x] Split realised FH calibration into blank-only vs mixed blank+double archetypes
 - [ ] Build a look-ahead-safe historical feature set from pre-deadline-only inputs
 - [ ] Backtest historical chip outcomes without look-ahead leakage
 - [ ] Recalibrate historical-similarity thresholds from pattern + outcome evidence
