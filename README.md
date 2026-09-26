@@ -531,3 +531,18 @@ Wildcard availability and Wildcard value use different boundaries.
 The first Wildcard must still be activated by GW19, but a squad created by a GW18/GW19 Wildcard continues into GW20+ and therefore its five-Gameweek value horizon is allowed to cross the chip refresh boundary. The projection loader now carries enough future Gameweeks to value that persistent squad fairly.
 
 For example, a GW19 first-half Wildcard is activated legally in GW19 but can be valued across GW19–GW23. Only the end of the FPL season truncates the five-Gameweek Wildcard value horizon.
+
+
+### Coordinated provisional chip schedule
+
+The Chip Opportunity view now combines the individual chip windows into one conservative provisional schedule.
+
+The scheduler:
+
+- only considers windows that already pass the chip-specific `CANDIDATE` evidence threshold
+- respects chip availability and first-/second-half event boundaries
+- enforces the FPL rule that only one chip can be used in a Gameweek
+- resolves clashes using model confidence, within-chip percentile and historical-pattern support rather than comparing raw BB/TC/FH/WC point values directly
+- allows any or all chips to remain **UNSCHEDULED** when the evidence is not strong enough
+
+This is intentionally not a mechanism for filling every chip into the calendar. A useful schedule can contain no assigned chips at all when future fixture information is still weak.

@@ -3196,3 +3196,111 @@ span:last-child {
         gap: 3px;
     }
 }
+
+
+/* ==================================================
+   COORDINATED CHIP SCHEDULE
+   ================================================== */
+
+.chip-schedule {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(53, 24, 62, .08);
+}
+
+.chip-schedule-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.chip-schedule-header h3 {
+    margin: 3px 0 0;
+}
+
+.chip-schedule-header > small,
+.chip-schedule-note {
+    color: var(--hq-muted);
+    font-size: .72rem;
+    line-height: 1.35;
+}
+
+.chip-schedule-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.chip-schedule-item {
+    min-width: 0;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(53, 24, 62, .08);
+    background: #fbfafc;
+}
+
+.chip-schedule-item.scheduled {
+    border-color: rgba(28, 173, 91, .28);
+    background: rgba(28, 173, 91, .055);
+}
+
+.chip-schedule-item > strong,
+.chip-schedule-slot,
+.chip-schedule-item > small {
+    display: block;
+}
+
+.chip-schedule-item > strong {
+    font-size: .82rem;
+}
+
+.chip-schedule-slot {
+    margin-top: 4px;
+    color: var(--hq-ink);
+    font-size: 1rem;
+    font-weight: 900;
+}
+
+.chip-schedule-item.scheduled .chip-schedule-slot {
+    color: var(--hq-green);
+}
+
+.chip-schedule-item > small {
+    margin-top: 3px;
+    color: var(--hq-muted);
+    font-size: .68rem;
+}
+
+.chip-schedule-item > p {
+    margin: 7px 0 0;
+    color: var(--hq-muted);
+    font-size: .72rem;
+    line-height: 1.35;
+}
+
+.chip-schedule-note {
+    display: block;
+    margin-top: 9px;
+}
+
+@media (max-width: 850px) {
+    .chip-schedule-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .chip-schedule-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .chip-schedule-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -12,6 +12,7 @@ from chip_planner import (
     _chip_horizon_end,
     _chip_opportunity_summary,
     _chip_recommendation,
+    _coordinated_chip_schedule,
     _current_squad_lineup,
     _fixture_certainty,
     _fixed_squad_horizon_score,
@@ -825,6 +826,185 @@ class ChipRecommendationTests(unittest.TestCase):
         self.assertEqual(
             result["recommendation"],
             "HOLD",
+        )
+
+
+class CoordinatedChipScheduleTests(unittest.TestCase):
+
+    def _team_with_available_chips(self):
+        return {
+            "chips": [
+                {
+                    "name": "bench_boost",
+                    "number": 1,
+                    "status_for_entry": "available",
+                    "start_event": 1,
+                    "stop_event": 19,
+                },
+                {
+                    "name": "triple_captain",
+                    "number": 1,
+                    "status_for_entry": "available",
+                    "start_event": 1,
+                    "stop_event": 19,
+                },
+                {
+                    "name": "wildcard",
+                    "number": 1,
+                    "status_for_entry": "available",
+                    "start_event": 2,
+                    "stop_event": 19,
+                },
+                {
+                    "name": "free_hit",
+                    "number": 1,
+                    "status_for_entry": "available",
+                    "start_event": 2,
+                    "stop_event": 19,
+                },
+            ]
+        }
+
+    def _curves_for_same_gameweek(self):
+        return [
+            {
+                "short": short,
+                "window_count": 1,
+                "points": [
+                    {
+                        "gameweek": 6,
+                        "value": value,
+                        "rank": 1,
+                        "percentile": 100.0,
+                    }
+                ],
+            }
+            for short, value in (
+                ("BB", 8.0),
+                ("TC", 9.0),
+                ("WC", 12.0),
+                ("FH", 10.0),
+            )
+        ]
+
+    @patch("chip_planner._chip_recommendation")
+    def test_schedule_never_assigns_two_chips_to_same_gameweek(
+        self,
+        recommendation,
+    ):
+        recommendation.return_value = {
+            "recommendation": "CANDIDATE",
+            "model_confidence": "medium",
+            "reason": "Strong candidate.",
+        }
+
+        timing_windows = [
+            {
+                "gameweek": 6,
+                "fixture_context": {
+                    "kind": "blank_double",
+                    "label": "special slate",
+                    "blank_team_count": 4,
+                    "double_team_count": 4,
+                },
+            }
+        ]
+        triple_captain = {
+            "windows": [
+                {
+                    "gameweek": 6,
+                    "fixture_context": {
+                        "kind": "double",
+                        "label": "double slate",
+                        "blank_team_count": 0,
+                        "double_team_count": 4,
+                    },
+                }
+            ]
+        }
+
+        schedule = _coordinated_chip_schedule(
+            6,
+            self._team_with_available_chips(),
+            self._curves_for_same_gameweek(),
+            timing_windows,
+            triple_captain,
+        )
+
+        self.assertEqual(
+            schedule["scheduled_count"],
+            1,
+        )
+        self.assertEqual(
+            len({
+                item["gameweek"]
+                for item in schedule["scheduled"]
+            }),
+            1,
+        )
+        self.assertEqual(
+            schedule["unscheduled_count"],
+            3,
+        )
+
+    @patch("chip_planner._chip_recommendation")
+    def test_schedule_can_leave_every_chip_unscheduled(
+        self,
+        recommendation,
+    ):
+        recommendation.return_value = {
+            "recommendation": "HOLD",
+            "model_confidence": "medium",
+            "reason": "Not enough evidence.",
+        }
+
+        timing_windows = [
+            {
+                "gameweek": 6,
+                "fixture_context": {
+                    "kind": "normal",
+                    "label": "normal fixture slate",
+                    "blank_team_count": 0,
+                    "double_team_count": 0,
+                },
+            }
+        ]
+        triple_captain = {
+            "windows": [
+                {
+                    "gameweek": 6,
+                    "fixture_context": {
+                        "kind": "normal",
+                        "label": "normal fixture slate",
+                        "blank_team_count": 0,
+                        "double_team_count": 0,
+                    },
+                }
+            ]
+        }
+
+        schedule = _coordinated_chip_schedule(
+            6,
+            self._team_with_available_chips(),
+            self._curves_for_same_gameweek(),
+            timing_windows,
+            triple_captain,
+        )
+
+        self.assertEqual(
+            schedule["scheduled_count"],
+            0,
+        )
+        self.assertEqual(
+            schedule["unscheduled_count"],
+            4,
+        )
+        self.assertTrue(
+            all(
+                item["status"]
+                == "unscheduled"
+                for item in schedule["items"]
+            )
         )
 
 

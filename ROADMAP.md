@@ -123,7 +123,9 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Replace one-week Wildcard timing with persistent five-Gameweek squad value
 - [x] Let Wildcard participate in HOLD/CANDIDATE logic using multi-Gameweek uplift
 - [x] Allow first-half Wildcard value horizon to cross GW19/GW20 boundary
-- [ ] Build coordinated chip schedule with one-chip-per-GW constraints
+- [x] Build coordinated chip schedule with one-chip-per-GW constraints
+- [x] Allow coordinated schedule to leave chips unscheduled when evidence is insufficient
+- [x] Resolve candidate-window clashes without comparing incompatible raw chip-value scales
 - [ ] Backtest historical chip patterns and outcomes
 - [ ] Explain useful historical analogues without overfitting to Gameweek number
 

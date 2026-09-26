@@ -144,6 +144,68 @@
 
     </div>
 
+    {% set schedule = opportunity.schedule|default(None) %}
+
+    {% if schedule %}
+        <section class="chip-schedule">
+            <div class="chip-schedule-header">
+                <div>
+                    <span class="team-label">
+                        PROVISIONAL SCHEDULE
+                    </span>
+                    <h3>
+                        Coordinated chip plan
+                    </h3>
+                </div>
+                <small>
+                    One chip per Gameweek · no forced assignments
+                </small>
+            </div>
+
+            <div class="chip-schedule-grid">
+                {% for item in schedule.items %}
+                    <div
+                        class="
+                            chip-schedule-item
+                            {{ item.status }}
+                        "
+                    >
+                        <strong>
+                            {{ item.short }}
+                        </strong>
+
+                        {% if item.status == "scheduled" %}
+                            <span class="chip-schedule-slot">
+                                GW{{ item.gameweek }}
+                            </span>
+                            <small>
+                                +{{ "%.1f"|format(item.value) }}
+                                · {{ item.model_confidence }} confidence
+                                · {{ item.fixture_certainty }} fixture certainty
+                            </small>
+                        {% elif item.status == "unavailable" %}
+                            <span class="chip-schedule-slot">
+                                UNAVAILABLE
+                            </span>
+                        {% else %}
+                            <span class="chip-schedule-slot">
+                                UNSCHEDULED
+                            </span>
+                        {% endif %}
+
+                        <p>
+                            {{ item.reason }}
+                        </p>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <small class="chip-schedule-note">
+                {{ schedule.note }}
+            </small>
+        </section>
+    {% endif %}
+
     <section class="chip-curves">
         <div class="chip-curves-header">
             <div>

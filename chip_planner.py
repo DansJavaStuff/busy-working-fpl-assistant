@@ -35,7 +35,7 @@ FIRST_HALF_END_GW = 19
 SECOND_HALF_START_GW = 20
 SEASON_END_GW = 38
 
-CHIP_CACHE_MODEL_VERSION = "chip-planner-v7"
+CHIP_CACHE_MODEL_VERSION = "chip-planner-v8"
 CHIP_TIMING_WINDOW_MODEL_VERSION = "chip-timing-window-v3"
 CHIP_PLANNER_CACHE_TTL = 15 * 60
 CHIP_OPPORTUNITY_CACHE_TTL = 30 * 60
@@ -2792,6 +2792,447 @@ def _chip_timing_curves(
     ]
 
 
+def _coordinated_chip_schedule(
+    planning_gameweek,
+    current_team,
+    curves,
+    timing_windows,
+    triple_captain,
+    bootstrap=None,
+    fixtures=None,
+):
+    cards = _chip_cards(
+        current_team,
+        planning_gameweek=
+            planning_gameweek,
+    )
+
+    cards_by_short = {}
+
+    for card in cards:
+        short = card.get(
+            "short"
+        )
+        cards_by_short.setdefault(
+            short,
+            [],
+        ).append(
+            card
+        )
+
+    timing_by_gameweek = {
+        window["gameweek"]:
+            window
+        for window in timing_windows
+    }
+
+    tc_by_gameweek = {
+        window["gameweek"]:
+            window
+        for window in triple_captain.get(
+            "windows",
+            [],
+        )
+    }
+
+    curve_by_short = {
+        curve["short"]:
+            curve
+        for curve in curves
+    }
+
+    chip_order = (
+        "BB",
+        "TC",
+        "WC",
+        "FH",
+    )
+
+    options_by_chip = {
+        short: []
+        for short in chip_order
+    }
+
+    def available_card(
+        short,
+        gameweek,
+    ):
+        for card in cards_by_short.get(
+            short,
+            [],
+        ):
+            status = _chip_boundary_status(
+                card,
+                gameweek,
+                cards,
+            )
+
+            if status["available"]:
+                return card
+
+        return None
+
+    for short in chip_order:
+        curve = curve_by_short.get(
+            short,
+            {}
+        )
+
+        for point in curve.get(
+            "points",
+            [],
+        ):
+            gameweek = point[
+                "gameweek"
+            ]
+
+            card = available_card(
+                short,
+                gameweek,
+            )
+
+            if card is None:
+                continue
+
+            if short == "TC":
+                source = tc_by_gameweek.get(
+                    gameweek
+                )
+            else:
+                source = timing_by_gameweek.get(
+                    gameweek
+                )
+
+            if source is None:
+                continue
+
+            fixture_context = source.get(
+                "fixture_context",
+                {},
+            )
+            certainty = _fixture_certainty(
+                planning_gameweek,
+                gameweek,
+            )
+            history = _historical_evidence(
+                short,
+                gameweek,
+                bootstrap,
+                fixtures,
+            )
+
+            decision = _chip_recommendation(
+                short,
+                point["value"],
+                fixture_context,
+                certainty,
+                history,
+                {
+                    "rank":
+                        point.get(
+                            "rank"
+                        ),
+                    "percentile":
+                        point.get(
+                            "percentile"
+                        ),
+                    "window_count":
+                        curve.get(
+                            "window_count"
+                        ),
+                },
+            )
+
+            if (
+                decision[
+                    "recommendation"
+                ]
+                != "CANDIDATE"
+            ):
+                continue
+
+            confidence = decision[
+                "model_confidence"
+            ]
+            confidence_score = {
+                "high": 3,
+                "medium": 2,
+                "low": 1,
+            }.get(
+                confidence,
+                0,
+            )
+            historical_similarity = (
+                (history or {}).get(
+                    "best_similarity"
+                )
+                or 0.0
+            )
+
+            quality = (
+                confidence_score
+                * 1000
+                + float(
+                    point.get(
+                        "percentile",
+                        0.0,
+                    )
+                    or 0.0
+                )
+                * 10
+                + historical_similarity
+            )
+
+            options_by_chip[
+                short
+            ].append({
+                "short":
+                    short,
+                "gameweek":
+                    gameweek,
+                "value":
+                    point["value"],
+                "rank":
+                    point.get(
+                        "rank"
+                    ),
+                "percentile":
+                    point.get(
+                        "percentile"
+                    ),
+                "fixture_label":
+                    fixture_context.get(
+                        "label",
+                        "fixture slate unknown",
+                    ),
+                "fixture_certainty":
+                    certainty["level"],
+                "model_confidence":
+                    confidence,
+                "reason":
+                    decision["reason"],
+                "quality":
+                    quality,
+            })
+
+    best_selection = None
+    best_score = None
+
+    def search(
+        chip_index,
+        used_gameweeks,
+        selection,
+        score,
+    ):
+        nonlocal best_selection, best_score
+
+        if chip_index >= len(
+            chip_order
+        ):
+            if (
+                best_score is None
+                or score > best_score
+            ):
+                best_score = score
+                best_selection = dict(
+                    selection
+                )
+            return
+
+        short = chip_order[
+            chip_index
+        ]
+
+        search(
+            chip_index + 1,
+            used_gameweeks,
+            selection,
+            score,
+        )
+
+        for option in options_by_chip[
+            short
+        ]:
+            gameweek = option[
+                "gameweek"
+            ]
+
+            if gameweek in used_gameweeks:
+                continue
+
+            selection[
+                short
+            ] = option
+            used_gameweeks.add(
+                gameweek
+            )
+
+            search(
+                chip_index + 1,
+                used_gameweeks,
+                selection,
+                score
+                + option["quality"],
+            )
+
+            used_gameweeks.remove(
+                gameweek
+            )
+            selection.pop(
+                short,
+                None,
+            )
+
+    search(
+        0,
+        set(),
+        {},
+        0.0,
+    )
+
+    best_selection = (
+        best_selection
+        or {}
+    )
+
+    items = []
+
+    for short in chip_order:
+        matching_cards = (
+            cards_by_short.get(
+                short,
+                [],
+            )
+        )
+        has_available_card = any(
+            card.get(
+                "status"
+            ) == "available"
+            for card in matching_cards
+        )
+
+        selected = (
+            best_selection.get(
+                short
+            )
+        )
+
+        if selected is not None:
+            items.append({
+                **selected,
+                "status":
+                    "scheduled",
+            })
+            continue
+
+        candidate_options = (
+            options_by_chip[
+                short
+            ]
+        )
+
+        if not has_available_card:
+            reason = (
+                "No available chip in the "
+                "current chip half."
+            )
+            status = "unavailable"
+        elif candidate_options:
+            blocked_gameweeks = {
+                option[
+                    "gameweek"
+                ]
+                for option in (
+                    best_selection.values()
+                )
+            }
+            conflicts = [
+                option
+                for option in candidate_options
+                if option["gameweek"]
+                in blocked_gameweeks
+            ]
+
+            if conflicts:
+                reason = (
+                    "Candidate windows exist, "
+                    "but stronger coordinated "
+                    "choices already use those "
+                    "Gameweeks."
+                )
+            else:
+                reason = (
+                    "Candidate windows exist, "
+                    "but the coordinated schedule "
+                    "does not improve by assigning "
+                    "this chip yet."
+                )
+
+            status = "unscheduled"
+        else:
+            reason = (
+                "No remaining window currently "
+                "clears the evidence threshold."
+            )
+            status = "unscheduled"
+
+        items.append({
+            "short":
+                short,
+            "status":
+                status,
+            "gameweek":
+                None,
+            "value":
+                None,
+            "rank":
+                None,
+            "percentile":
+                None,
+            "fixture_label":
+                None,
+            "fixture_certainty":
+                None,
+            "model_confidence":
+                None,
+            "reason":
+                reason,
+        })
+
+    scheduled = sorted(
+        (
+            item
+            for item in items
+            if item["status"]
+            == "scheduled"
+        ),
+        key=lambda item:
+            item["gameweek"],
+    )
+
+    return {
+        "items":
+            items,
+        "scheduled":
+            scheduled,
+        "scheduled_count":
+            len(scheduled),
+        "unscheduled_count":
+            sum(
+                item["status"]
+                == "unscheduled"
+                for item in items
+            ),
+        "note":
+            (
+                "Only evidence-backed CANDIDATE "
+                "windows can be scheduled. One chip "
+                "per Gameweek is enforced, and chips "
+                "may remain unscheduled."
+            ),
+    }
+
+
 def _chip_opportunity_summary(
     planning_gameweek,
     bench_boost,
@@ -2799,6 +3240,7 @@ def _chip_opportunity_summary(
     wildcard,
     free_hit,
     timing_windows,
+    current_team=None,
     bootstrap=None,
     fixtures=None,
 ):
@@ -3241,6 +3683,18 @@ def _chip_opportunity_summary(
         "one-week optimal vs hold",
     )
 
+    schedule = (
+        _coordinated_chip_schedule(
+            planning_gameweek,
+            current_team or {},
+            curves,
+            timing_windows,
+            triple_captain,
+            bootstrap=bootstrap,
+            fixtures=fixtures,
+        )
+    )
+
     return {
         "gameweek":
             planning_gameweek,
@@ -3248,6 +3702,8 @@ def _chip_opportunity_summary(
             rows,
         "curves":
             curves,
+        "schedule":
+            schedule,
         "note":
             (
                 "Timing windows hold today's squad, "
@@ -3445,6 +3901,7 @@ def build_chip_planner(
                 wildcard,
                 free_hit,
                 timing_windows,
+                current_team=current_team,
                 bootstrap=get_bootstrap(),
                 fixtures=get_fixtures(),
             )
