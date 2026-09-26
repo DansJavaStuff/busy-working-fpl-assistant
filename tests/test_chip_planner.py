@@ -1,8 +1,10 @@
 import unittest
+from unittest.mock import patch
 
 from chip_planner import (
     FIRST_HALF_END_GW,
     SECOND_HALF_START_GW,
+    build_chip_opportunity,
     SEASON_END_GW,
     _build_timing_curve,
     _chip_boundary_status,
@@ -162,6 +164,63 @@ class ChipTimingTests(unittest.TestCase):
             2,
         )
 
+
+
+class ChipOpportunityBuildTests(unittest.TestCase):
+
+    @patch("chip_planner.save_cached_result")
+    @patch("chip_planner.get_cached_result", return_value=None)
+    @patch("chip_planner.get_fixtures", return_value=[])
+    @patch("chip_planner.get_bootstrap", return_value={"teams": []})
+    @patch("chip_planner._chip_opportunity_summary")
+    @patch("chip_planner._future_chip_windows", return_value=[])
+    @patch("chip_planner._triple_captain_windows", return_value={"windows": []})
+    @patch("chip_planner.load_players", return_value=[])
+    @patch("chip_planner.get_my_team")
+    @patch("chip_planner.get_planning_gameweek", return_value=6)
+    def test_opportunity_builder_uses_extended_wildcard_projection_horizon(
+        self,
+        _planning_gameweek,
+        get_my_team,
+        load_players,
+        _triple_captain_windows,
+        future_chip_windows,
+        chip_opportunity_summary,
+        _get_bootstrap,
+        _get_fixtures,
+        _get_cached_result,
+        _save_cached_result,
+    ):
+        get_my_team.return_value = {
+            "picks": [],
+            "transfers": {
+                "bank": 0,
+                "limit": 1,
+                "made": 0,
+            },
+            "chips": [],
+        }
+        chip_opportunity_summary.return_value = {
+            "gameweek": 6,
+            "rows": [],
+            "curves": [],
+        }
+
+        build_chip_opportunity()
+
+        load_players.assert_called_once_with(
+            projection_end_gameweek=23,
+            long_range_regression=True,
+        )
+
+        self.assertEqual(
+            future_chip_windows.call_args.args[3],
+            19,
+        )
+        self.assertEqual(
+            future_chip_windows.call_args.args[4],
+            23,
+        )
 
 
 class ChipFastLineupTests(unittest.TestCase):

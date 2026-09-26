@@ -3723,9 +3723,15 @@ def build_chip_opportunity(
             }
             return cached
 
+    projection_horizon_end = (
+        _wildcard_projection_horizon_end(
+            chip_horizon_end
+        )
+    )
+
     players = load_players(
         projection_end_gameweek=
-            chip_horizon_end,
+            projection_horizon_end,
         long_range_regression=True,
     )
 
@@ -3744,6 +3750,7 @@ def build_chip_opportunity(
             current_team,
             planning_gameweek,
             chip_horizon_end,
+            projection_horizon_end,
             force_refresh=force_refresh,
         )
     )
