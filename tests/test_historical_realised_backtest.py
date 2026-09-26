@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from historical_realised_backtest import (
     _fh_archetype_summaries,
+    _fh_extreme_diagnostics,
     _rankdata,
     _score_fixed_squad,
     _spearman,
@@ -121,6 +122,69 @@ class HistoricalRealisedBacktestTests(
         self.assertGreater(
             result["score"],
             result["starter_points"],
+        )
+        self.assertEqual(
+            len(result["starters"]),
+            11,
+        )
+
+    def test_fh_extreme_diagnostics_exposes_scores_and_lineups(self):
+        detail = {
+            "free_hit": {
+                "score": 150,
+                "captain": "FH captain",
+            },
+            "template": {
+                "score": 50,
+                "captain": "Template captain",
+            },
+            "free_hit_xi": {
+                "player_fixtures": 15,
+                "players": [],
+            },
+            "template_xi": {
+                "player_fixtures": 11,
+                "players": [],
+            },
+            "player_pool": {
+                "eligible_players": 250,
+                "zero_fixture_players": 0,
+                "can_measure_template_blankers": False,
+            },
+        }
+        diagnostics = (
+            _fh_extreme_diagnostics(
+                [
+                    {
+                        "season": "2023-24",
+                        "gameweek": 34,
+                        "kind": "blank_double",
+                        "signal": 9.1,
+                        "outcome": 100.0,
+                        "detail": detail,
+                    }
+                ]
+            )
+        )
+
+        self.assertEqual(
+            diagnostics[0][
+                "template_score"
+            ],
+            50,
+        )
+        self.assertEqual(
+            diagnostics[0][
+                "free_hit_score"
+            ],
+            150,
+        )
+        self.assertFalse(
+            diagnostics[0][
+                "player_pool"
+            ][
+                "can_measure_template_blankers"
+            ]
         )
 
     def test_fh_archetypes_are_summarised_separately(self):
