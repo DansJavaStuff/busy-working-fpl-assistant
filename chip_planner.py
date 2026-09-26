@@ -3024,10 +3024,7 @@ def _coordinated_chip_schedule(
         selection,
         score,
     ):
-        nonlocal (
-            best_selection,
-            best_score,
-        )
+        nonlocal best_selection, best_score
 
         if chip_index >= len(
             chip_order
