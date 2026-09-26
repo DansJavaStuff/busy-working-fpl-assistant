@@ -580,3 +580,24 @@ The importer reads each season's `gws/merged_gw.csv`, aggregates multiple fixtur
 If the fixture-history import already exists, the outcome importer automatically reuses that exact source commit rather than silently mixing data revisions. Historical import provenance keeps the union of all imported files for that commit.
 
 These rows are **outcomes only**. They are intended for retrospective validation and must not be fed back into pre-deadline/live model inputs.
+
+
+### Realised historical chip-opportunity backtest
+
+With player/Gameweek outcomes imported, the historical layer can now compare fixture-pattern signals with realised one-week opportunity ceilings.
+
+Run:
+
+```bash
+python3 -m tools.backtest_historical_chip_outcomes
+```
+
+The first realised-outcome pass reports:
+
+- **TC** — the highest actual FPL score by any player in the Gameweek, which is the hindsight ceiling for the extra Triple Captain multiplier
+- **FH** — the highest hindsight legal one-week XI + captain score under the normal £100.0m, 15-player, formation and max-three-per-team constraints
+- **BB** — the hindsight bench-points ceiling from a legal 15-player squad optimised for total realised points
+
+It then reports the Spearman rank relationship between each historical fixture-pattern signal and its realised opportunity metric, plus the highest-signal and highest-outcome historical windows.
+
+These are **retrospective opportunity ceilings**, not claims that a real manager could have selected those exact players before the deadline. The report is intentionally marked `lookahead_safe = False`: actual points are outcome data, and the archived historical team-strength/FDR fields have not yet been proven to be pre-deadline snapshots. Use this to diagnose whether the fixture-pattern features contain useful signal, but do not retune the live decision thresholds from this report alone.
