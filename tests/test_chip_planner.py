@@ -224,6 +224,66 @@ class ChipOpportunityBuildTests(unittest.TestCase):
         )
 
 
+class ChipOpportunityCurrentTeamTests(unittest.TestCase):
+
+    @patch("chip_planner.save_cached_result")
+    @patch("chip_planner.get_cached_result", return_value=None)
+    @patch("chip_planner.get_fixtures", return_value=[])
+    @patch("chip_planner.get_bootstrap", return_value={"teams": []})
+    @patch("chip_planner._chip_opportunity_summary")
+    @patch("chip_planner._future_chip_windows", return_value=[])
+    @patch("chip_planner._triple_captain_windows", return_value={"windows": []})
+    @patch("chip_planner.load_players", return_value=[])
+    @patch("chip_planner.get_my_team")
+    @patch("chip_planner.get_planning_gameweek", return_value=6)
+    def test_standalone_opportunity_passes_current_team_to_scheduler(
+        self,
+        _planning_gameweek,
+        get_my_team,
+        _load_players,
+        _triple_captain_windows,
+        _future_chip_windows,
+        chip_opportunity_summary,
+        _get_bootstrap,
+        _get_fixtures,
+        _get_cached_result,
+        _save_cached_result,
+    ):
+        current_team = {
+            "picks": [],
+            "transfers": {
+                "bank": 0,
+                "limit": 1,
+                "made": 0,
+            },
+            "chips": [
+                {
+                    "name": "bench_boost",
+                    "number": 1,
+                    "status_for_entry": "available",
+                    "start_event": 1,
+                    "stop_event": 19,
+                }
+            ],
+        }
+        get_my_team.return_value = current_team
+        chip_opportunity_summary.return_value = {
+            "gameweek": 6,
+            "rows": [],
+            "curves": [],
+            "schedule": {
+                "items": [],
+            },
+        }
+
+        build_chip_opportunity()
+
+        self.assertIs(
+            chip_opportunity_summary.call_args.kwargs["current_team"],
+            current_team,
+        )
+
+
 class ChipFastLineupTests(unittest.TestCase):
 
     def test_current_squad_lineup_picks_valid_best_xi_without_solver(self):
