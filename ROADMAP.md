@@ -126,7 +126,10 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Build coordinated chip schedule with one-chip-per-GW constraints
 - [x] Allow coordinated schedule to leave chips unscheduled when evidence is insufficient
 - [x] Resolve candidate-window clashes without comparing incompatible raw chip-value scales
-- [ ] Backtest historical chip patterns and outcomes
+- [x] Backtest historical chip-pattern similarity with leave-one-season-out calibration
+- [ ] Import historical player/Gameweek outcomes for realised chip-point backtesting
+- [ ] Backtest historical chip outcomes without look-ahead leakage
+- [ ] Recalibrate historical-similarity thresholds from pattern + outcome evidence
 - [ ] Explain useful historical analogues without overfitting to Gameweek number
 
 ## Next — Smarter Free-Transfer Valuation
