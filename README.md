@@ -546,3 +546,20 @@ The scheduler:
 - allows any or all chips to remain **UNSCHEDULED** when the evidence is not strong enough
 
 This is intentionally not a mechanism for filling every chip into the calendar. A useful schedule can contain no assigned chips at all when future fixture information is still weak.
+
+
+### Historical chip-pattern calibration
+
+The first chip backtest is a leave-one-season-out calibration of the historical fixture-pattern layer for FH, BB and TC.
+
+For every historical special-Gameweek case, the target season is removed from the analogue pool before the closest match is calculated. This avoids the trivial result where a Gameweek matches itself or another week from the same season too closely.
+
+Run:
+
+```bash
+python3 -m tools.backtest_historical_chip_patterns
+```
+
+The report shows the distribution of best-match similarity and the proportion of historical cases clearing 70%, 75%, 80%, 85% and 90% similarity thresholds.
+
+This is deliberately a **fixture-pattern calibration**, not a realised-points backtest. The imported historical database currently contains fixture/team context but not the player-by-player Gameweek points needed to validate realised BB/TC/FH point outcomes without inventing hindsight. Player/outcome import is the next historical-data step before changing decision thresholds from outcome evidence.
