@@ -14,6 +14,26 @@ def _format_case(row):
     )
 
 
+def _format_lineup(
+    lineup,
+    captain,
+):
+    if not lineup:
+        return "unavailable"
+
+    return ", ".join(
+        (
+            f"{player['player']}"
+            f"{' (C)' if player['player'] == captain else ''}"
+            f" {player['points']}pts/"
+            f"{player['fixture_rows']}fx"
+        )
+        for player in lineup[
+            "players"
+        ]
+    )
+
+
 def main():
     seasons = imported_seasons()
 
@@ -66,6 +86,93 @@ def main():
                     f"Spearman {archetype['spearman']} · "
                     f"mean outcome "
                     f"{archetype['outcome_mean']}",
+                )
+
+        if chip.get(
+            "fh_diagnostics"
+        ):
+            print(
+                "  FH extreme-outcome diagnostics:"
+            )
+            blankers_unmeasurable = False
+
+            for index, diagnostic in enumerate(
+                chip["fh_diagnostics"],
+                start=1,
+            ):
+                template_xi = (
+                    diagnostic[
+                        "template_xi"
+                    ]
+                    or {}
+                )
+                free_hit_xi = (
+                    diagnostic[
+                        "free_hit_xi"
+                    ]
+                    or {}
+                )
+                player_pool = (
+                    diagnostic[
+                        "player_pool"
+                    ]
+                    or {}
+                )
+                print(
+                    "   ",
+                    f"{diagnostic['season']} "
+                    f"GW{diagnostic['gameweek']} "
+                    f"({diagnostic['kind']}): "
+                    f"template {diagnostic['template_score']} · "
+                    f"FH {diagnostic['free_hit_score']} · "
+                    f"uplift {diagnostic['uplift']:.1f}",
+                )
+                print(
+                    "     ",
+                    "Player-fixtures "
+                    f"template XI "
+                    f"{template_xi.get('player_fixtures')} · "
+                    f"FH XI "
+                    f"{free_hit_xi.get('player_fixtures')} · "
+                    "zero-fixture template players "
+                    f"{template_xi.get('zero_fixture_players')}",
+                )
+
+                if not player_pool.get(
+                    "can_measure_template_blankers",
+                    False,
+                ):
+                    blankers_unmeasurable = True
+
+                if index <= 3:
+                    print(
+                        "      Template XI:",
+                        _format_lineup(
+                            diagnostic[
+                                "template_xi"
+                            ],
+                            diagnostic[
+                                "template_captain"
+                            ],
+                        ),
+                    )
+                    print(
+                        "      Free Hit XI:",
+                        _format_lineup(
+                            diagnostic[
+                                "free_hit_xi"
+                            ],
+                            diagnostic[
+                                "free_hit_captain"
+                            ],
+                        ),
+                    )
+
+            if blankers_unmeasurable:
+                print(
+                    "    DATA LIMIT: the outcome player pools "
+                    "contain no zero-fixture players, so "
+                    "template blankers cannot be measured."
                 )
         print(
             "  Highest signal:"
