@@ -10,7 +10,11 @@ from historical_chip_features import (
 from historical_outcome_importer import (
     load_historical_player_gameweek,
 )
-from history_store import DEFAULT_DB_PATH
+from history_store import (
+    DEFAULT_DB_PATH,
+    connect,
+    ensure_database,
+)
 
 
 BUDGET = 1000
@@ -38,6 +42,8 @@ SIGNAL_KEYS = {
     "TC": "triple_captain_signal",
 }
 TC_CAPTAINABLE_POOL_SIZE = 20
+RECENT_FORM_GAMEWEEKS = 5
+PLAYER_POOL_RECENCY_GAMEWEEKS = 3
 
 
 def _normalise_position(position):
@@ -108,6 +114,509 @@ def _cbc_solver():
     return pulp.PULP_CBC_CMD(
         msg=False
     )
+
+
+def _normalise_team_key(value):
+    return str(
+        value or ""
+    ).strip().casefold()
+
+
+def _load_predeadline_player_history(
+    season,
+    gameweek,
+    db_path=DEFAULT_DB_PATH,
+):
+    ensure_database(
+        db_path
+    )
+
+    with connect(
+        db_path
+    ) as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                historical_player_gameweeks.fpl_element_id,
+                historical_player_gameweeks.player_name,
+                historical_player_gameweeks.position,
+                historical_player_gameweeks.team_name,
+                historical_player_gameweeks.total_points,
+                historical_player_gameweeks.minutes,
+                historical_player_gameweeks.value,
+                historical_player_gameweeks.selected,
+                historical_player_gameweeks.fixture_rows,
+                gameweeks.gameweek
+            FROM historical_player_gameweeks
+            JOIN seasons
+              ON seasons.id =
+                 historical_player_gameweeks.season_id
+            JOIN gameweeks
+              ON gameweeks.id =
+                 historical_player_gameweeks.gameweek_id
+            WHERE seasons.season_key = ?
+              AND gameweeks.gameweek < ?
+            ORDER BY
+                historical_player_gameweeks.fpl_element_id,
+                gameweeks.gameweek
+            """,
+            (
+                season,
+                int(gameweek),
+            ),
+        ).fetchall()
+
+    grouped = {}
+
+    for row in rows:
+        item = dict(row)
+        grouped.setdefault(
+            int(
+                item[
+                    "fpl_element_id"
+                ]
+            ),
+            [],
+        ).append(
+            item
+        )
+
+    result = []
+    recent_start = max(
+        1,
+        int(gameweek)
+        - RECENT_FORM_GAMEWEEKS,
+    )
+
+    for element, history in (
+        grouped.items()
+    ):
+        latest = history[-1]
+
+        if (
+            int(gameweek)
+            - int(
+                latest[
+                    "gameweek"
+                ]
+            )
+            > PLAYER_POOL_RECENCY_GAMEWEEKS
+        ):
+            continue
+
+        recent = [
+            row
+            for row in history
+            if int(
+                row["gameweek"]
+            ) >= recent_start
+        ]
+        season_appearances = sum(
+            1
+            for row in history
+            if int(
+                row.get("minutes", 0)
+                or 0
+            ) > 0
+        )
+        recent_appearances = sum(
+            1
+            for row in recent
+            if int(
+                row.get("minutes", 0)
+                or 0
+            ) > 0
+        )
+
+        result.append({
+            "fpl_element_id":
+                element,
+            "player_name":
+                latest["player_name"],
+            "position":
+                latest["position"],
+            "team_name":
+                latest["team_name"],
+            "value":
+                latest["value"],
+            "selected":
+                latest["selected"],
+            "last_gameweek":
+                int(
+                    latest[
+                        "gameweek"
+                    ]
+                ),
+            "season_points":
+                sum(
+                    int(
+                        row.get(
+                            "total_points",
+                            0,
+                        )
+                        or 0
+                    )
+                    for row in history
+                ),
+            "season_appearances":
+                season_appearances,
+            "recent_points":
+                sum(
+                    int(
+                        row.get(
+                            "total_points",
+                            0,
+                        )
+                        or 0
+                    )
+                    for row in recent
+                ),
+            "recent_appearances":
+                recent_appearances,
+            "recent_minutes":
+                sum(
+                    int(
+                        row.get(
+                            "minutes",
+                            0,
+                        )
+                        or 0
+                    )
+                    for row in recent
+                ),
+        })
+
+    return result
+
+
+def _load_team_fixture_projections(
+    season,
+    gameweek,
+    db_path=DEFAULT_DB_PATH,
+):
+    ensure_database(
+        db_path
+    )
+
+    with connect(
+        db_path
+    ) as connection:
+        teams = connection.execute(
+            """
+            SELECT
+                teams.id,
+                teams.fpl_team_id,
+                teams.name,
+                teams.short_name
+            FROM teams
+            JOIN seasons
+              ON seasons.id = teams.season_id
+            WHERE seasons.season_key = ?
+            """,
+            (
+                season,
+            ),
+        ).fetchall()
+        fixtures = connection.execute(
+            """
+            SELECT
+                fixtures.home_team_id,
+                fixtures.away_team_id,
+                fixtures.home_difficulty,
+                fixtures.away_difficulty
+            FROM fixtures
+            JOIN seasons
+              ON seasons.id = fixtures.season_id
+            JOIN gameweeks
+              ON gameweeks.id = fixtures.gameweek_id
+            WHERE seasons.season_key = ?
+              AND gameweeks.gameweek = ?
+            """,
+            (
+                season,
+                int(gameweek),
+            ),
+        ).fetchall()
+
+    by_team_id = {
+        int(team["id"]): {
+            "fixture_qualities": [],
+        }
+        for team in teams
+    }
+
+    for fixture in fixtures:
+        for side in (
+            "home",
+            "away",
+        ):
+            team_id = fixture[
+                f"{side}_team_id"
+            ]
+
+            if team_id is None:
+                continue
+
+            context = by_team_id.get(
+                int(team_id)
+            )
+
+            if context is None:
+                continue
+
+            difficulty = fixture[
+                f"{side}_difficulty"
+            ]
+            difficulty = (
+                3
+                if difficulty is None
+                else max(
+                    1,
+                    min(
+                        5,
+                        int(difficulty),
+                    ),
+                )
+            )
+            context[
+                "fixture_qualities"
+            ].append(
+                (
+                    5
+                    - difficulty
+                )
+                / 4
+            )
+
+    result = {}
+
+    for team in teams:
+        context = by_team_id[
+            int(team["id"])
+        ]
+        projection = {
+            "fixture_count":
+                len(
+                    context[
+                        "fixture_qualities"
+                    ]
+                ),
+            "fixture_qualities":
+                list(
+                    context[
+                        "fixture_qualities"
+                    ]
+                ),
+        }
+
+        for alias in (
+            team["id"],
+            team["fpl_team_id"],
+            team["name"],
+            team["short_name"],
+        ):
+            key = _normalise_team_key(
+                alias
+            )
+
+            if key:
+                result[key] = projection
+
+    return result
+
+
+def _prepare_predeadline_players(
+    history,
+    fixture_projections,
+    target_rows,
+):
+    target_by_element = {
+        int(row["fpl_element_id"]):
+            row
+        for row in target_rows
+        if row.get(
+            "fpl_element_id"
+        ) is not None
+    }
+    max_selected = max(
+        (
+            int(
+                row.get("selected", 0)
+                or 0
+            )
+            for row in history
+        ),
+        default=0,
+    )
+    players = []
+    unresolved_teams = set()
+
+    for row in history:
+        target = target_by_element.get(
+            int(
+                row[
+                    "fpl_element_id"
+                ]
+            ),
+            {},
+        )
+        team_name = (
+            target.get(
+                "team_name"
+            )
+            or row.get(
+                "team_name"
+            )
+        )
+        team_key = _normalise_team_key(
+            team_name
+        )
+        fixture = fixture_projections.get(
+            team_key
+        )
+
+        if fixture is None:
+            unresolved_teams.add(
+                str(
+                    team_name
+                )
+            )
+            continue
+        season_appearances = max(
+            1,
+            int(
+                row.get(
+                    "season_appearances",
+                    0,
+                )
+                or 0
+            ),
+        )
+        recent_appearances = max(
+            1,
+            int(
+                row.get(
+                    "recent_appearances",
+                    0,
+                )
+                or 0
+            ),
+        )
+        season_ppg = (
+            float(
+                row.get(
+                    "season_points",
+                    0,
+                )
+                or 0
+            )
+            / season_appearances
+        )
+        recent_ppg = (
+            float(
+                row.get(
+                    "recent_points",
+                    0,
+                )
+                or 0
+            )
+            / recent_appearances
+        )
+        recent_minutes = float(
+            row.get(
+                "recent_minutes",
+                0,
+            )
+            or 0
+        )
+        availability = (
+            0.35
+            + 0.65
+            * min(
+                1.0,
+                recent_minutes
+                / (
+                    90
+                    * recent_appearances
+                ),
+            )
+        )
+        fixture_factor = sum(
+            0.75
+            + 0.5 * quality
+            for quality in fixture[
+                "fixture_qualities"
+            ]
+        )
+        ownership_share = (
+            int(
+                row.get("selected", 0)
+                or 0
+            )
+            / max_selected
+            if max_selected
+            else 0.0
+        )
+        projection = (
+            (
+                0.55 * season_ppg
+                + 0.45 * recent_ppg
+            )
+            * availability
+            * fixture_factor
+            + 0.5
+            * ownership_share
+            * min(
+                1,
+                fixture[
+                    "fixture_count"
+                ],
+            )
+        )
+
+        players.append({
+            **row,
+            "team_name":
+                team_name,
+            "total_points":
+                int(
+                    target.get(
+                        "total_points",
+                        0,
+                    )
+                    or 0
+                ),
+            "minutes":
+                int(
+                    target.get(
+                        "minutes",
+                        0,
+                    )
+                    or 0
+                ),
+            "fixture_rows":
+                int(
+                    fixture[
+                        "fixture_count"
+                    ]
+                ),
+            "projection":
+                round(
+                    projection,
+                    4,
+                ),
+        })
+
+    return {
+        "players":
+            _eligible_players(
+                players
+            ),
+        "unresolved_teams":
+            sorted(
+                unresolved_teams
+            ),
+    }
 
 
 def _solve_realised_squad(
@@ -707,6 +1216,460 @@ def _solve_template_squad(
     }
 
 
+def _score_predeadline_lineup(
+    squad,
+):
+    best = None
+
+    for indices in combinations(
+        range(len(squad)),
+        11,
+    ):
+        starters = [
+            squad[index]
+            for index in indices
+        ]
+        counts = {
+            position: 0
+            for position in (
+                POSITION_LIMITS
+            )
+        }
+
+        for player in starters:
+            counts[
+                player["position"]
+            ] += 1
+
+        if any(
+            counts[position]
+            < STARTER_MINIMUMS[
+                position
+            ]
+            or counts[position]
+            > STARTER_MAXIMUMS[
+                position
+            ]
+            for position in counts
+        ):
+            continue
+
+        captain = max(
+            starters,
+            key=lambda player: (
+                player[
+                    "projection"
+                ],
+                player[
+                    "selected"
+                ],
+                player[
+                    "player_name"
+                ],
+            ),
+        )
+        projected_score = (
+            sum(
+                player[
+                    "projection"
+                ]
+                for player in starters
+            )
+            + captain[
+                "projection"
+            ]
+        )
+        ownership_total = sum(
+            player["selected"]
+            for player in starters
+        )
+
+        if (
+            best is None
+            or (
+                projected_score,
+                ownership_total,
+            )
+            > (
+                best[
+                    "projected_score"
+                ],
+                best[
+                    "starter_ownership"
+                ],
+            )
+        ):
+            starter_points = sum(
+                player[
+                    "total_points"
+                ]
+                for player in starters
+            )
+            captain_points = captain[
+                "total_points"
+            ]
+            best = {
+                "score":
+                    starter_points
+                    + captain_points,
+                "starter_points":
+                    starter_points,
+                "captain_points":
+                    captain_points,
+                "captain":
+                    captain[
+                        "player_name"
+                    ],
+                "projected_score":
+                    round(
+                        projected_score,
+                        2,
+                    ),
+                "starter_ownership":
+                    ownership_total,
+                "starters":
+                    starters,
+            }
+
+    return best
+
+
+def _solve_projected_free_hit(
+    rows,
+):
+    players = _eligible_players(
+        rows
+    )
+
+    if not players:
+        return None
+
+    problem = pulp.LpProblem(
+        "historical_predeadline_fh",
+        pulp.LpMaximize,
+    )
+    selected = {
+        index: pulp.LpVariable(
+            f"fh_selected_{index}",
+            cat="Binary",
+        )
+        for index in range(
+            len(players)
+        )
+    }
+    starters = {
+        index: pulp.LpVariable(
+            f"fh_starter_{index}",
+            cat="Binary",
+        )
+        for index in range(
+            len(players)
+        )
+    }
+    captain = {
+        index: pulp.LpVariable(
+            f"fh_captain_{index}",
+            cat="Binary",
+        )
+        for index in range(
+            len(players)
+        )
+    }
+
+    problem += (
+        pulp.lpSum(
+            selected.values()
+        )
+        == 15
+    )
+    problem += (
+        pulp.lpSum(
+            starters.values()
+        )
+        == 11
+    )
+    problem += (
+        pulp.lpSum(
+            captain.values()
+        )
+        == 1
+    )
+    problem += (
+        pulp.lpSum(
+            players[index][
+                "value"
+            ]
+            * selected[index]
+            for index in selected
+        )
+        <= BUDGET
+    )
+
+    for index, selected_variable in (
+        selected.items()
+    ):
+        problem += (
+            starters[index]
+            <= selected_variable
+        )
+        problem += (
+            captain[index]
+            <= starters[index]
+        )
+
+    for position, count in (
+        POSITION_LIMITS.items()
+    ):
+        problem += (
+            pulp.lpSum(
+                selected[index]
+                for index, player
+                in enumerate(players)
+                if player[
+                    "position"
+                ] == position
+            )
+            == count
+        )
+        position_starters = (
+            pulp.lpSum(
+                starters[index]
+                for index, player
+                in enumerate(players)
+                if player[
+                    "position"
+                ] == position
+            )
+        )
+        problem += (
+            position_starters
+            >= STARTER_MINIMUMS[
+                position
+            ]
+        )
+        problem += (
+            position_starters
+            <= STARTER_MAXIMUMS[
+                position
+            ]
+        )
+
+    teams = {
+        player["team_name"]
+        for player in players
+    }
+
+    for team in teams:
+        problem += (
+            pulp.lpSum(
+                selected[index]
+                for index, player
+                in enumerate(players)
+                if player[
+                    "team_name"
+                ] == team
+            )
+            <= 3
+        )
+
+    problem += (
+        pulp.lpSum(
+            players[index][
+                "projection"
+            ]
+            * starters[index]
+            for index in starters
+        )
+        + pulp.lpSum(
+            players[index][
+                "projection"
+            ]
+            * captain[index]
+            for index in captain
+        )
+    )
+
+    status = problem.solve(
+        _cbc_solver()
+    )
+
+    if pulp.LpStatus[
+        status
+    ] != "Optimal":
+        return None
+
+    squad = [
+        players[index]
+        for index in selected
+        if pulp.value(
+            selected[index]
+        ) > 0.5
+    ]
+    starter_rows = [
+        players[index]
+        for index in starters
+        if pulp.value(
+            starters[index]
+        ) > 0.5
+    ]
+    captain_player = next(
+        (
+            players[index]
+            for index in captain
+            if pulp.value(
+                captain[index]
+            ) > 0.5
+        ),
+        None,
+    )
+
+    if captain_player is None:
+        return None
+
+    starter_points = sum(
+        player["total_points"]
+        for player in starter_rows
+    )
+    captain_points = captain_player[
+        "total_points"
+    ]
+
+    return {
+        "score":
+            starter_points
+            + captain_points,
+        "starter_points":
+            starter_points,
+        "captain_points":
+            captain_points,
+        "captain":
+            captain_player[
+                "player_name"
+            ],
+        "projected_score":
+            round(
+                sum(
+                    player[
+                        "projection"
+                    ]
+                    for player in starter_rows
+                )
+                + captain_player[
+                    "projection"
+                ],
+                2,
+            ),
+        "squad_cost":
+            sum(
+                player["value"]
+                for player in squad
+            ),
+        "starters":
+            starter_rows,
+        "squad":
+            squad,
+    }
+
+
+def _predeadline_fh_outcome(
+    season,
+    gameweek,
+    target_rows,
+    db_path=DEFAULT_DB_PATH,
+):
+    history = (
+        _load_predeadline_player_history(
+            season,
+            gameweek,
+            db_path=db_path,
+        )
+    )
+    fixture_projections = (
+        _load_team_fixture_projections(
+            season,
+            gameweek,
+            db_path=db_path,
+        )
+    )
+    prepared = (
+        _prepare_predeadline_players(
+            history,
+            fixture_projections,
+            target_rows,
+        )
+    )
+    players = prepared[
+        "players"
+    ]
+
+    if len(players) < 15:
+        return None
+
+    template_selection = (
+        _solve_template_squad(
+            players
+        )
+    )
+    free_hit = (
+        _solve_projected_free_hit(
+            players
+        )
+    )
+
+    if (
+        template_selection is None
+        or free_hit is None
+    ):
+        return None
+
+    template = (
+        _score_predeadline_lineup(
+            template_selection[
+                "squad"
+            ]
+        )
+    )
+
+    if template is None:
+        return None
+
+    template.update({
+        "squad_cost":
+            template_selection[
+                "squad_cost"
+            ],
+        "ownership_total":
+            template_selection[
+                "ownership_total"
+            ],
+        "squad":
+            template_selection[
+                "squad"
+            ],
+    })
+    omniscient = (
+        _solve_realised_squad(
+            target_rows,
+            "FH",
+        )
+    )
+
+    return {
+        "free_hit":
+            free_hit,
+        "template":
+            template,
+        "omniscient":
+            omniscient,
+        "players":
+            players,
+        "unresolved_teams":
+            prepared[
+                "unresolved_teams"
+            ],
+    }
+
+
 def _player_diagnostic(
     player,
 ):
@@ -743,6 +1706,20 @@ def _player_diagnostic(
             player[
                 "selected"
             ],
+        "projection":
+            (
+                round(
+                    float(
+                        player[
+                            "projection"
+                        ]
+                    ),
+                    2,
+                )
+                if "projection"
+                in player
+                else None
+            ),
     }
 
 
@@ -794,10 +1771,12 @@ def _lineup_diagnostic(
 def _fh_outcome_detail(
     outcome,
     baseline,
-    rows,
+    players,
+    omniscient=None,
+    unresolved_teams=None,
 ):
     eligible = _eligible_players(
-        rows
+        players
     )
     zero_fixture_pool_players = sum(
         1
@@ -850,7 +1829,33 @@ def _fh_outcome_detail(
             "can_measure_template_blankers":
                 zero_fixture_pool_players
                 > 0,
+            "unresolved_teams":
+                list(
+                    unresolved_teams
+                    or []
+                ),
         },
+        "omniscient":
+            (
+                {
+                    "score":
+                        omniscient[
+                            "score"
+                        ],
+                    "uplift_over_template":
+                        float(
+                            omniscient[
+                                "score"
+                            ]
+                            - baseline[
+                                "score"
+                            ]
+                        ),
+                }
+                if omniscient
+                is not None
+                else None
+            ),
     }
 
 
@@ -1050,6 +2055,9 @@ def _spearman(left, right):
 def _outcome_for_chip(
     chip,
     rows,
+    season=None,
+    gameweek=None,
+    db_path=DEFAULT_DB_PATH,
 ):
     if chip == "TC":
         outcome = (
@@ -1077,27 +2085,34 @@ def _outcome_for_chip(
         }
 
     if chip == "FH":
-        outcome = (
-            _solve_realised_squad(
-                rows,
-                "FH",
-            )
-        )
-        baseline = (
-            _solve_template_squad(
-                rows
-            )
-        )
-
         if (
-            outcome is None
-            or baseline is None
+            season is None
+            or gameweek is None
         ):
             return None
 
+        comparison = (
+            _predeadline_fh_outcome(
+                season,
+                gameweek,
+                rows,
+                db_path=db_path,
+            )
+        )
+
+        if comparison is None:
+            return None
+
+        outcome = comparison[
+            "free_hit"
+        ]
+        baseline = comparison[
+            "template"
+        ]
+
         return {
             "metric":
-                "fh_template_uplift_ceiling",
+                "fh_predeadline_proxy_uplift",
             "value":
                 float(
                     outcome[
@@ -1111,7 +2126,15 @@ def _outcome_for_chip(
                 _fh_outcome_detail(
                     outcome,
                     baseline,
-                    rows,
+                    comparison[
+                        "players"
+                    ],
+                    omniscient=comparison[
+                        "omniscient"
+                    ],
+                    unresolved_teams=comparison[
+                        "unresolved_teams"
+                    ],
                 ),
         }
 
@@ -1245,6 +2268,10 @@ def _fh_extreme_diagnostics(
             detail.get("template")
             or {}
         )
+        omniscient = (
+            detail.get("omniscient")
+            or {}
+        )
 
         diagnostics.append({
             "season":
@@ -1265,6 +2292,20 @@ def _fh_extreme_diagnostics(
                 template.get("captain"),
             "free_hit_captain":
                 free_hit.get("captain"),
+            "template_projection":
+                template.get(
+                    "projected_score"
+                ),
+            "free_hit_projection":
+                free_hit.get(
+                    "projected_score"
+                ),
+            "omniscient_score":
+                omniscient.get("score"),
+            "omniscient_uplift":
+                omniscient.get(
+                    "uplift_over_template"
+                ),
             "template_xi":
                 detail.get("template_xi"),
             "free_hit_xi":
@@ -1340,6 +2381,9 @@ def backtest_historical_chip_outcomes(
                         _outcome_for_chip(
                             chip,
                             rows,
+                            season=season,
+                            gameweek=gameweek,
+                            db_path=db_path,
                         )
                     )
 
@@ -1451,10 +2495,12 @@ def backtest_historical_chip_outcomes(
         "note":
             (
                 "This is a retrospective realised-opportunity "
-                "calibration. Outcome ceilings use actual FPL "
-                "points, and the archived team-strength/FDR "
-                "inputs have not yet been proven to be "
-                "pre-deadline snapshots. Do not use this report "
-                "alone to retune live decision thresholds."
+                "calibration. FH squads and lineups are selected "
+                "from prior-Gameweek ownership, form and fixture "
+                "inputs before being scored with actual points; "
+                "BB and TC remain outcome ceilings. Archived "
+                "team-strength/FDR inputs have not yet been proven "
+                "to be pre-deadline snapshots. Do not use this "
+                "report alone to retune live decision thresholds."
             ),
     }
