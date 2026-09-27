@@ -4,8 +4,11 @@ from unittest.mock import patch
 from historical_realised_backtest import (
     _fh_archetype_summaries,
     _fh_extreme_diagnostics,
+    _prepare_predeadline_players,
     _rankdata,
     _score_fixed_squad,
+    _score_predeadline_lineup,
+    _solve_projected_free_hit,
     _spearman,
     _tc_realised_ceiling,
     backtest_historical_chip_outcomes,
@@ -187,6 +190,198 @@ class HistoricalRealisedBacktestTests(
             ]
         )
 
+    def test_predeadline_pool_keeps_blankers_and_scores_them_zero(self):
+        history = [
+            {
+                "fpl_element_id": 1,
+                "player_name": "Blanker",
+                "position": "MID",
+                "team_name": "Blank Team",
+                "value": 80,
+                "selected": 1000,
+                "season_points": 60,
+                "season_appearances": 10,
+                "recent_points": 30,
+                "recent_appearances": 5,
+                "recent_minutes": 450,
+            },
+            {
+                "fpl_element_id": 2,
+                "player_name": "Active",
+                "position": "MID",
+                "team_name": "Active Team",
+                "value": 75,
+                "selected": 500,
+                "season_points": 50,
+                "season_appearances": 10,
+                "recent_points": 25,
+                "recent_appearances": 5,
+                "recent_minutes": 450,
+            },
+        ]
+        fixtures = {
+            "blank team": {
+                "fixture_count": 0,
+                "fixture_qualities": [],
+            },
+            "active team": {
+                "fixture_count": 1,
+                "fixture_qualities": [0.5],
+            },
+        }
+        result = _prepare_predeadline_players(
+            history,
+            fixtures,
+            [
+                {
+                    "fpl_element_id": 2,
+                    "total_points": 8,
+                    "minutes": 90,
+                }
+            ],
+        )
+        by_name = {
+            row["player_name"]: row
+            for row in result[
+                "players"
+            ]
+        }
+
+        self.assertEqual(
+            by_name["Blanker"][
+                "fixture_rows"
+            ],
+            0,
+        )
+        self.assertEqual(
+            by_name["Blanker"][
+                "total_points"
+            ],
+            0,
+        )
+        self.assertEqual(
+            by_name["Blanker"][
+                "projection"
+            ],
+            0.0,
+        )
+        self.assertEqual(
+            by_name["Active"][
+                "total_points"
+            ],
+            8,
+        )
+        self.assertGreater(
+            by_name["Active"][
+                "projection"
+            ],
+            0.0,
+        )
+
+    def test_predeadline_lineup_does_not_use_target_points(self):
+        positions = (
+            ["GKP"] * 2
+            + ["DEF"] * 5
+            + ["MID"] * 5
+            + ["FWD"] * 3
+        )
+        squad = []
+
+        for index, position in enumerate(
+            positions,
+            start=1,
+        ):
+            squad.append({
+                "player_name":
+                    f"P{index}",
+                "position":
+                    position,
+                "projection":
+                    float(
+                        20 - index
+                    ),
+                "selected":
+                    1000 - index,
+                "total_points":
+                    1,
+            })
+
+        squad[1][
+            "total_points"
+        ] = 50
+        result = _score_predeadline_lineup(
+            squad
+        )
+        starter_names = {
+            player["player_name"]
+            for player in result[
+                "starters"
+            ]
+        }
+
+        self.assertNotIn(
+            "P2",
+            starter_names,
+        )
+        self.assertEqual(
+            result["captain"],
+            "P1",
+        )
+
+    def test_projected_free_hit_ignores_target_week_explosion(self):
+        positions = (
+            ["GKP"] * 2
+            + ["DEF"] * 5
+            + ["MID"] * 6
+            + ["FWD"] * 3
+        )
+        players = []
+
+        for index, position in enumerate(
+            positions,
+            start=1,
+        ):
+            players.append({
+                "player_name":
+                    f"P{index}",
+                "position":
+                    position,
+                "team_name":
+                    f"T{index}",
+                "value":
+                    50,
+                "selected":
+                    1000 - index,
+                "total_points":
+                    1,
+                "projection":
+                    float(
+                        20 - index
+                    ),
+            })
+
+        explosive = players[12]
+        explosive["projection"] = 0.1
+        explosive["total_points"] = 50
+        result = _solve_projected_free_hit(
+            players
+        )
+        starter_names = {
+            player["player_name"]
+            for player in result[
+                "starters"
+            ]
+        }
+
+        self.assertNotIn(
+            explosive["player_name"],
+            starter_names,
+        )
+        self.assertNotEqual(
+            result["captain"],
+            explosive["player_name"],
+        )
+
     def test_fh_archetypes_are_summarised_separately(self):
         summaries = _fh_archetype_summaries(
             [
@@ -310,8 +505,9 @@ class HistoricalRealisedBacktestTests(
         def outcome_side_effect(
             chip,
             rows,
+            **kwargs,
         ):
-            del rows
+            del rows, kwargs
             counters[chip] += 1
             return {
                 "metric": f"{chip.lower()}_metric",
