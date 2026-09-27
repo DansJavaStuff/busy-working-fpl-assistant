@@ -26,7 +26,8 @@ def _format_lineup(
             f"{player['player']}"
             f"{' (C)' if player['player'] == captain else ''}"
             f" {player['points']}pts/"
-            f"{player['fixture_rows']}fx"
+            f"{player['fixture_rows']}fx/"
+            f"{player['projection']:.1f}pred"
         )
         for player in lineup[
             "players"
@@ -92,9 +93,10 @@ def main():
             "fh_diagnostics"
         ):
             print(
-                "  FH extreme-outcome diagnostics:"
+                "  FH pre-deadline proxy diagnostics:"
             )
             blankers_unmeasurable = False
+            unresolved_teams = set()
 
             for index, diagnostic in enumerate(
                 chip["fh_diagnostics"],
@@ -129,6 +131,15 @@ def main():
                 )
                 print(
                     "     ",
+                    "Pre-deadline projections "
+                    f"template {diagnostic['template_projection']} · "
+                    f"FH {diagnostic['free_hit_projection']} · "
+                    "omniscient ceiling "
+                    f"{diagnostic['omniscient_score']} "
+                    f"(uplift {diagnostic['omniscient_uplift']})",
+                )
+                print(
+                    "     ",
                     "Player-fixtures "
                     f"template XI "
                     f"{template_xi.get('player_fixtures')} · "
@@ -143,6 +154,13 @@ def main():
                     False,
                 ):
                     blankers_unmeasurable = True
+
+                unresolved_teams.update(
+                    player_pool.get(
+                        "unresolved_teams",
+                        [],
+                    )
+                )
 
                 if index <= 3:
                     print(
@@ -173,6 +191,16 @@ def main():
                     "    DATA LIMIT: the outcome player pools "
                     "contain no zero-fixture players, so "
                     "template blankers cannot be measured."
+                )
+
+            if unresolved_teams:
+                print(
+                    "    DATA LIMIT: unresolved historical teams:",
+                    ", ".join(
+                        sorted(
+                            unresolved_teams
+                        )
+                    ),
                 )
         print(
             "  Highest signal:"
