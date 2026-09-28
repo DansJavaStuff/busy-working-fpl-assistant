@@ -35,6 +35,23 @@ def _format_lineup(
     )
 
 
+def _format_small_samples(
+    lineup,
+):
+    players = lineup.get(
+        "small_sample_players",
+        [],
+    )
+
+    if not players:
+        return "none"
+
+    return (
+        f"{len(players)} "
+        f"({', '.join(players)})"
+    )
+
+
 def main():
     seasons = imported_seasons()
 
@@ -70,6 +87,25 @@ def main():
             chip["outcome_mean"],
         )
 
+        projection_validation = chip.get(
+            "projection_validation"
+        )
+
+        if projection_validation:
+            print(
+                "  Spearman projected uplift/outcome:",
+                projection_validation[
+                    "projected_spearman"
+                ],
+                f"({projection_validation['projected_case_count']} cases)",
+            )
+            print(
+                "  Mean projected uplift:",
+                projection_validation[
+                    "projected_uplift_mean"
+                ],
+            )
+
         if chip.get(
             "archetypes"
         ):
@@ -85,6 +121,8 @@ def main():
                     f"{archetype['label']}: "
                     f"{archetype['case_count']} cases · "
                     f"Spearman {archetype['spearman']} · "
+                    "projected-uplift Spearman "
+                    f"{archetype['projected_spearman']} · "
                     f"mean outcome "
                     f"{archetype['outcome_mean']}",
                 )
@@ -118,6 +156,12 @@ def main():
                     diagnostic[
                         "player_pool"
                     ]
+                    or {}
+                )
+                captain_sanity = (
+                    diagnostic.get(
+                        "captain_sanity"
+                    )
                     or {}
                 )
                 print(
@@ -185,6 +229,45 @@ def main():
                             ],
                         ),
                     )
+                    for label, key in (
+                        (
+                            "Template captain",
+                            "template",
+                        ),
+                        (
+                            "Free Hit captain",
+                            "free_hit",
+                        ),
+                    ):
+                        captain = (
+                            captain_sanity.get(
+                                key
+                            )
+                            or {}
+                        )
+                        if captain:
+                            print(
+                                "     ",
+                                f"{label}: "
+                                f"ownership rank "
+                                f"{captain['ownership_rank']}/"
+                                f"{captain['candidate_count']} · "
+                                f"season apps "
+                                f"{captain['season_appearances']} · "
+                                f"recent apps "
+                                f"{captain['recent_appearances']} · "
+                                f"recent minutes "
+                                f"{captain['recent_minutes']}",
+                            )
+                    print(
+                        "     ",
+                        "Small-sample XI players "
+                        "(<5 season or <2 recent apps) "
+                        "template "
+                        f"{_format_small_samples(template_xi)} · "
+                        "FH "
+                        f"{_format_small_samples(free_hit_xi)}",
+                    )
 
             if blankers_unmeasurable:
                 print(
@@ -201,6 +284,23 @@ def main():
                             unresolved_teams
                         )
                     ),
+                )
+
+        excluded_unplayable = chip.get(
+            "excluded_unplayable",
+            [],
+        )
+
+        if excluded_unplayable:
+            print(
+                "  Excluded unplayable slates:"
+            )
+            for row in excluded_unplayable:
+                print(
+                    "   ",
+                    f"{row['season']} GW{row['gameweek']} · "
+                    f"signal {row['signal']:.1f} · "
+                    f"{row['reason']}",
                 )
         print(
             "  Highest signal:"
