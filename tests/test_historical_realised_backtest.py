@@ -2,9 +2,12 @@ import unittest
 from unittest.mock import patch
 
 from historical_realised_backtest import (
+    _captain_ownership_pool,
     _fh_archetype_summaries,
     _fh_extreme_diagnostics,
+    _fh_model_metrics,
     _fh_outcome_detail,
+    _fh_projection_error_diagnostics,
     _prepare_predeadline_players,
     _rankdata,
     _score_fixed_squad,
@@ -279,6 +282,40 @@ class HistoricalRealisedBacktestTests(
             0.0,
         )
 
+    def test_small_sample_form_projection_is_regressed(self):
+        result = _prepare_predeadline_players(
+            [
+                {
+                    "fpl_element_id": 1,
+                    "player_name": "Small sample",
+                    "position": "MID",
+                    "team_name": "Active Team",
+                    "value": 50,
+                    "selected": 100,
+                    "season_points": 20,
+                    "season_appearances": 1,
+                    "recent_points": 20,
+                    "recent_appearances": 1,
+                    "recent_minutes": 90,
+                }
+            ],
+            {
+                "active team": {
+                    "fixture_count": 1,
+                    "fixture_qualities": [0.5],
+                }
+            },
+            [],
+        )
+        player = result["players"][0]
+
+        self.assertLess(
+            player[
+                "regressed_projection"
+            ],
+            player["projection"],
+        )
+
     def test_predeadline_lineup_does_not_use_target_points(self):
         positions = (
             ["GKP"] * 2
@@ -327,6 +364,67 @@ class HistoricalRealisedBacktestTests(
         self.assertEqual(
             result["captain"],
             "P1",
+        )
+
+    def test_predeadline_lineup_respects_captain_pool(self):
+        positions = (
+            ["GKP"] * 2
+            + ["DEF"] * 5
+            + ["MID"] * 5
+            + ["FWD"] * 3
+        )
+        squad = []
+
+        for index, position in enumerate(
+            positions,
+            start=1,
+        ):
+            squad.append({
+                "player_name": f"P{index}",
+                "position": position,
+                "projection": float(index),
+                "selected": 1000 - index,
+                "total_points": index,
+            })
+
+        result = _score_predeadline_lineup(
+            squad,
+            captain_pool={"P5"},
+        )
+
+        self.assertEqual(
+            result["captain"],
+            "P5",
+        )
+
+    def test_captain_ownership_pool_uses_active_ownership_rank(self):
+        players = [
+            {
+                "player_name": "Popular active",
+                "selected": 100,
+                "projection": 5.0,
+                "fixture_rows": 1,
+            },
+            {
+                "player_name": "Unpopular active",
+                "selected": 10,
+                "projection": 10.0,
+                "fixture_rows": 1,
+            },
+            {
+                "player_name": "Popular blanker",
+                "selected": 1000,
+                "projection": 0.0,
+                "fixture_rows": 0,
+            },
+        ]
+
+        self.assertEqual(
+            _captain_ownership_pool(
+                players,
+                size=1,
+            ),
+            {"Popular active"},
         )
 
     def test_projected_free_hit_ignores_target_week_explosion(self):
@@ -453,6 +551,90 @@ class HistoricalRealisedBacktestTests(
                 "projected_spearman"
             ],
             1.0,
+        )
+
+    def test_fh_model_metrics_report_bias_and_components(self):
+        metrics = _fh_model_metrics(
+            [
+                {
+                    "projected_uplift": 20.0,
+                    "realised_uplift": 10.0,
+                    "starter_projected_uplift": 16.0,
+                    "captain_projected_uplift": 4.0,
+                },
+                {
+                    "projected_uplift": 40.0,
+                    "realised_uplift": 30.0,
+                    "starter_projected_uplift": 32.0,
+                    "captain_projected_uplift": 8.0,
+                },
+            ]
+        )
+
+        self.assertEqual(metrics["spearman"], 1.0)
+        self.assertEqual(metrics["mean_error"], 10.0)
+        self.assertEqual(
+            metrics["mean_absolute_error"],
+            10.0,
+        )
+        self.assertEqual(
+            metrics[
+                "starter_projected_mean"
+            ],
+            24.0,
+        )
+        self.assertEqual(
+            metrics[
+                "captain_projected_mean"
+            ],
+            6.0,
+        )
+
+    def test_projection_error_diagnostics_rank_overprediction(self):
+        diagnostics = (
+            _fh_projection_error_diagnostics(
+                [
+                    {
+                        "season": "2024-25",
+                        "gameweek": 1,
+                        "kind": "blank",
+                        "projected_uplift": 40.0,
+                        "outcome": 5.0,
+                        "detail": {
+                            "free_hit": {
+                                "starter_projected_score": 80.0,
+                                "captain_projection": 10.0,
+                            },
+                            "template": {
+                                "starter_projected_score": 50.0,
+                                "captain_projection": 0.0,
+                            },
+                        },
+                    },
+                    {
+                        "season": "2024-25",
+                        "gameweek": 2,
+                        "kind": "blank_double",
+                        "projected_uplift": 20.0,
+                        "outcome": 15.0,
+                        "detail": {},
+                    },
+                ],
+                limit=1,
+            )
+        )
+
+        self.assertEqual(
+            diagnostics[
+                "largest_overprediction"
+            ][0]["gameweek"],
+            1,
+        )
+        self.assertEqual(
+            diagnostics[
+                "largest_overprediction"
+            ][0]["starter_projected_uplift"],
+            30.0,
         )
 
     def test_fh_detail_exposes_captain_and_sample_sanity(self):
