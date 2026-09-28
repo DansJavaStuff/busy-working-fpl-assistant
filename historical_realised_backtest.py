@@ -46,6 +46,8 @@ RECENT_FORM_GAMEWEEKS = 5
 PLAYER_POOL_RECENCY_GAMEWEEKS = 3
 SMALL_SAMPLE_SEASON_APPEARANCES = 5
 SMALL_SAMPLE_RECENT_APPEARANCES = 2
+FH_CAPTAIN_OWNERSHIP_POOL_SIZE = 50
+FORM_REGRESSION_POINTS_PER_APPEARANCE = 2.0
 
 
 def _normalise_position(position):
@@ -484,25 +486,27 @@ def _prepare_predeadline_players(
                 )
             )
             continue
+        raw_season_appearances = int(
+            row.get(
+                "season_appearances",
+                0,
+            )
+            or 0
+        )
+        raw_recent_appearances = int(
+            row.get(
+                "recent_appearances",
+                0,
+            )
+            or 0
+        )
         season_appearances = max(
             1,
-            int(
-                row.get(
-                    "season_appearances",
-                    0,
-                )
-                or 0
-            ),
+            raw_season_appearances,
         )
         recent_appearances = max(
             1,
-            int(
-                row.get(
-                    "recent_appearances",
-                    0,
-                )
-                or 0
-            ),
+            raw_recent_appearances,
         )
         season_ppg = (
             float(
@@ -523,6 +527,40 @@ def _prepare_predeadline_players(
                 or 0
             )
             / recent_appearances
+        )
+        regressed_season_ppg = (
+            min(
+                1.0,
+                raw_season_appearances
+                / SMALL_SAMPLE_SEASON_APPEARANCES,
+            )
+            * season_ppg
+            + (
+                1.0
+                - min(
+                    1.0,
+                    raw_season_appearances
+                    / SMALL_SAMPLE_SEASON_APPEARANCES,
+                )
+            )
+            * FORM_REGRESSION_POINTS_PER_APPEARANCE
+        )
+        regressed_recent_ppg = (
+            min(
+                1.0,
+                raw_recent_appearances
+                / SMALL_SAMPLE_RECENT_APPEARANCES,
+            )
+            * recent_ppg
+            + (
+                1.0
+                - min(
+                    1.0,
+                    raw_recent_appearances
+                    / SMALL_SAMPLE_RECENT_APPEARANCES,
+                )
+            )
+            * FORM_REGRESSION_POINTS_PER_APPEARANCE
         )
         recent_minutes = float(
             row.get(
@@ -575,6 +613,24 @@ def _prepare_predeadline_players(
                 ],
             )
         )
+        regressed_projection = (
+            (
+                0.55
+                * regressed_season_ppg
+                + 0.45
+                * regressed_recent_ppg
+            )
+            * availability
+            * fixture_factor
+            + 0.5
+            * ownership_share
+            * min(
+                1,
+                fixture[
+                    "fixture_count"
+                ],
+            )
+        )
 
         players.append({
             **row,
@@ -605,6 +661,11 @@ def _prepare_predeadline_players(
             "projection":
                 round(
                     projection,
+                    4,
+                ),
+            "regressed_projection":
+                round(
+                    regressed_projection,
                     4,
                 ),
         })
@@ -1220,6 +1281,7 @@ def _solve_template_squad(
 
 def _score_predeadline_lineup(
     squad,
+    captain_pool=None,
 ):
     best = None
 
@@ -1256,8 +1318,22 @@ def _score_predeadline_lineup(
         ):
             continue
 
+        captain_candidates = [
+            player
+            for player in starters
+            if (
+                captain_pool is None
+                or player[
+                    "player_name"
+                ] in captain_pool
+            )
+        ]
+
+        if not captain_candidates:
+            continue
+
         captain = max(
-            starters,
+            captain_candidates,
             key=lambda player: (
                 player[
                     "projection"
@@ -1325,6 +1401,24 @@ def _score_predeadline_lineup(
                 "projected_score":
                     round(
                         projected_score,
+                        2,
+                    ),
+                "starter_projected_score":
+                    round(
+                        sum(
+                            player[
+                                "projection"
+                            ]
+                            for player
+                            in starters
+                        ),
+                        2,
+                    ),
+                "captain_projection":
+                    round(
+                        captain[
+                            "projection"
+                        ],
                         2,
                     ),
                 "starter_ownership":
@@ -1561,6 +1655,24 @@ def _solve_projected_free_hit(
                 ],
                 2,
             ),
+        "starter_projected_score":
+            round(
+                sum(
+                    player[
+                        "projection"
+                    ]
+                    for player
+                    in starter_rows
+                ),
+                2,
+            ),
+        "captain_projection":
+            round(
+                captain_player[
+                    "projection"
+                ],
+                2,
+            ),
         "squad_cost":
             sum(
                 player["value"]
@@ -1570,6 +1682,193 @@ def _solve_projected_free_hit(
             starter_rows,
         "squad":
             squad,
+    }
+
+
+def _captain_ownership_pool(
+    players,
+    size=FH_CAPTAIN_OWNERSHIP_POOL_SIZE,
+):
+    active = [
+        player
+        for player in players
+        if int(
+            player.get(
+                "fixture_rows",
+                0,
+            )
+            or 0
+        ) > 0
+    ]
+
+    return {
+        player[
+            "player_name"
+        ]
+        for player in sorted(
+            active,
+            key=lambda row: (
+                -int(
+                    row.get(
+                        "selected",
+                        0,
+                    )
+                    or 0
+                ),
+                -float(
+                    row.get(
+                        "projection",
+                        0.0,
+                    )
+                    or 0.0
+                ),
+                row[
+                    "player_name"
+                ],
+            ),
+        )[:int(size)]
+    }
+
+
+def _players_with_projection(
+    players,
+    projection_key,
+):
+    return [
+        {
+            **player,
+            "projection":
+                float(
+                    player.get(
+                        projection_key,
+                        player.get(
+                            "projection",
+                            0.0,
+                        ),
+                    )
+                    or 0.0
+                ),
+        }
+        for player in players
+    ]
+
+
+def _remap_squad(
+    squad,
+    players,
+):
+    by_element = {
+        int(
+            player[
+                "fpl_element_id"
+            ]
+        ):
+            player
+        for player in players
+        if player.get(
+            "fpl_element_id"
+        ) is not None
+    }
+
+    return [
+        by_element.get(
+            int(
+                player[
+                    "fpl_element_id"
+                ]
+            ),
+            player,
+        )
+        if player.get(
+            "fpl_element_id"
+        ) is not None
+        else player
+        for player in squad
+    ]
+
+
+def _fh_sensitivity_model(
+    key,
+    label,
+    free_hit,
+    template,
+    note,
+):
+    if (
+        free_hit is None
+        or template is None
+    ):
+        return {
+            "key": key,
+            "label": label,
+            "available": False,
+            "note": note,
+        }
+
+    return {
+        "key": key,
+        "label": label,
+        "available": True,
+        "note": note,
+        "projected_uplift":
+            round(
+                float(
+                    free_hit[
+                        "projected_score"
+                    ]
+                )
+                - float(
+                    template[
+                        "projected_score"
+                    ]
+                ),
+                2,
+            ),
+        "realised_uplift":
+            float(
+                free_hit[
+                    "score"
+                ]
+                - template[
+                    "score"
+                ]
+            ),
+        "starter_projected_uplift":
+            round(
+                float(
+                    free_hit[
+                        "starter_projected_score"
+                    ]
+                )
+                - float(
+                    template[
+                        "starter_projected_score"
+                    ]
+                ),
+                2,
+            ),
+        "captain_projected_uplift":
+            round(
+                float(
+                    free_hit[
+                        "captain_projection"
+                    ]
+                )
+                - float(
+                    template[
+                        "captain_projection"
+                    ]
+                ),
+                2,
+            ),
+        "free_hit_captain":
+            free_hit[
+                "captain"
+            ],
+        "template_captain":
+            template[
+                "captain"
+            ],
     }
 
 
@@ -1655,6 +1954,110 @@ def _predeadline_fh_outcome(
             "FH",
         )
     )
+    captain_pool = (
+        _captain_ownership_pool(
+            players
+        )
+    )
+    captain_pool_free_hit = (
+        _score_predeadline_lineup(
+            free_hit[
+                "squad"
+            ],
+            captain_pool=captain_pool,
+        )
+    )
+    captain_pool_template = (
+        _score_predeadline_lineup(
+            template[
+                "squad"
+            ],
+            captain_pool=captain_pool,
+        )
+    )
+    history_floor_players = [
+        player
+        for player in players
+        if (
+            int(
+                player.get(
+                    "season_appearances",
+                    0,
+                )
+                or 0
+            )
+            >= SMALL_SAMPLE_SEASON_APPEARANCES
+            and int(
+                player.get(
+                    "recent_appearances",
+                    0,
+                )
+                or 0
+            )
+            >= SMALL_SAMPLE_RECENT_APPEARANCES
+        )
+    ]
+    history_floor_free_hit = (
+        _solve_projected_free_hit(
+            history_floor_players
+        )
+    )
+    regressed_players = (
+        _players_with_projection(
+            players,
+            "regressed_projection",
+        )
+    )
+    regressed_free_hit = (
+        _solve_projected_free_hit(
+            regressed_players
+        )
+    )
+    regressed_template = (
+        _score_predeadline_lineup(
+            _remap_squad(
+                template[
+                    "squad"
+                ],
+                regressed_players,
+            )
+        )
+    )
+    sensitivity_models = [
+        _fh_sensitivity_model(
+            "captain_pool_50",
+            "Top-50 ownership captain rescore",
+            captain_pool_free_hit,
+            captain_pool_template,
+            (
+                "Rescores the selected squads and XIs with "
+                "captaincy limited to the 50 most-owned active "
+                "players."
+            ),
+        ),
+        _fh_sensitivity_model(
+            "history_floor",
+            "Minimum history (5 season/2 recent)",
+            history_floor_free_hit,
+            template,
+            (
+                "FH candidates require at least five season and "
+                "two recent appearances; the reconstructed "
+                "template is unchanged."
+            ),
+        ),
+        _fh_sensitivity_model(
+            "regressed_form",
+            "Regressed small samples (toward 2 PPG)",
+            regressed_free_hit,
+            regressed_template,
+            (
+                "Season and recent PPG are regressed toward two "
+                "points per appearance until the appearance "
+                "thresholds are met."
+            ),
+        ),
+    ]
 
     return {
         "free_hit":
@@ -1669,6 +2072,8 @@ def _predeadline_fh_outcome(
             prepared[
                 "unresolved_teams"
             ],
+        "sensitivity_models":
+            sensitivity_models,
     }
 
 
@@ -1890,6 +2295,7 @@ def _fh_outcome_detail(
     players,
     omniscient=None,
     unresolved_teams=None,
+    sensitivity_models=None,
 ):
     eligible = _eligible_players(
         players
@@ -1953,6 +2359,11 @@ def _fh_outcome_detail(
                     eligible,
                 ),
         },
+        "sensitivity_models":
+            list(
+                sensitivity_models
+                or []
+            ),
         "player_pool": {
             "eligible_players":
                 len(eligible),
@@ -2267,6 +2678,9 @@ def _outcome_for_chip(
                     unresolved_teams=comparison[
                         "unresolved_teams"
                     ],
+                    sensitivity_models=comparison[
+                        "sensitivity_models"
+                    ],
                 ),
         }
 
@@ -2370,6 +2784,453 @@ def _fh_projection_summary(
                 if projected_uplifts
                 else None
             ),
+    }
+
+
+def _fh_model_metrics(
+    rows,
+):
+    available = [
+        row
+        for row in rows
+        if (
+            row.get(
+                "projected_uplift"
+            ) is not None
+            and row.get(
+                "realised_uplift"
+            ) is not None
+        )
+    ]
+    projected = [
+        float(
+            row[
+                "projected_uplift"
+            ]
+        )
+        for row in available
+    ]
+    realised = [
+        float(
+            row[
+                "realised_uplift"
+            ]
+        )
+        for row in available
+    ]
+    errors = [
+        prediction - outcome
+        for prediction, outcome
+        in zip(
+            projected,
+            realised,
+            strict=True,
+        )
+    ]
+    starter_components = [
+        float(
+            row[
+                "starter_projected_uplift"
+            ]
+        )
+        for row in available
+        if row.get(
+            "starter_projected_uplift"
+        ) is not None
+    ]
+    captain_components = [
+        float(
+            row[
+                "captain_projected_uplift"
+            ]
+        )
+        for row in available
+        if row.get(
+            "captain_projected_uplift"
+        ) is not None
+    ]
+
+    return {
+        "case_count":
+            len(available),
+        "spearman":
+            _spearman(
+                projected,
+                realised,
+            ),
+        "projected_mean":
+            (
+                round(
+                    mean(projected),
+                    2,
+                )
+                if projected
+                else None
+            ),
+        "realised_mean":
+            (
+                round(
+                    mean(realised),
+                    2,
+                )
+                if realised
+                else None
+            ),
+        "mean_error":
+            (
+                round(
+                    mean(errors),
+                    2,
+                )
+                if errors
+                else None
+            ),
+        "mean_absolute_error":
+            (
+                round(
+                    mean(
+                        abs(error)
+                        for error in errors
+                    ),
+                    2,
+                )
+                if errors
+                else None
+            ),
+        "starter_projected_mean":
+            (
+                round(
+                    mean(
+                        starter_components
+                    ),
+                    2,
+                )
+                if starter_components
+                else None
+            ),
+        "captain_projected_mean":
+            (
+                round(
+                    mean(
+                        captain_components
+                    ),
+                    2,
+                )
+                if captain_components
+                else None
+            ),
+    }
+
+
+def _fh_sensitivity_summaries(
+    cases,
+):
+    definitions = [
+        {
+            "key": "baseline",
+            "label": "Current proxy",
+            "note": (
+                "Existing pre-deadline FH proxy."
+            ),
+        },
+        {
+            "key": "captain_pool_50",
+            "label": "Top-50 ownership captain rescore",
+            "note": (
+                "Rescores selected squads with a broad, "
+                "ownership-based captain pool."
+            ),
+        },
+        {
+            "key": "history_floor",
+            "label": "Minimum history (5 season/2 recent)",
+            "note": (
+                "FH candidates require five season and two "
+                "recent appearances."
+            ),
+        },
+        {
+            "key": "regressed_form",
+            "label": "Regressed small samples (toward 2 PPG)",
+            "note": (
+                "Small-sample PPG is regressed toward two "
+                "points per appearance."
+            ),
+        },
+    ]
+    summaries = []
+
+    for definition in definitions:
+        rows = []
+
+        for case in cases:
+            if definition["key"] == "baseline":
+                detail = (
+                    case.get("detail")
+                    or {}
+                )
+                free_hit = (
+                    detail.get("free_hit")
+                    or {}
+                )
+                template = (
+                    detail.get("template")
+                    or {}
+                )
+                rows.append({
+                    "kind":
+                        case["kind"],
+                    "projected_uplift":
+                        case.get(
+                            "projected_uplift"
+                        ),
+                    "realised_uplift":
+                        case["outcome"],
+                    "starter_projected_uplift":
+                        (
+                            float(
+                                free_hit[
+                                    "starter_projected_score"
+                                ]
+                            )
+                            - float(
+                                template[
+                                    "starter_projected_score"
+                                ]
+                            )
+                            if (
+                                free_hit.get(
+                                    "starter_projected_score"
+                                ) is not None
+                                and template.get(
+                                    "starter_projected_score"
+                                ) is not None
+                            )
+                            else None
+                        ),
+                    "captain_projected_uplift":
+                        (
+                            float(
+                                free_hit[
+                                    "captain_projection"
+                                ]
+                            )
+                            - float(
+                                template[
+                                    "captain_projection"
+                                ]
+                            )
+                            if (
+                                free_hit.get(
+                                    "captain_projection"
+                                ) is not None
+                                and template.get(
+                                    "captain_projection"
+                                ) is not None
+                            )
+                            else None
+                        ),
+                })
+                continue
+
+            models = (
+                (
+                    case.get("detail")
+                    or {}
+                ).get(
+                    "sensitivity_models",
+                    [],
+                )
+            )
+            model = next(
+                (
+                    row
+                    for row in models
+                    if row.get(
+                        "key"
+                    ) == definition[
+                        "key"
+                    ]
+                ),
+                None,
+            )
+
+            if (
+                model is None
+                or not model.get(
+                    "available",
+                    False,
+                )
+            ):
+                continue
+
+            rows.append({
+                **model,
+                "kind":
+                    case["kind"],
+            })
+
+        summaries.append({
+            **definition,
+            "overall":
+                _fh_model_metrics(
+                    rows
+                ),
+            "blank_only":
+                _fh_model_metrics(
+                    [
+                        row
+                        for row in rows
+                        if row["kind"]
+                        == "blank"
+                    ]
+                ),
+            "blank_double":
+                _fh_model_metrics(
+                    [
+                        row
+                        for row in rows
+                        if row["kind"]
+                        == "blank_double"
+                    ]
+                ),
+        })
+
+    return summaries
+
+
+def _fh_projection_error_diagnostics(
+    cases,
+    limit=5,
+):
+    rows = []
+
+    for case in cases:
+        projected = case.get(
+            "projected_uplift"
+        )
+
+        if projected is None:
+            continue
+
+        detail = (
+            case.get("detail")
+            or {}
+        )
+        free_hit = (
+            detail.get("free_hit")
+            or {}
+        )
+        template = (
+            detail.get("template")
+            or {}
+        )
+        starter = None
+        captain = None
+
+        if (
+            free_hit.get(
+                "starter_projected_score"
+            ) is not None
+            and template.get(
+                "starter_projected_score"
+            ) is not None
+        ):
+            starter = round(
+                float(
+                    free_hit[
+                        "starter_projected_score"
+                    ]
+                )
+                - float(
+                    template[
+                        "starter_projected_score"
+                    ]
+                ),
+                2,
+            )
+
+        if (
+            free_hit.get(
+                "captain_projection"
+            ) is not None
+            and template.get(
+                "captain_projection"
+            ) is not None
+        ):
+            captain = round(
+                float(
+                    free_hit[
+                        "captain_projection"
+                    ]
+                )
+                - float(
+                    template[
+                        "captain_projection"
+                    ]
+                ),
+                2,
+            )
+
+        rows.append({
+            "season":
+                case["season"],
+            "gameweek":
+                case["gameweek"],
+            "kind":
+                case["kind"],
+            "projected_uplift":
+                float(projected),
+            "realised_uplift":
+                float(
+                    case["outcome"]
+                ),
+            "error":
+                round(
+                    float(projected)
+                    - float(
+                        case[
+                            "outcome"
+                        ]
+                    ),
+                    2,
+                ),
+            "starter_projected_uplift":
+                starter,
+            "captain_projected_uplift":
+                captain,
+        })
+
+    return {
+        "highest_projected":
+            sorted(
+                rows,
+                key=lambda row: (
+                    -row[
+                        "projected_uplift"
+                    ],
+                    row["season"],
+                    row["gameweek"],
+                ),
+            )[:int(limit)],
+        "largest_overprediction":
+            sorted(
+                rows,
+                key=lambda row: (
+                    -row["error"],
+                    row["season"],
+                    row["gameweek"],
+                ),
+            )[:int(limit)],
+        "largest_underprediction":
+            sorted(
+                rows,
+                key=lambda row: (
+                    row["error"],
+                    row["season"],
+                    row["gameweek"],
+                ),
+            )[:int(limit)],
     }
 
 
@@ -2732,6 +3593,22 @@ def backtest_historical_chip_outcomes(
                 ],
             "projection_validation":
                 projection_summary,
+            "sensitivity_models":
+                (
+                    _fh_sensitivity_summaries(
+                        cases
+                    )
+                    if chip == "FH"
+                    else []
+                ),
+            "projection_error_diagnostics":
+                (
+                    _fh_projection_error_diagnostics(
+                        cases
+                    )
+                    if chip == "FH"
+                    else None
+                ),
             "excluded_unplayable":
                 excluded_unplayable,
             "archetypes":

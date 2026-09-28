@@ -52,6 +52,20 @@ def _format_small_samples(
     )
 
 
+def _format_projection_case(
+    row,
+):
+    return (
+        f"{row['season']} GW{row['gameweek']} "
+        f"({row['kind']}): projected "
+        f"{row['projected_uplift']:.1f} · realised "
+        f"{row['realised_uplift']:.1f} · error "
+        f"{row['error']:+.1f} · XI "
+        f"{row['starter_projected_uplift']:+.1f} · captain "
+        f"{row['captain_projected_uplift']:+.1f}"
+    )
+
+
 def main():
     seasons = imported_seasons()
 
@@ -126,6 +140,80 @@ def main():
                     f"mean outcome "
                     f"{archetype['outcome_mean']}",
                 )
+
+        if chip.get(
+            "sensitivity_models"
+        ):
+            print(
+                "  FH projection sensitivity models:"
+            )
+
+            for model in chip[
+                "sensitivity_models"
+            ]:
+                overall = model[
+                    "overall"
+                ]
+                blank_only = model[
+                    "blank_only"
+                ]
+                blank_double = model[
+                    "blank_double"
+                ]
+                print(
+                    "   ",
+                    f"{model['label']}: "
+                    f"{overall['case_count']} cases · "
+                    f"Spearman {overall['spearman']} · "
+                    f"projected {overall['projected_mean']} · "
+                    f"realised {overall['realised_mean']} · "
+                    "mean error (projected-realised) "
+                    f"{overall['mean_error']} · "
+                    f"MAE {overall['mean_absolute_error']}",
+                )
+                print(
+                    "     ",
+                    "Components: XI "
+                    f"{overall['starter_projected_mean']} · "
+                    "captain "
+                    f"{overall['captain_projected_mean']} · "
+                    "blank-only Spearman "
+                    f"{blank_only['spearman']} · "
+                    "mixed Spearman "
+                    f"{blank_double['spearman']}",
+                )
+
+        projection_errors = chip.get(
+            "projection_error_diagnostics"
+        )
+
+        if projection_errors:
+            for label, key in (
+                (
+                    "Highest projected uplift",
+                    "highest_projected",
+                ),
+                (
+                    "Largest overprediction",
+                    "largest_overprediction",
+                ),
+                (
+                    "Largest underprediction",
+                    "largest_underprediction",
+                ),
+            ):
+                print(
+                    f"  {label}:"
+                )
+                for row in projection_errors[
+                    key
+                ]:
+                    print(
+                        "   ",
+                        _format_projection_case(
+                            row
+                        ),
+                    )
 
         if chip.get(
             "fh_diagnostics"
