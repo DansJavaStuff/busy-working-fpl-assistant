@@ -2922,6 +2922,104 @@ def _fh_model_metrics(
     }
 
 
+def _fh_baseline_model_row(
+    case,
+):
+    detail = (
+        case.get("detail")
+        or {}
+    )
+    free_hit = (
+        detail.get("free_hit")
+        or {}
+    )
+    template = (
+        detail.get("template")
+        or {}
+    )
+
+    return {
+        "kind":
+            case["kind"],
+        "projected_uplift":
+            case.get(
+                "projected_uplift"
+            ),
+        "realised_uplift":
+            case["outcome"],
+        "starter_projected_uplift":
+            (
+                float(
+                    free_hit[
+                        "starter_projected_score"
+                    ]
+                )
+                - float(
+                    template[
+                        "starter_projected_score"
+                    ]
+                )
+                if (
+                    free_hit.get(
+                        "starter_projected_score"
+                    ) is not None
+                    and template.get(
+                        "starter_projected_score"
+                    ) is not None
+                )
+                else None
+            ),
+        "captain_projected_uplift":
+            (
+                float(
+                    free_hit[
+                        "captain_projection"
+                    ]
+                )
+                - float(
+                    template[
+                        "captain_projection"
+                    ]
+                )
+                if (
+                    free_hit.get(
+                        "captain_projection"
+                    ) is not None
+                    and template.get(
+                        "captain_projection"
+                    ) is not None
+                )
+                else None
+            ),
+    }
+
+
+def _fh_sensitivity_model_for_case(
+    case,
+    key,
+):
+    models = (
+        (
+            case.get("detail")
+            or {}
+        ).get(
+            "sensitivity_models",
+            [],
+        )
+    )
+
+    return next(
+        (
+            row
+            for row in models
+            if row.get(
+                "key"
+            ) == key
+        ),
+        None,
+    )
+
+
 def _fh_sensitivity_summaries(
     cases,
 ):
@@ -2962,97 +3060,30 @@ def _fh_sensitivity_summaries(
 
     for definition in definitions:
         rows = []
+        paired_baseline_rows = []
 
         for case in cases:
             if definition["key"] == "baseline":
-                detail = (
-                    case.get("detail")
-                    or {}
+                baseline_row = (
+                    _fh_baseline_model_row(
+                        case
+                    )
                 )
-                free_hit = (
-                    detail.get("free_hit")
-                    or {}
+                rows.append(
+                    baseline_row
                 )
-                template = (
-                    detail.get("template")
-                    or {}
+                paired_baseline_rows.append(
+                    baseline_row
                 )
-                rows.append({
-                    "kind":
-                        case["kind"],
-                    "projected_uplift":
-                        case.get(
-                            "projected_uplift"
-                        ),
-                    "realised_uplift":
-                        case["outcome"],
-                    "starter_projected_uplift":
-                        (
-                            float(
-                                free_hit[
-                                    "starter_projected_score"
-                                ]
-                            )
-                            - float(
-                                template[
-                                    "starter_projected_score"
-                                ]
-                            )
-                            if (
-                                free_hit.get(
-                                    "starter_projected_score"
-                                ) is not None
-                                and template.get(
-                                    "starter_projected_score"
-                                ) is not None
-                            )
-                            else None
-                        ),
-                    "captain_projected_uplift":
-                        (
-                            float(
-                                free_hit[
-                                    "captain_projection"
-                                ]
-                            )
-                            - float(
-                                template[
-                                    "captain_projection"
-                                ]
-                            )
-                            if (
-                                free_hit.get(
-                                    "captain_projection"
-                                ) is not None
-                                and template.get(
-                                    "captain_projection"
-                                ) is not None
-                            )
-                            else None
-                        ),
-                })
                 continue
 
-            models = (
-                (
-                    case.get("detail")
-                    or {}
-                ).get(
-                    "sensitivity_models",
-                    [],
+            model = (
+                _fh_sensitivity_model_for_case(
+                    case,
+                    definition[
+                        "key"
+                    ],
                 )
-            )
-            model = next(
-                (
-                    row
-                    for row in models
-                    if row.get(
-                        "key"
-                    ) == definition[
-                        "key"
-                    ]
-                ),
-                None,
             )
 
             if (
@@ -3069,6 +3100,11 @@ def _fh_sensitivity_summaries(
                 "kind":
                     case["kind"],
             })
+            paired_baseline_rows.append(
+                _fh_baseline_model_row(
+                    case
+                )
+            )
 
         summaries.append({
             **definition,
@@ -3094,9 +3130,276 @@ def _fh_sensitivity_summaries(
                         == "blank_double"
                     ]
                 ),
+            "paired_baseline": {
+                "overall":
+                    _fh_model_metrics(
+                        paired_baseline_rows
+                    ),
+                "blank_only":
+                    _fh_model_metrics(
+                        [
+                            row
+                            for row
+                            in paired_baseline_rows
+                            if row["kind"]
+                            == "blank"
+                        ]
+                    ),
+                "blank_double":
+                    _fh_model_metrics(
+                        [
+                            row
+                            for row
+                            in paired_baseline_rows
+                            if row["kind"]
+                            == "blank_double"
+                        ]
+                    ),
+            },
         })
 
     return summaries
+
+
+def _empirical_percentile(
+    value,
+    reference,
+):
+    if not reference:
+        return None
+
+    lower = sum(
+        1
+        for item in reference
+        if item < value
+    )
+    equal = sum(
+        1
+        for item in reference
+        if item == value
+    )
+
+    return (
+        lower
+        + 0.5 * equal
+    ) / len(reference)
+
+
+def _fh_blank_only_loso_validation(
+    cases,
+):
+    rows = []
+
+    for case in cases:
+        if case["kind"] != "blank":
+            continue
+
+        model = (
+            _fh_sensitivity_model_for_case(
+                case,
+                "regressed_form",
+            )
+        )
+
+        if (
+            model is None
+            or not model.get(
+                "available",
+                False,
+            )
+        ):
+            continue
+
+        rows.append({
+            "season":
+                case["season"],
+            "gameweek":
+                case["gameweek"],
+            "signal":
+                float(
+                    case["signal"]
+                ),
+            "projected_uplift":
+                float(
+                    model[
+                        "projected_uplift"
+                    ]
+                ),
+            "realised_uplift":
+                float(
+                    model[
+                        "realised_uplift"
+                    ]
+                ),
+        })
+
+    scored = []
+    season_summaries = []
+
+    for season in sorted({
+        row["season"]
+        for row in rows
+    }):
+        training = [
+            row
+            for row in rows
+            if row["season"]
+            != season
+        ]
+        held_out = [
+            row
+            for row in rows
+            if row["season"]
+            == season
+        ]
+        training_signals = [
+            row["signal"]
+            for row in training
+        ]
+        training_projections = [
+            row[
+                "projected_uplift"
+            ]
+            for row in training
+        ]
+        held_scores = []
+
+        for row in held_out:
+            signal_score = (
+                _empirical_percentile(
+                    row["signal"],
+                    training_signals,
+                )
+            )
+            projection_score = (
+                _empirical_percentile(
+                    row[
+                        "projected_uplift"
+                    ],
+                    training_projections,
+                )
+            )
+
+            if (
+                signal_score is None
+                or projection_score
+                is None
+            ):
+                continue
+
+            scored_row = {
+                **row,
+                "signal_score":
+                    signal_score,
+                "projection_score":
+                    projection_score,
+                "combined_score":
+                    (
+                        signal_score
+                        + projection_score
+                    ) / 2,
+            }
+            scored.append(
+                scored_row
+            )
+            held_scores.append(
+                scored_row
+            )
+
+        outcomes = [
+            row[
+                "realised_uplift"
+            ]
+            for row in held_scores
+        ]
+        season_summaries.append({
+            "season":
+                season,
+            "case_count":
+                len(held_scores),
+            "signal_spearman":
+                _spearman(
+                    [
+                        row[
+                            "signal_score"
+                        ]
+                        for row
+                        in held_scores
+                    ],
+                    outcomes,
+                ),
+            "projection_spearman":
+                _spearman(
+                    [
+                        row[
+                            "projection_score"
+                        ]
+                        for row
+                        in held_scores
+                    ],
+                    outcomes,
+                ),
+            "combined_spearman":
+                _spearman(
+                    [
+                        row[
+                            "combined_score"
+                        ]
+                        for row
+                        in held_scores
+                    ],
+                    outcomes,
+                ),
+        })
+
+    outcomes = [
+        row[
+            "realised_uplift"
+        ]
+        for row in scored
+    ]
+
+    return {
+        "case_count":
+            len(scored),
+        "signal_spearman":
+            _spearman(
+                [
+                    row[
+                        "signal_score"
+                    ]
+                    for row in scored
+                ],
+                outcomes,
+            ),
+        "projection_spearman":
+            _spearman(
+                [
+                    row[
+                        "projection_score"
+                    ]
+                    for row in scored
+                ],
+                outcomes,
+            ),
+        "combined_spearman":
+            _spearman(
+                [
+                    row[
+                        "combined_score"
+                    ]
+                    for row in scored
+                ],
+                outcomes,
+            ),
+        "seasons":
+            season_summaries,
+        "mixed_blank_double_status":
+            (
+                "Uncalibrated: only eight historical cases; "
+                "no combined model fitted."
+            ),
+    }
 
 
 def _fh_projection_error_diagnostics(
@@ -3199,6 +3502,46 @@ def _fh_projection_error_diagnostics(
                 starter,
             "captain_projected_uplift":
                 captain,
+            "blank_team_count":
+                case.get(
+                    "blank_team_count"
+                ),
+            "double_team_count":
+                case.get(
+                    "double_team_count"
+                ),
+            "active_team_count":
+                case.get(
+                    "active_team_count"
+                ),
+            "scheduled_fixture_count":
+                case.get(
+                    "scheduled_fixture_count"
+                ),
+            "template_score":
+                template.get("score"),
+            "free_hit_score":
+                free_hit.get("score"),
+            "template_projection":
+                template.get(
+                    "projected_score"
+                ),
+            "free_hit_projection":
+                free_hit.get(
+                    "projected_score"
+                ),
+            "template_captain":
+                template.get("captain"),
+            "free_hit_captain":
+                free_hit.get("captain"),
+            "template_xi":
+                detail.get("template_xi"),
+            "free_hit_xi":
+                detail.get("free_hit_xi"),
+            "captain_sanity":
+                detail.get(
+                    "captain_sanity"
+                ),
         })
 
     return {
@@ -3538,6 +3881,22 @@ def backtest_historical_chip_outcomes(
                         detail,
                     "projected_uplift":
                         projected_uplift,
+                    "blank_team_count":
+                        feature.get(
+                            "blank_team_count"
+                        ),
+                    "double_team_count":
+                        feature.get(
+                            "double_team_count"
+                        ),
+                    "active_team_count":
+                        feature.get(
+                            "active_team_count"
+                        ),
+                    "scheduled_fixture_count":
+                        feature.get(
+                            "scheduled_fixture_count"
+                        ),
                 })
 
         summary = _case_summary(
@@ -3604,6 +3963,14 @@ def backtest_historical_chip_outcomes(
             "projection_error_diagnostics":
                 (
                     _fh_projection_error_diagnostics(
+                        cases
+                    )
+                    if chip == "FH"
+                    else None
+                ),
+            "blank_only_loso_validation":
+                (
+                    _fh_blank_only_loso_validation(
                         cases
                     )
                     if chip == "FH"

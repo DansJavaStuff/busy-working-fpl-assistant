@@ -3,11 +3,14 @@ from unittest.mock import patch
 
 from historical_realised_backtest import (
     _captain_ownership_pool,
+    _empirical_percentile,
     _fh_archetype_summaries,
+    _fh_blank_only_loso_validation,
     _fh_extreme_diagnostics,
     _fh_model_metrics,
     _fh_outcome_detail,
     _fh_projection_error_diagnostics,
+    _fh_sensitivity_summaries,
     _prepare_predeadline_players,
     _rankdata,
     _score_fixed_squad,
@@ -588,6 +591,153 @@ class HistoricalRealisedBacktestTests(
                 "captain_projected_mean"
             ],
             6.0,
+        )
+
+    def test_empirical_percentile_averages_ties(self):
+        self.assertEqual(
+            _empirical_percentile(
+                20,
+                [10, 20, 20, 40],
+            ),
+            0.5,
+        )
+
+    def test_sensitivity_summary_pairs_baseline_on_same_cases(self):
+        cases = []
+
+        for index in range(3):
+            models = []
+
+            if index < 2:
+                models.append({
+                    "key": "history_floor",
+                    "available": True,
+                    "projected_uplift":
+                        float(index + 1),
+                    "realised_uplift":
+                        float(index + 1),
+                    "starter_projected_uplift":
+                        float(index + 1),
+                    "captain_projected_uplift":
+                        0.0,
+                })
+
+            cases.append({
+                "kind": "blank",
+                "projected_uplift":
+                    float(3 - index),
+                "outcome":
+                    float(index + 1),
+                "detail": {
+                    "free_hit": {
+                        "starter_projected_score":
+                            float(3 - index),
+                        "captain_projection":
+                            0.0,
+                    },
+                    "template": {
+                        "starter_projected_score":
+                            0.0,
+                        "captain_projection":
+                            0.0,
+                    },
+                    "sensitivity_models":
+                        models,
+                },
+            })
+
+        summaries = {
+            row["key"]: row
+            for row in _fh_sensitivity_summaries(
+                cases
+            )
+        }
+        history = summaries[
+            "history_floor"
+        ]
+
+        self.assertEqual(
+            history["overall"][
+                "case_count"
+            ],
+            2,
+        )
+        self.assertEqual(
+            history[
+                "paired_baseline"
+            ]["overall"]["case_count"],
+            2,
+        )
+        self.assertEqual(
+            history["overall"][
+                "spearman"
+            ],
+            1.0,
+        )
+        self.assertEqual(
+            history[
+                "paired_baseline"
+            ]["overall"]["spearman"],
+            -1.0,
+        )
+
+    def test_blank_only_loso_blends_without_target_week_tuning(self):
+        cases = []
+
+        for season, values in (
+            ("A", [10.0, 40.0]),
+            ("B", [20.0, 50.0]),
+            ("C", [30.0, 60.0]),
+        ):
+            for gameweek, value in enumerate(
+                values,
+                start=1,
+            ):
+                cases.append({
+                    "season": season,
+                    "gameweek": gameweek,
+                    "kind": "blank",
+                    "signal": value,
+                    "detail": {
+                        "sensitivity_models": [
+                            {
+                                "key": "regressed_form",
+                                "available": True,
+                                "projected_uplift": value,
+                                "realised_uplift": value,
+                            }
+                        ]
+                    },
+                })
+
+        cases.append({
+            "season": "C",
+            "gameweek": 3,
+            "kind": "blank_double",
+            "signal": 100.0,
+            "detail": {
+                "sensitivity_models": []
+            },
+        })
+        result = (
+            _fh_blank_only_loso_validation(
+                cases
+            )
+        )
+
+        self.assertEqual(
+            result["case_count"],
+            6,
+        )
+        self.assertGreater(
+            result["combined_spearman"],
+            0.9,
+        )
+        self.assertIn(
+            "Uncalibrated",
+            result[
+                "mixed_blank_double_status"
+            ],
         )
 
     def test_projection_error_diagnostics_rank_overprediction(self):
