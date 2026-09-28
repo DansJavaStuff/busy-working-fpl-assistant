@@ -66,6 +66,21 @@ def _format_projection_case(
     )
 
 
+def _format_captain_sanity(
+    captain,
+):
+    if not captain:
+        return "unavailable"
+
+    return (
+        f"{captain['player']} · ownership rank "
+        f"{captain['ownership_rank']}/"
+        f"{captain['candidate_count']} · season apps "
+        f"{captain['season_appearances']} · recent apps "
+        f"{captain['recent_appearances']}"
+    )
+
+
 def main():
     seasons = imported_seasons()
 
@@ -182,6 +197,58 @@ def main():
                     "mixed Spearman "
                     f"{blank_double['spearman']}",
                 )
+                if model[
+                    "key"
+                ] != "baseline":
+                    paired = model[
+                        "paired_baseline"
+                    ]["overall"]
+                    print(
+                        "     ",
+                        "Paired current proxy on the same "
+                        f"{paired['case_count']} cases: "
+                        f"Spearman {paired['spearman']} · "
+                        "mean error "
+                        f"{paired['mean_error']} · "
+                        f"MAE {paired['mean_absolute_error']}",
+                    )
+
+        loso = chip.get(
+            "blank_only_loso_validation"
+        )
+
+        if loso:
+            print(
+                "  Blank-only leave-one-season-out ranking:"
+            )
+            print(
+                "   ",
+                f"{loso['case_count']} cases · "
+                "fixture signal Spearman "
+                f"{loso['signal_spearman']} · "
+                "regressed projection Spearman "
+                f"{loso['projection_spearman']} · "
+                "equal-rank blend Spearman "
+                f"{loso['combined_spearman']}",
+            )
+            for season in loso[
+                "seasons"
+            ]:
+                print(
+                    "   ",
+                    f"{season['season']}: "
+                    f"{season['case_count']} cases · "
+                    f"signal {season['signal_spearman']} · "
+                    "projection "
+                    f"{season['projection_spearman']} · "
+                    f"blend {season['combined_spearman']}",
+                )
+            print(
+                "   ",
+                loso[
+                    "mixed_blank_double_status"
+                ],
+            )
 
         projection_errors = chip.get(
             "projection_error_diagnostics"
@@ -214,6 +281,77 @@ def main():
                             row
                         ),
                     )
+
+            print(
+                "  Largest-overprediction autopsies:"
+            )
+            for row in projection_errors[
+                "largest_overprediction"
+            ][:4]:
+                template_xi = (
+                    row.get("template_xi")
+                    or {}
+                )
+                free_hit_xi = (
+                    row.get("free_hit_xi")
+                    or {}
+                )
+                captain_sanity = (
+                    row.get(
+                        "captain_sanity"
+                    )
+                    or {}
+                )
+                print(
+                    "   ",
+                    f"{row['season']} GW{row['gameweek']} "
+                    f"({row['kind']}): blanks "
+                    f"{row['blank_team_count']} · doubles "
+                    f"{row['double_team_count']} · active teams "
+                    f"{row['active_team_count']} · fixtures "
+                    f"{row['scheduled_fixture_count']}",
+                )
+                print(
+                    "     ",
+                    f"Template {row['template_score']}pts/"
+                    f"{row['template_projection']}pred · "
+                    f"FH {row['free_hit_score']}pts/"
+                    f"{row['free_hit_projection']}pred",
+                )
+                print(
+                    "      Template XI:",
+                    _format_lineup(
+                        template_xi,
+                        row[
+                            "template_captain"
+                        ],
+                    ),
+                )
+                print(
+                    "      Free Hit XI:",
+                    _format_lineup(
+                        free_hit_xi,
+                        row[
+                            "free_hit_captain"
+                        ],
+                    ),
+                )
+                print(
+                    "     ",
+                    "Template captain: "
+                    f"{_format_captain_sanity(captain_sanity.get('template'))}",
+                )
+                print(
+                    "     ",
+                    "Free Hit captain: "
+                    f"{_format_captain_sanity(captain_sanity.get('free_hit'))}",
+                )
+                print(
+                    "     ",
+                    "Small samples: template "
+                    f"{_format_small_samples(template_xi)} · "
+                    f"FH {_format_small_samples(free_hit_xi)}",
+                )
 
         if chip.get(
             "fh_diagnostics"
