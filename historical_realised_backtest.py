@@ -44,6 +44,8 @@ SIGNAL_KEYS = {
 TC_CAPTAINABLE_POOL_SIZE = 20
 RECENT_FORM_GAMEWEEKS = 5
 PLAYER_POOL_RECENCY_GAMEWEEKS = 3
+SMALL_SAMPLE_SEASON_APPEARANCES = 5
+SMALL_SAMPLE_RECENT_APPEARANCES = 2
 
 
 def _normalise_position(position):
@@ -1706,6 +1708,30 @@ def _player_diagnostic(
             player[
                 "selected"
             ],
+        "season_appearances":
+            int(
+                player.get(
+                    "season_appearances",
+                    0,
+                )
+                or 0
+            ),
+        "recent_appearances":
+            int(
+                player.get(
+                    "recent_appearances",
+                    0,
+                )
+                or 0
+            ),
+        "recent_minutes":
+            int(
+                player.get(
+                    "recent_minutes",
+                    0,
+                )
+                or 0
+            ),
         "projection":
             (
                 round(
@@ -1723,9 +1749,95 @@ def _player_diagnostic(
     }
 
 
+def _captain_sanity(
+    captain,
+    players,
+):
+    candidates = [
+        player
+        for player in _eligible_players(
+            players
+        )
+        if int(
+            player.get(
+                "fixture_rows",
+                0,
+            )
+            or 0
+        ) > 0
+    ]
+    captain_player = next(
+        (
+            player
+            for player in candidates
+            if player[
+                "player_name"
+            ] == captain
+        ),
+        None,
+    )
+
+    if captain_player is None:
+        return None
+
+    selected = int(
+        captain_player.get(
+            "selected",
+            0,
+        )
+        or 0
+    )
+
+    return {
+        **_player_diagnostic(
+            captain_player
+        ),
+        "ownership_rank":
+            1
+            + sum(
+                1
+                for player in candidates
+                if int(
+                    player.get(
+                        "selected",
+                        0,
+                    )
+                    or 0
+                ) > selected
+            ),
+        "candidate_count":
+            len(candidates),
+    }
+
+
 def _lineup_diagnostic(
     players,
 ):
+    small_sample_players = [
+        player[
+            "player_name"
+        ]
+        for player in players
+        if (
+            int(
+                player.get(
+                    "season_appearances",
+                    0,
+                )
+                or 0
+            )
+            < SMALL_SAMPLE_SEASON_APPEARANCES
+            or int(
+                player.get(
+                    "recent_appearances",
+                    0,
+                )
+                or 0
+            )
+            < SMALL_SAMPLE_RECENT_APPEARANCES
+        )
+    ]
+
     return {
         "player_count":
             len(players),
@@ -1751,6 +1863,10 @@ def _lineup_diagnostic(
                     )
                     or 0
                 ) == 0
+            ),
+        "small_sample_players":
+            sorted(
+                small_sample_players
             ),
         "players": [
             _player_diagnostic(
@@ -1821,6 +1937,22 @@ def _fh_outcome_detail(
                     "starters"
                 ]
             ),
+        "captain_sanity": {
+            "free_hit":
+                _captain_sanity(
+                    outcome.get(
+                        "captain"
+                    ),
+                    eligible,
+                ),
+            "template":
+                _captain_sanity(
+                    baseline.get(
+                        "captain"
+                    ),
+                    eligible,
+                ),
+        },
         "player_pool": {
             "eligible_players":
                 len(eligible),
@@ -2198,6 +2330,49 @@ def _case_summary(cases):
     }
 
 
+def _fh_projection_summary(
+    cases,
+):
+    comparable = [
+        row
+        for row in cases
+        if row.get(
+            "projected_uplift"
+        ) is not None
+    ]
+    projected_uplifts = [
+        row[
+            "projected_uplift"
+        ]
+        for row in comparable
+    ]
+    outcomes = [
+        row["outcome"]
+        for row in comparable
+    ]
+
+    return {
+        "projected_case_count":
+            len(comparable),
+        "projected_spearman":
+            _spearman(
+                projected_uplifts,
+                outcomes,
+            ),
+        "projected_uplift_mean":
+            (
+                round(
+                    mean(
+                        projected_uplifts
+                    ),
+                    2,
+                )
+                if projected_uplifts
+                else None
+            ),
+    }
+
+
 def _fh_archetype_summaries(
     cases,
 ):
@@ -2231,12 +2406,18 @@ def _fh_archetype_summaries(
         summary = _case_summary(
             matching
         )
+        projection_summary = (
+            _fh_projection_summary(
+                matching
+            )
+        )
         summaries.append({
             "key":
                 key,
             "label":
                 label,
             **summary,
+            **projection_summary,
         })
 
     return summaries
@@ -2312,6 +2493,10 @@ def _fh_extreme_diagnostics(
                 detail.get("free_hit_xi"),
             "player_pool":
                 detail.get("player_pool"),
+            "captain_sanity":
+                detail.get(
+                    "captain_sanity"
+                ),
         })
 
     return diagnostics
@@ -2335,6 +2520,7 @@ def backtest_historical_chip_outcomes(
             ]
         )
         cases = []
+        excluded_unplayable = []
 
         for season in seasons:
             feature_rows = (
@@ -2363,6 +2549,39 @@ def backtest_historical_chip_outcomes(
                         "gameweek"
                     ]
                 )
+
+                if (
+                    chip == "FH"
+                    and feature.get(
+                        "scheduled_fixture_count"
+                    ) == 0
+                ):
+                    excluded_unplayable.append({
+                        "season":
+                            season,
+                        "gameweek":
+                            gameweek,
+                        "kind":
+                            feature[
+                                "kind"
+                            ],
+                        "signal":
+                            signal,
+                        "active_team_count":
+                            int(
+                                feature.get(
+                                    "active_team_count",
+                                    0,
+                                )
+                                or 0
+                            ),
+                        "scheduled_fixture_count":
+                            0,
+                        "reason":
+                            "no scheduled fixtures",
+                    })
+                    continue
+
                 key = (
                     season,
                     gameweek,
@@ -2392,6 +2611,49 @@ def backtest_historical_chip_outcomes(
                 if outcome is None:
                     continue
 
+                detail = outcome[
+                    "detail"
+                ]
+                projected_uplift = None
+
+                if (
+                    chip == "FH"
+                    and detail
+                ):
+                    free_hit = (
+                        detail.get(
+                            "free_hit"
+                        )
+                        or {}
+                    )
+                    template = (
+                        detail.get(
+                            "template"
+                        )
+                        or {}
+                    )
+                    if (
+                        free_hit.get(
+                            "projected_score"
+                        ) is not None
+                        and template.get(
+                            "projected_score"
+                        ) is not None
+                    ):
+                        projected_uplift = round(
+                            float(
+                                free_hit[
+                                    "projected_score"
+                                ]
+                            )
+                            - float(
+                                template[
+                                    "projected_score"
+                                ]
+                            ),
+                            2,
+                        )
+
                 cases.append({
                     "season":
                         season,
@@ -2412,13 +2674,20 @@ def backtest_historical_chip_outcomes(
                             "value"
                         ],
                     "detail":
-                        outcome[
-                            "detail"
-                        ],
+                        detail,
+                    "projected_uplift":
+                        projected_uplift,
                 })
 
         summary = _case_summary(
             cases
+        )
+        projection_summary = (
+            _fh_projection_summary(
+                cases
+            )
+            if chip == "FH"
+            else None
         )
 
         strongest_signal = sorted(
@@ -2461,6 +2730,10 @@ def backtest_historical_chip_outcomes(
                 summary[
                     "outcome_mean"
                 ],
+            "projection_validation":
+                projection_summary,
+            "excluded_unplayable":
+                excluded_unplayable,
             "archetypes":
                 (
                     _fh_archetype_summaries(

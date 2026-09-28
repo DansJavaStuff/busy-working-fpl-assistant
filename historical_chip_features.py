@@ -363,6 +363,15 @@ def historical_chip_features(
                 item["gameweek"],
             "kind":
                 kind,
+            "team_count":
+                len(team_meta),
+            "active_team_count":
+                len(team_meta)
+                - len(blank_ids),
+            "scheduled_fixture_count":
+                sum(
+                    counts.values()
+                ) // 2,
             "blank_team_count":
                 len(blank_ids),
             "double_team_count":

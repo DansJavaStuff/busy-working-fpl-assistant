@@ -4,6 +4,7 @@ from unittest.mock import patch
 from historical_realised_backtest import (
     _fh_archetype_summaries,
     _fh_extreme_diagnostics,
+    _fh_outcome_detail,
     _prepare_predeadline_players,
     _rankdata,
     _score_fixed_squad,
@@ -389,21 +390,25 @@ class HistoricalRealisedBacktestTests(
                     "kind": "blank",
                     "signal": 10.0,
                     "outcome": 20.0,
+                    "projected_uplift": 2.0,
                 },
                 {
                     "kind": "blank",
                     "signal": 20.0,
                     "outcome": 30.0,
+                    "projected_uplift": 4.0,
                 },
                 {
                     "kind": "blank_double",
                     "signal": 5.0,
                     "outcome": 40.0,
+                    "projected_uplift": 8.0,
                 },
                 {
                     "kind": "blank_double",
                     "signal": 15.0,
                     "outcome": 25.0,
+                    "projected_uplift": 3.0,
                 },
             ]
         )
@@ -437,6 +442,131 @@ class HistoricalRealisedBacktestTests(
             ],
             -1.0,
         )
+        self.assertEqual(
+            by_key["blank_only"][
+                "projected_spearman"
+            ],
+            1.0,
+        )
+        self.assertEqual(
+            by_key["blank_double"][
+                "projected_spearman"
+            ],
+            1.0,
+        )
+
+    def test_fh_detail_exposes_captain_and_sample_sanity(self):
+        players = []
+        positions = (
+            ["GKP"] * 2
+            + ["DEF"] * 5
+            + ["MID"] * 5
+            + ["FWD"] * 3
+        )
+
+        for index, position in enumerate(
+            positions,
+            start=1,
+        ):
+            players.append({
+                "player_name": f"P{index}",
+                "position": position,
+                "team_name": f"T{index}",
+                "value": 50,
+                "selected": 1000 - index,
+                "total_points": index,
+                "fixture_rows": 1,
+                "projection": float(index),
+                "season_appearances": 10,
+                "recent_appearances": 5,
+                "recent_minutes": 450,
+            })
+
+        players[-1]["season_appearances"] = 2
+        outcome = {
+            "score": 100,
+            "captain": "P15",
+            "projected_score": 90.0,
+            "starters": players[4:],
+            "squad": players,
+        }
+        baseline = {
+            "score": 80,
+            "captain": "P1",
+            "projected_score": 70.0,
+            "starters": players[:11],
+            "squad": players,
+        }
+        detail = _fh_outcome_detail(
+            outcome,
+            baseline,
+            players,
+        )
+
+        self.assertEqual(
+            detail["captain_sanity"]["template"][
+                "ownership_rank"
+            ],
+            1,
+        )
+        self.assertEqual(
+            detail["captain_sanity"]["free_hit"][
+                "ownership_rank"
+            ],
+            15,
+        )
+        self.assertEqual(
+            detail["free_hit_xi"][
+                "small_sample_players"
+            ],
+            ["P15"],
+        )
+
+    @patch(
+        "historical_realised_backtest."
+        "_outcome_for_chip"
+    )
+    @patch(
+        "historical_realised_backtest."
+        "load_historical_player_gameweek"
+    )
+    @patch(
+        "historical_realised_backtest."
+        "historical_chip_features"
+    )
+    def test_backtest_reports_and_excludes_unplayable_fh_slates(
+        self,
+        historical_chip_features,
+        load_historical_player_gameweek,
+        outcome_for_chip,
+    ):
+        historical_chip_features.return_value = [
+            {
+                "season": "2022-23",
+                "gameweek": 7,
+                "kind": "blank",
+                "free_hit_signal": 100.0,
+                "bench_boost_signal": 0.0,
+                "triple_captain_signal": 0.0,
+                "active_team_count": 0,
+                "scheduled_fixture_count": 0,
+            }
+        ]
+
+        report = backtest_historical_chip_outcomes(
+            ["2022-23"]
+        )
+        fh = report["chips"][0]
+
+        self.assertEqual(fh["case_count"], 0)
+        self.assertEqual(
+            fh["excluded_unplayable"][0][
+                "gameweek"
+            ],
+            7,
+        )
+        load_historical_player_gameweek.assert_not_called()
+        outcome_for_chip.assert_not_called()
 
     @patch(
         "historical_realised_backtest."
@@ -509,12 +639,29 @@ class HistoricalRealisedBacktestTests(
         ):
             del rows, kwargs
             counters[chip] += 1
+            detail = None
+
+            if chip == "FH":
+                detail = {
+                    "free_hit": {
+                        "projected_score":
+                            float(
+                                counters[chip]
+                                * 2
+                            ),
+                    },
+                    "template": {
+                        "projected_score":
+                            0.0,
+                    },
+                }
+
             return {
                 "metric": f"{chip.lower()}_metric",
                 "value": float(
                     counters[chip]
                 ),
-                "detail": None,
+                "detail": detail,
             }
 
         outcome_for_chip.side_effect = (
@@ -543,6 +690,12 @@ class HistoricalRealisedBacktestTests(
                 for chip
                 in report["chips"]
             )
+        )
+        self.assertEqual(
+            report["chips"][0][
+                "projection_validation"
+            ]["projected_spearman"],
+            1.0,
         )
 
 
