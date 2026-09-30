@@ -250,6 +250,109 @@ def main():
                 ],
             )
 
+        calibration = chip.get(
+            "player_calibration_validation"
+        )
+
+        if calibration:
+            print(
+                "  FH player-level calibration:"
+            )
+            print(
+                "   ",
+                calibration[
+                    "training_policy"
+                ],
+            )
+            diagnostics = calibration[
+                "player_diagnostics"
+            ]
+            print(
+                "    Optimiser-selection diagnostics:"
+            )
+            for row in (
+                [diagnostics["overall"]]
+                + diagnostics["by_role"]
+            ):
+                label = row.get(
+                    "label",
+                    "All active player-cases",
+                )
+                print(
+                    "     ",
+                    f"{label}: {row['player_count']} · "
+                    f"Spearman {row['spearman']} · "
+                    f"projected {row['projected_mean']} · "
+                    f"actual {row['actual_mean']} · "
+                    f"error {row['mean_error']} · "
+                    f"MAE {row['mean_absolute_error']}",
+                )
+            for heading, key in (
+                (
+                    "By position",
+                    "by_position",
+                ),
+                (
+                    "By sample history",
+                    "by_sample",
+                ),
+                (
+                    "By projection band",
+                    "by_projection_band",
+                ),
+            ):
+                print(
+                    f"    {heading}:"
+                )
+                for row in diagnostics[key]:
+                    print(
+                        "     ",
+                        f"{row['label']}: "
+                        f"{row['player_count']} · "
+                        f"projected {row['projected_mean']} · "
+                        f"actual {row['actual_mean']} · "
+                        f"error {row['mean_error']} · "
+                        f"MAE {row['mean_absolute_error']}",
+                    )
+            print(
+                "    Leave-one-season-out rebuilt squads:"
+            )
+            for model in calibration[
+                "models"
+            ]:
+                print(
+                    "     ",
+                    f"{model['label']}: "
+                    f"{model['case_count']} cases · "
+                    f"projection Spearman {model['spearman']} · "
+                    f"fixture signal {model['signal_spearman']} · "
+                    f"projected {model['projected_mean']} · "
+                    f"realised {model['realised_mean']} · "
+                    f"error {model['mean_error']} · "
+                    f"MAE {model['mean_absolute_error']} · "
+                    "GK/DEF captains "
+                    f"{model['implausible_captain_count']} · "
+                    "max starter projection "
+                    f"{model['maximum_starter_projection']}",
+                )
+                for season in model[
+                    "seasons"
+                ]:
+                    print(
+                        "       ",
+                        f"{season['season']}: "
+                        f"{season['case_count']} cases · "
+                        f"Spearman {season['spearman']} · "
+                        f"realised {season['realised_mean']} · "
+                        f"MAE {season['mean_absolute_error']}",
+                    )
+            print(
+                "   ",
+                calibration[
+                    "mixed_blank_double_status"
+                ],
+            )
+
         projection_errors = chip.get(
             "projection_error_diagnostics"
         )
