@@ -48,6 +48,9 @@ SMALL_SAMPLE_SEASON_APPEARANCES = 5
 SMALL_SAMPLE_RECENT_APPEARANCES = 2
 FH_CAPTAIN_OWNERSHIP_POOL_SIZE = 50
 FORM_REGRESSION_POINTS_PER_APPEARANCE = 2.0
+CALIBRATION_SEASON_APPEARANCES = 10
+CALIBRATION_RECENT_MINUTES = 360
+CALIBRATION_PROJECTION_CAP_QUANTILE = 0.9
 
 
 def _normalise_position(position):
@@ -2062,6 +2065,8 @@ def _predeadline_fh_outcome(
     return {
         "free_hit":
             free_hit,
+        "regressed_free_hit":
+            regressed_free_hit,
         "template":
             template,
         "omniscient":
@@ -2296,6 +2301,7 @@ def _fh_outcome_detail(
     omniscient=None,
     unresolved_teams=None,
     sensitivity_models=None,
+    calibration_outcome=None,
 ):
     eligible = _eligible_players(
         players
@@ -2311,6 +2317,122 @@ def _fh_outcome_detail(
             or 0
         ) == 0
     )
+    calibration_outcome = (
+        calibration_outcome
+        or outcome
+    )
+    free_hit_starters = {
+        (
+            player.get("fpl_element_id"),
+            player.get("player_name"),
+        )
+        for player in calibration_outcome[
+            "starters"
+        ]
+    }
+    template_starters = {
+        (
+            player.get("fpl_element_id"),
+            player.get("player_name"),
+        )
+        for player in baseline[
+            "starters"
+        ]
+    }
+    template_squad = {
+        (
+            player.get("fpl_element_id"),
+            player.get("player_name"),
+        )
+        for player in baseline[
+            "squad"
+        ]
+    }
+    calibration_players = []
+
+    for player in eligible:
+        identity = (
+            player.get("fpl_element_id"),
+            player.get("player_name"),
+        )
+        calibration_players.append({
+            "fpl_element_id":
+                player.get(
+                    "fpl_element_id"
+                ),
+            "player_name":
+                player["player_name"],
+            "position":
+                player["position"],
+            "team_name":
+                player["team_name"],
+            "value":
+                player["value"],
+            "selected":
+                player["selected"],
+            "total_points":
+                player["total_points"],
+            "fixture_rows":
+                int(
+                    player.get(
+                        "fixture_rows",
+                        0,
+                    )
+                    or 0
+                ),
+            "season_appearances":
+                int(
+                    player.get(
+                        "season_appearances",
+                        0,
+                    )
+                    or 0
+                ),
+            "recent_appearances":
+                int(
+                    player.get(
+                        "recent_appearances",
+                        0,
+                    )
+                    or 0
+                ),
+            "recent_minutes":
+                int(
+                    player.get(
+                        "recent_minutes",
+                        0,
+                    )
+                    or 0
+                ),
+            "projection":
+                float(
+                    player.get(
+                        "projection",
+                        0.0,
+                    )
+                    or 0.0
+                ),
+            "regressed_projection":
+                float(
+                    player.get(
+                        "regressed_projection",
+                        player.get(
+                            "projection",
+                            0.0,
+                        ),
+                    )
+                    or 0.0
+                ),
+            "free_hit_starter":
+                identity
+                in free_hit_starters,
+            "template_starter":
+                identity
+                in template_starters,
+            "template_squad":
+                identity
+                in template_squad,
+        })
 
     return {
         "free_hit": {
@@ -2377,6 +2499,8 @@ def _fh_outcome_detail(
                     unresolved_teams
                     or []
                 ),
+            "calibration_players":
+                calibration_players,
         },
         "omniscient":
             (
@@ -2680,6 +2804,9 @@ def _outcome_for_chip(
                     ],
                     sensitivity_models=comparison[
                         "sensitivity_models"
+                    ],
+                    calibration_outcome=comparison[
+                        "regressed_free_hit"
                     ],
                 ),
         }
@@ -3402,6 +3529,818 @@ def _fh_blank_only_loso_validation(
     }
 
 
+def _quantile(
+    values,
+    fraction,
+):
+    ordered = sorted(
+        float(value)
+        for value in values
+    )
+
+    if not ordered:
+        return None
+
+    index = int(
+        round(
+            (len(ordered) - 1)
+            * float(fraction)
+        )
+    )
+
+    return ordered[index]
+
+
+def _fh_calibration_pool_rows(
+    cases,
+):
+    rows = []
+
+    for case in cases:
+        if case["kind"] != "blank":
+            continue
+
+        player_pool = (
+            (
+                case.get("detail")
+                or {}
+            ).get(
+                "player_pool",
+                {},
+            )
+        )
+
+        for player in player_pool.get(
+            "calibration_players",
+            [],
+        ):
+            rows.append({
+                **player,
+                "season":
+                    case["season"],
+                "gameweek":
+                    case["gameweek"],
+            })
+
+    return rows
+
+
+def _fh_player_projection_metrics(
+    rows,
+):
+    active = [
+        row
+        for row in rows
+        if int(
+            row.get(
+                "fixture_rows",
+                0,
+            )
+            or 0
+        ) > 0
+    ]
+
+    if not active:
+        return {
+            "player_count": 0,
+            "spearman": None,
+            "projected_mean": None,
+            "actual_mean": None,
+            "mean_error": None,
+            "mean_absolute_error": None,
+        }
+
+    projected = [
+        float(
+            row.get(
+                "regressed_projection",
+                0.0,
+            )
+            or 0.0
+        )
+        for row in active
+    ]
+    actual = [
+        float(
+            row.get(
+                "total_points",
+                0.0,
+            )
+            or 0.0
+        )
+        for row in active
+    ]
+    errors = [
+        predicted - realised
+        for predicted, realised
+        in zip(
+            projected,
+            actual,
+        )
+    ]
+
+    return {
+        "player_count":
+            len(active),
+        "spearman":
+            _spearman(
+                projected,
+                actual,
+            ),
+        "projected_mean":
+            round(
+                mean(projected),
+                2,
+            ),
+        "actual_mean":
+            round(
+                mean(actual),
+                2,
+            ),
+        "mean_error":
+            round(
+                mean(errors),
+                2,
+            ),
+        "mean_absolute_error":
+            round(
+                mean(
+                    abs(error)
+                    for error in errors
+                ),
+                2,
+            ),
+    }
+
+
+def _fh_player_projection_diagnostics(
+    cases,
+):
+    rows = _fh_calibration_pool_rows(
+        cases
+    )
+    active = [
+        row
+        for row in rows
+        if int(
+            row.get(
+                "fixture_rows",
+                0,
+            )
+            or 0
+        ) > 0
+    ]
+    role_definitions = (
+        (
+            "free_hit_xi",
+            "Selected for FH XI",
+            lambda row: row.get(
+                "free_hit_starter",
+                False,
+            ),
+        ),
+        (
+            "template_xi",
+            "Selected for template XI",
+            lambda row: row.get(
+                "template_starter",
+                False,
+            ),
+        ),
+        (
+            "rejected",
+            "Active but rejected by both XIs",
+            lambda row: not row.get(
+                "free_hit_starter",
+                False,
+            )
+            and not row.get(
+                "template_starter",
+                False,
+            ),
+        ),
+    )
+    sample_definitions = (
+        (
+            "limited",
+            "Limited history",
+            lambda row: (
+                int(
+                    row.get(
+                        "season_appearances",
+                        0,
+                    )
+                    or 0
+                )
+                < SMALL_SAMPLE_SEASON_APPEARANCES
+                or int(
+                    row.get(
+                        "recent_appearances",
+                        0,
+                    )
+                    or 0
+                )
+                < SMALL_SAMPLE_RECENT_APPEARANCES
+            ),
+        ),
+        (
+            "established",
+            "Established history",
+            lambda row: (
+                int(
+                    row.get(
+                        "season_appearances",
+                        0,
+                    )
+                    or 0
+                )
+                >= SMALL_SAMPLE_SEASON_APPEARANCES
+                and int(
+                    row.get(
+                        "recent_appearances",
+                        0,
+                    )
+                    or 0
+                )
+                >= SMALL_SAMPLE_RECENT_APPEARANCES
+            ),
+        ),
+    )
+    band_definitions = (
+        ("under_4", "Under 4", 0.0, 4.0),
+        ("4_to_6", "4 to under 6", 4.0, 6.0),
+        ("6_to_8", "6 to under 8", 6.0, 8.0),
+        ("8_plus", "8 or more", 8.0, None),
+    )
+
+    return {
+        "overall":
+            _fh_player_projection_metrics(
+                active
+            ),
+        "by_role": [
+            {
+                "key": key,
+                "label": label,
+                **_fh_player_projection_metrics(
+                    [
+                        row
+                        for row in active
+                        if predicate(row)
+                    ]
+                ),
+            }
+            for key, label, predicate
+            in role_definitions
+        ],
+        "by_position": [
+            {
+                "key": position,
+                "label": position,
+                **_fh_player_projection_metrics(
+                    [
+                        row
+                        for row in active
+                        if row.get(
+                            "position"
+                        ) == position
+                    ]
+                ),
+            }
+            for position in POSITION_LIMITS
+        ],
+        "by_sample": [
+            {
+                "key": key,
+                "label": label,
+                **_fh_player_projection_metrics(
+                    [
+                        row
+                        for row in active
+                        if predicate(row)
+                    ]
+                ),
+            }
+            for key, label, predicate
+            in sample_definitions
+        ],
+        "by_projection_band": [
+            {
+                "key": key,
+                "label": label,
+                **_fh_player_projection_metrics(
+                    [
+                        row
+                        for row in active
+                        if (
+                            float(
+                                row.get(
+                                    "regressed_projection",
+                                    0.0,
+                                )
+                                or 0.0
+                            )
+                            >= lower
+                            and (
+                                upper is None
+                                or float(
+                                    row.get(
+                                        "regressed_projection",
+                                        0.0,
+                                    )
+                                    or 0.0
+                                ) < upper
+                            )
+                        )
+                    ]
+                ),
+            }
+            for key, label, lower, upper
+            in band_definitions
+        ],
+    }
+
+
+def _fh_position_calibration_stats(
+    rows,
+):
+    active = [
+        row
+        for row in rows
+        if int(
+            row.get(
+                "fixture_rows",
+                0,
+            )
+            or 0
+        ) > 0
+    ]
+    all_points = [
+        float(
+            row.get(
+                "total_points",
+                0.0,
+            )
+            or 0.0
+        )
+        for row in active
+    ]
+    fallback_prior = (
+        mean(all_points)
+        if all_points
+        else FORM_REGRESSION_POINTS_PER_APPEARANCE
+    )
+    fallback_cap = (
+        _quantile(
+            all_points,
+            CALIBRATION_PROJECTION_CAP_QUANTILE,
+        )
+        if all_points
+        else fallback_prior
+    )
+    result = {}
+
+    for position in POSITION_LIMITS:
+        points = [
+            float(
+                row.get(
+                    "total_points",
+                    0.0,
+                )
+                or 0.0
+            )
+            for row in active
+            if row.get(
+                "position"
+            ) == position
+        ]
+        result[position] = {
+            "prior":
+                mean(points)
+                if points
+                else fallback_prior,
+            "cap":
+                _quantile(
+                    points,
+                    CALIBRATION_PROJECTION_CAP_QUANTILE,
+                )
+                if points
+                else fallback_cap,
+            "player_count":
+                len(points),
+        }
+
+    return result
+
+
+def _fh_calibrated_players(
+    players,
+    position_stats,
+    variant,
+):
+    result = []
+
+    for player in players:
+        fixture_rows = int(
+            player.get(
+                "fixture_rows",
+                0,
+            )
+            or 0
+        )
+        base = float(
+            player.get(
+                "regressed_projection",
+                player.get(
+                    "projection",
+                    0.0,
+                ),
+            )
+            or 0.0
+        )
+        stats = position_stats.get(
+            player.get("position"),
+            {
+                "prior":
+                    FORM_REGRESSION_POINTS_PER_APPEARANCE,
+                "cap":
+                    base,
+            },
+        )
+        prior = float(
+            stats["prior"]
+        ) * fixture_rows
+
+        if fixture_rows <= 0:
+            calibrated = 0.0
+        elif variant == "regressed_form":
+            calibrated = base
+        elif variant == "position_regression":
+            calibrated = (
+                0.5 * base
+                + 0.5 * prior
+            )
+        else:
+            season_reliability = min(
+                1.0,
+                int(
+                    player.get(
+                        "season_appearances",
+                        0,
+                    )
+                    or 0
+                )
+                / CALIBRATION_SEASON_APPEARANCES,
+            )
+            recent_reliability = min(
+                1.0,
+                int(
+                    player.get(
+                        "recent_minutes",
+                        0,
+                    )
+                    or 0
+                )
+                / CALIBRATION_RECENT_MINUTES,
+            )
+            projection_weight = (
+                0.25
+                + 0.5
+                * season_reliability
+                * recent_reliability
+            )
+            calibrated = (
+                projection_weight
+                * base
+                + (
+                    1.0
+                    - projection_weight
+                )
+                * prior
+            )
+
+            if variant == "history_position_cap":
+                calibrated = min(
+                    calibrated,
+                    float(
+                        stats["cap"]
+                    ) * fixture_rows,
+                )
+
+        result.append({
+            **player,
+            "projection":
+                round(
+                    max(
+                        0.0,
+                        calibrated,
+                    ),
+                    4,
+                ),
+        })
+
+    return result
+
+
+def _fh_calibration_case_result(
+    case,
+    position_stats,
+    variant,
+):
+    players = (
+        (
+            (
+                case.get("detail")
+                or {}
+            ).get(
+                "player_pool",
+                {},
+            )
+        ).get(
+            "calibration_players",
+            [],
+        )
+    )
+    calibrated = _fh_calibrated_players(
+        players,
+        position_stats,
+        variant,
+    )
+    free_hit = _solve_projected_free_hit(
+        calibrated
+    )
+    template_squad = [
+        player
+        for player in calibrated
+        if player.get(
+            "template_squad",
+            False,
+        )
+    ]
+    template = (
+        _score_predeadline_lineup(
+            template_squad
+        )
+        if len(template_squad) == 15
+        else None
+    )
+
+    if (
+        free_hit is None
+        or template is None
+    ):
+        return None
+
+    captain_player = next(
+        (
+            player
+            for player in calibrated
+            if player["player_name"]
+            == free_hit["captain"]
+        ),
+        None,
+    )
+
+    return {
+        "season":
+            case["season"],
+        "gameweek":
+            case["gameweek"],
+        "signal":
+            float(case["signal"]),
+        "projected_uplift":
+            round(
+                free_hit[
+                    "projected_score"
+                ]
+                - template[
+                    "projected_score"
+                ],
+                2,
+            ),
+        "realised_uplift":
+            float(
+                free_hit["score"]
+                - template["score"]
+            ),
+        "starter_projected_uplift":
+            round(
+                free_hit[
+                    "starter_projected_score"
+                ]
+                - template[
+                    "starter_projected_score"
+                ],
+                2,
+            ),
+        "captain_projected_uplift":
+            round(
+                free_hit[
+                    "captain_projection"
+                ]
+                - template[
+                    "captain_projection"
+                ],
+                2,
+            ),
+        "captain":
+            free_hit["captain"],
+        "captain_position":
+            (
+                captain_player.get(
+                    "position"
+                )
+                if captain_player
+                else None
+            ),
+        "maximum_starter_projection":
+            round(
+                max(
+                    float(
+                        player[
+                            "projection"
+                        ]
+                    )
+                    for player in free_hit[
+                        "starters"
+                    ]
+                ),
+                2,
+            ),
+    }
+
+
+def _fh_player_calibration_validation(
+    cases,
+):
+    blank_cases = [
+        case
+        for case in cases
+        if case["kind"] == "blank"
+        and (
+            (
+                case.get("detail")
+                or {}
+            ).get(
+                "player_pool",
+                {},
+            ).get(
+                "calibration_players"
+            )
+        )
+    ]
+    pool_rows = _fh_calibration_pool_rows(
+        blank_cases
+    )
+    variants = (
+        (
+            "regressed_form",
+            "Regressed-form baseline",
+        ),
+        (
+            "position_regression",
+            "50% regression to position prior",
+        ),
+        (
+            "history_position",
+            "History-weighted position regression",
+        ),
+        (
+            "history_position_cap",
+            "History-weighted regression + position cap",
+        ),
+    )
+    model_rows = {
+        key: []
+        for key, _label in variants
+    }
+
+    for season in sorted({
+        case["season"]
+        for case in blank_cases
+    }):
+        training_rows = [
+            row
+            for row in pool_rows
+            if row["season"]
+            != season
+        ]
+        position_stats = (
+            _fh_position_calibration_stats(
+                training_rows
+            )
+        )
+
+        for case in blank_cases:
+            if case["season"] != season:
+                continue
+
+            for key, _label in variants:
+                row = (
+                    _fh_calibration_case_result(
+                        case,
+                        position_stats,
+                        key,
+                    )
+                )
+
+                if row is not None:
+                    model_rows[key].append(
+                        row
+                    )
+
+    summaries = []
+
+    for key, label in variants:
+        rows = model_rows[key]
+        season_summaries = []
+
+        for season in sorted({
+            row["season"]
+            for row in rows
+        }):
+            season_rows = [
+                row
+                for row in rows
+                if row["season"]
+                == season
+            ]
+            season_metrics = (
+                _fh_model_metrics(
+                    season_rows
+                )
+            )
+            season_summaries.append({
+                "season": season,
+                **season_metrics,
+            })
+
+        metrics = _fh_model_metrics(
+            rows
+        )
+        summaries.append({
+            "key": key,
+            "label": label,
+            **metrics,
+            "signal_spearman":
+                _spearman(
+                    [
+                        row["signal"]
+                        for row in rows
+                    ],
+                    [
+                        row[
+                            "realised_uplift"
+                        ]
+                        for row in rows
+                    ],
+                ),
+            "implausible_captain_count":
+                sum(
+                    1
+                    for row in rows
+                    if row.get(
+                        "captain_position"
+                    ) in {
+                        "GKP",
+                        "DEF",
+                    }
+                ),
+            "maximum_starter_projection":
+                (
+                    max(
+                        row[
+                            "maximum_starter_projection"
+                        ]
+                        for row in rows
+                    )
+                    if rows
+                    else None
+                ),
+            "seasons":
+                season_summaries,
+        })
+
+    return {
+        "case_count":
+            len(blank_cases),
+        "training_policy": (
+            "Each held-out season is calibrated only from "
+            "player outcomes in the other seasons."
+        ),
+        "player_diagnostics":
+            _fh_player_projection_diagnostics(
+                blank_cases
+            ),
+        "models":
+            summaries,
+        "mixed_blank_double_status": (
+            "Uncalibrated: mixed blank/double weeks remain "
+            "outside player-level model fitting."
+        ),
+    }
+
+
 def _fh_projection_error_diagnostics(
     cases,
     limit=5,
@@ -3971,6 +4910,14 @@ def backtest_historical_chip_outcomes(
             "blank_only_loso_validation":
                 (
                     _fh_blank_only_loso_validation(
+                        cases
+                    )
+                    if chip == "FH"
+                    else None
+                ),
+            "player_calibration_validation":
+                (
+                    _fh_player_calibration_validation(
                         cases
                     )
                     if chip == "FH"
