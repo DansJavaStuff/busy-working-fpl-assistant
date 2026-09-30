@@ -4,11 +4,15 @@ from unittest.mock import patch
 from historical_realised_backtest import (
     _captain_ownership_pool,
     _empirical_percentile,
+    _fh_calibrated_players,
     _fh_archetype_summaries,
     _fh_blank_only_loso_validation,
     _fh_extreme_diagnostics,
     _fh_model_metrics,
     _fh_outcome_detail,
+    _fh_player_calibration_validation,
+    _fh_player_projection_diagnostics,
+    _fh_position_calibration_stats,
     _fh_projection_error_diagnostics,
     _fh_sensitivity_summaries,
     _prepare_predeadline_players,
@@ -602,6 +606,229 @@ class HistoricalRealisedBacktestTests(
             0.5,
         )
 
+    def test_player_calibration_regresses_and_caps_extremes(self):
+        training = [
+            {
+                "position": "GKP",
+                "fixture_rows": 1,
+                "total_points": 2,
+            },
+            {
+                "position": "GKP",
+                "fixture_rows": 1,
+                "total_points": 6,
+            },
+        ]
+        stats = _fh_position_calibration_stats(
+            training
+        )
+        player = {
+            "player_name": "Extreme keeper",
+            "position": "GKP",
+            "fixture_rows": 1,
+            "regressed_projection": 20.0,
+            "season_appearances": 10,
+            "recent_minutes": 360,
+        }
+
+        position_only = _fh_calibrated_players(
+            [player],
+            stats,
+            "position_regression",
+        )[0]
+        history_weighted = _fh_calibrated_players(
+            [player],
+            stats,
+            "history_position",
+        )[0]
+        capped = _fh_calibrated_players(
+            [player],
+            stats,
+            "history_position_cap",
+        )[0]
+
+        self.assertEqual(
+            stats["GKP"]["prior"],
+            4.0,
+        )
+        self.assertEqual(
+            position_only["projection"],
+            12.0,
+        )
+        self.assertEqual(
+            history_weighted["projection"],
+            16.0,
+        )
+        self.assertEqual(
+            capped["projection"],
+            6.0,
+        )
+
+    def test_player_diagnostics_expose_optimizer_selection_bias(self):
+        cases = [
+            {
+                "season": "A",
+                "gameweek": 1,
+                "kind": "blank",
+                "detail": {
+                    "player_pool": {
+                        "calibration_players": [
+                            {
+                                "player_name": "Selected",
+                                "position": "MID",
+                                "fixture_rows": 1,
+                                "regressed_projection": 10.0,
+                                "total_points": 1,
+                                "free_hit_starter": True,
+                                "template_starter": False,
+                                "season_appearances": 10,
+                                "recent_appearances": 5,
+                            },
+                            {
+                                "player_name": "Rejected",
+                                "position": "MID",
+                                "fixture_rows": 1,
+                                "regressed_projection": 3.0,
+                                "total_points": 3,
+                                "free_hit_starter": False,
+                                "template_starter": False,
+                                "season_appearances": 10,
+                                "recent_appearances": 5,
+                            },
+                        ]
+                    }
+                },
+            }
+        ]
+        diagnostics = (
+            _fh_player_projection_diagnostics(
+                cases
+            )
+        )
+        roles = {
+            row["key"]: row
+            for row in diagnostics[
+                "by_role"
+            ]
+        }
+
+        self.assertEqual(
+            roles["free_hit_xi"][
+                "mean_error"
+            ],
+            9.0,
+        )
+        self.assertEqual(
+            roles["rejected"][
+                "mean_error"
+            ],
+            0.0,
+        )
+
+    def test_player_calibration_rebuilds_each_held_out_slate(self):
+        cases = []
+        positions = (
+            ["GKP"] * 2
+            + ["DEF"] * 5
+            + ["MID"] * 5
+            + ["FWD"] * 3
+        )
+
+        for season_index, season in enumerate(
+            ("A", "B"),
+            start=1,
+        ):
+            players = []
+
+            for index, position in enumerate(
+                positions,
+                start=1,
+            ):
+                players.append({
+                    "fpl_element_id":
+                        season_index * 100
+                        + index,
+                    "player_name":
+                        f"{season} P{index}",
+                    "position": position,
+                    "team_name":
+                        f"{season} T{index}",
+                    "value": 50,
+                    "selected": 1000 - index,
+                    "total_points": index % 6,
+                    "fixture_rows": 1,
+                    "projection": 3.0,
+                    "regressed_projection": 3.0,
+                    "season_appearances": 10,
+                    "recent_appearances": 5,
+                    "recent_minutes": 450,
+                    "free_hit_starter":
+                        index <= 11,
+                    "template_starter":
+                        index <= 11,
+                    "template_squad": True,
+                })
+
+            players.append({
+                "fpl_element_id":
+                    season_index * 100
+                    + 99,
+                "player_name":
+                    f"{season} Extreme MID",
+                "position": "MID",
+                "team_name":
+                    f"{season} Extra",
+                "value": 50,
+                "selected": 1,
+                "total_points": 0,
+                "fixture_rows": 1,
+                "projection": 12.0,
+                "regressed_projection": 12.0,
+                "season_appearances": 1,
+                "recent_appearances": 1,
+                "recent_minutes": 90,
+                "free_hit_starter": True,
+                "template_starter": False,
+                "template_squad": False,
+            })
+            cases.append({
+                "season": season,
+                "gameweek": 1,
+                "kind": "blank",
+                "signal": float(
+                    season_index
+                ),
+                "detail": {
+                    "player_pool": {
+                        "calibration_players":
+                            players,
+                    }
+                },
+            })
+
+        validation = (
+            _fh_player_calibration_validation(
+                cases
+            )
+        )
+
+        self.assertEqual(
+            validation["case_count"],
+            2,
+        )
+        self.assertEqual(
+            len(validation["models"]),
+            4,
+        )
+        self.assertTrue(
+            all(
+                model["case_count"] == 2
+                for model in validation[
+                    "models"
+                ]
+            )
+        )
+
     def test_sensitivity_summary_pairs_baseline_on_same_cases(self):
         cases = []
 
@@ -852,6 +1079,23 @@ class HistoricalRealisedBacktestTests(
                 "small_sample_players"
             ],
             ["P15"],
+        )
+        calibration_players = detail[
+            "player_pool"
+        ]["calibration_players"]
+        self.assertEqual(
+            len(calibration_players),
+            15,
+        )
+        self.assertTrue(
+            calibration_players[0][
+                "template_squad"
+            ]
+        )
+        self.assertTrue(
+            calibration_players[-1][
+                "free_hit_starter"
+            ]
         )
 
     @patch(
