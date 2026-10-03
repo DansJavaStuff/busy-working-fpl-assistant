@@ -5106,6 +5106,88 @@ def _fh_extreme_diagnostics(
     return diagnostics
 
 
+def _shape_breakdown(cases):
+    groups = {}
+
+    for row in cases:
+        kind = str(
+            row.get(
+                "kind",
+                "unknown",
+            )
+        )
+        groups.setdefault(
+            kind,
+            [],
+        ).append(
+            row
+        )
+
+    result = []
+
+    for kind, rows in sorted(
+        groups.items()
+    ):
+        signals = [
+            row["signal"]
+            for row in rows
+        ]
+        outcomes = [
+            row["outcome"]
+            for row in rows
+        ]
+
+        result.append({
+            "kind":
+                kind,
+            "case_count":
+                len(rows),
+            "spearman":
+                _spearman(
+                    signals,
+                    outcomes,
+                ),
+            "outcome_mean":
+                (
+                    round(
+                        mean(outcomes),
+                        2,
+                    )
+                    if outcomes
+                    else None
+                ),
+            "signal_mean":
+                (
+                    round(
+                        mean(signals),
+                        2,
+                    )
+                    if signals
+                    else None
+                ),
+            "outcome_min":
+                (
+                    round(
+                        min(outcomes),
+                        2,
+                    )
+                    if outcomes
+                    else None
+                ),
+            "outcome_max":
+                (
+                    round(
+                        max(outcomes),
+                        2,
+                    )
+                    if outcomes
+                    else None
+                ),
+        })
+
+    return result
+
+
 def backtest_historical_chip_outcomes(
     seasons,
     db_path=DEFAULT_DB_PATH,
@@ -5406,6 +5488,10 @@ def backtest_historical_chip_outcomes(
                 strongest_signal,
             "strongest_outcome":
                 strongest_outcome,
+            "shape_breakdown":
+                _shape_breakdown(
+                    cases
+                ),
             "cases":
                 cases,
         })
