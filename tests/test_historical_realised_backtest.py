@@ -14,6 +14,8 @@ from historical_realised_backtest import (
     _fh_player_projection_diagnostics,
     _fh_position_calibration_stats,
     _fh_projection_error_diagnostics,
+    _fh_soft_monotonic_curve,
+    _fh_soft_monotonic_projection,
     _fh_sensitivity_summaries,
     _prepare_predeadline_players,
     _rankdata,
@@ -22,6 +24,7 @@ from historical_realised_backtest import (
     _solve_projected_free_hit,
     _spearman,
     _tc_realised_ceiling,
+    _weighted_isotonic_values,
     backtest_historical_chip_outcomes,
 )
 
@@ -488,6 +491,44 @@ class HistoricalRealisedBacktestTests(
             explosive["player_name"],
         )
 
+    def test_projected_free_hit_breaks_captain_tie_by_ownership(self):
+        positions = (
+            ["GKP"] * 2
+            + ["DEF"] * 5
+            + ["MID"] * 5
+            + ["FWD"] * 3
+        )
+        players = []
+
+        for index, position in enumerate(
+            positions,
+            start=1,
+        ):
+            players.append({
+                "player_name": f"P{index}",
+                "position": position,
+                "team_name": f"T{index}",
+                "value": 50,
+                "selected": index,
+                "total_points": 1,
+                "projection": 1.0,
+            })
+
+        players[7]["projection"] = 10.0
+        players[8]["projection"] = 10.0
+        players[7]["selected"] = 100
+        players[8]["selected"] = 200
+
+        result = _solve_projected_free_hit(
+            players,
+            captain_ownership_tiebreak=True,
+        )
+
+        self.assertEqual(
+            result["captain"],
+            "P9",
+        )
+
     def test_fh_archetypes_are_summarised_separately(self):
         summaries = _fh_archetype_summaries(
             [
@@ -664,6 +705,64 @@ class HistoricalRealisedBacktestTests(
             6.0,
         )
 
+    def test_weighted_isotonic_values_merge_decreasing_blocks(self):
+        self.assertEqual(
+            _weighted_isotonic_values(
+                [1.0, 4.0, 3.0, 6.0],
+                [1, 1, 1, 1],
+            ),
+            [1.0, 3.5, 3.5, 6.0],
+        )
+
+    def test_soft_monotonic_curve_preserves_player_order(self):
+        rows = []
+
+        for projection, actual in (
+            (2.0, 2.0),
+            (5.0, 5.0),
+            (7.0, 3.0),
+            (9.0, 8.0),
+        ):
+            rows.append({
+                "fixture_rows": 1,
+                "regressed_projection":
+                    projection,
+                "total_points": actual,
+            })
+
+        curve = _fh_soft_monotonic_curve(
+            rows
+        )
+        calibrated_points = [
+            point["calibrated"]
+            for point in curve
+        ]
+        projections = [
+            _fh_soft_monotonic_projection(
+                value,
+                curve,
+            )
+            for value in (
+                4.0,
+                6.0,
+                8.0,
+                10.0,
+            )
+        ]
+
+        self.assertEqual(
+            calibrated_points,
+            sorted(calibrated_points),
+        )
+        self.assertEqual(
+            projections,
+            sorted(projections),
+        )
+        self.assertEqual(
+            len(set(projections)),
+            len(projections),
+        )
+
     def test_player_diagnostics_expose_optimizer_selection_bias(self):
         cases = [
             {
@@ -818,7 +917,7 @@ class HistoricalRealisedBacktestTests(
         )
         self.assertEqual(
             len(validation["models"]),
-            4,
+            5,
         )
         self.assertTrue(
             all(
@@ -827,6 +926,12 @@ class HistoricalRealisedBacktestTests(
                     "models"
                 ]
             )
+        )
+        self.assertEqual(
+            validation[
+                "candidate_acceptance"
+            ]["candidate_key"],
+            "soft_monotonic_band",
         )
 
     def test_sensitivity_summary_pairs_baseline_on_same_cases(self):
