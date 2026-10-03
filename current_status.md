@@ -14,22 +14,33 @@ Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first 
 
 ## Latest milestone
 
-- Latest merged baseline: PR #47, `7c1c766` — add the handoff file; PR #46, `abe3e9f` — fixture-shape breakdown.
-- This milestone: PR #48 — blank-only FH ranking stability benchmark, extending the existing leave-one-season-out comparison. PR #48 contains this handoff; check its merge status when resuming.
-- Local verification: 110 unit tests, compilation, undefined-name lint and runtime dependency audit passed. GitHub CI and CodeQL must also pass before merge.
+- Latest merged code: PR #48, `66ae9f7` — blank-only FH ranking stability benchmark, extending the existing leave-one-season-out comparison.
+- Verification: 110 unit tests, compilation, undefined-name lint, dependency audit and GitHub CI/CodeQL passed before merge.
+- The user has now run the benchmark on the Pi; findings below are from that supplied output.
 - No live FH thresholds, BB metrics or TC metrics change in this milestone.
 
 ## Latest supplied historical results
 
-Five seasons: 2021-22 to 2025-26. The latest Pi run took 12m42.8s.
+Five seasons: 2021-22 to 2025-26. The latest Pi run took 12m45.1s.
 
 - FH now uses pre-deadline-proxy-selected template and Free Hit squads scored afterwards, allowing negative uplift. It is no longer just the earlier hindsight ceiling.
 - FH fixture signal: overall +0.270; blank-only +0.651 (22 cases); mixed blank+double -0.359 (8 cases).
-- Blank-only regressed-form LOSO comparison: fixture +0.534, projection +0.342, equal-rank blend +0.562. The small blend improvement needs stability testing.
+- Blank-only regressed-form LOSO comparison: fixture +0.534, projection +0.342, equal-rank blend +0.562. The stability verdict is HOLD / fixture-only: the pooled improvement is not robust enough to promote the blend.
 - Optimiser selection magnifies projection errors: player correlation 0.569 across active players, 0.212 in FH XIs. 8+ projected points averaged 9.01 projected vs 5.50 actual.
 - Hybrid player calibration remains HOLD: ranking 0.385 improved, but MAE 15.33 exceeds the simpler position-regression benchmark 13.82.
 - BB remains a hindsight bench ceiling: +0.678 overall; mixed +0.945; doubles +0.624.
 - TC remains a top-20-owned captainable ceiling: +0.279 overall; mixed +0.443; doubles +0.283.
+
+## Blank-only ranking stability result
+
+- Blend improves within-season correlation in 2/5 seasons: +0.084 (2021-22), -0.200 (2022-23), 0 (2023-24), +0.134 (2024-25), 0 (2025-26).
+- Removing 2023-24 reverses pooled advantage to -0.018; removing 2024-25 gives -0.013. Other season-deletion deltas: +0.034, +0.077, +0.042.
+- The majority-improvement and no-negative-deletion gates fail; the other three gates pass. Keep the fixed gate rather than relaxing it after seeing results.
+- Equal-season mean top-week regret improves from 8.8 points (fixture) to 2.6 (blend).
+- 2022-23: blend chooses GW8 (+23 actual uplift) instead of GW28 (+6), despite poorer full-season rank correlation.
+- 2024-25: blend chooses GW34 (+38), while fixture ties GW29/GW34 (tie-averaged +24).
+- Other seasons have the same first choices. The 6.2-point mean regret improvement comes from those two seasons; promising decision evidence, not established generalisation.
+- These choice outcomes use regressed-form squads, whereas the headline FH archetype metrics use the current proxy. Do not mix their outcome values.
 
 ## Current research decision
 
@@ -48,17 +59,13 @@ Report additions:
 
 ## Immediate next step
 
-After the benchmark PR is merged, run on the Pi in the usual virtual environment:
+The PR #48 experiment is complete. No repeat Pi run is needed for this unchanged model.
 
-```bash
-cd ~/busy-working-fpl-assistant
-git pull
-time python3 -m tools.backtest_historical_chip_outcomes
-```
+Recommended next development step (proposed, not yet implemented): audit the deadline-time inputs and add a chronological walk-forward check before further FH model tuning. In particular, confirm whether historical fixture availability includes postponements announced after the FPL deadline; audit archived FDR/team strength and ownership timing as well. Any retrospective fixture schedule must be labelled as such rather than assumed knowable at the deadline.
 
-Review **Blank-only FH ranking stability**, especially season deletions, top-week regret and failed gates. Paste that section with the preceding LOSO results. No service restart is required for this offline tool.
+Keep fixture-only as the blank-FH research baseline, retain the equal-rank blend as an experimental comparator because of its top-choice improvement, and keep mixed FH uncalibrated. Do not change live thresholds or relax the acceptance gate.
 
-The benchmark has not yet been run against the Pi historical database in this workspace. Do not invent its acceptance verdict. Update this file with the new measurements and merged PR/commit after the run.
+A later squad-damage experiment could compare legal playable XI coverage / blank exposure with the current fixture signal, on a common outcome and deadline-valid inputs. This has not been authorised as the next implementation or built yet.
 
 ## Caveats that must survive handoff
 
