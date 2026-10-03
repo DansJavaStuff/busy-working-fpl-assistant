@@ -684,6 +684,28 @@ def main():
                 ),
             )
 
+        if chip[
+            "shape_breakdown"
+        ]:
+            print(
+                "  By fixture shape:"
+            )
+
+            for shape in chip[
+                "shape_breakdown"
+            ]:
+                print(
+                    "   "
+                    f"{shape['kind']}: "
+                    f"{shape['case_count']} cases · "
+                    f"Spearman {shape['spearman']} · "
+                    f"mean outcome "
+                    f"{shape['outcome_mean']} · "
+                    f"range "
+                    f"{shape['outcome_min']}"
+                    f"–{shape['outcome_max']}"
+                )
+
         print()
 
     print(
