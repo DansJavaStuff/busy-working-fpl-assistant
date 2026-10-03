@@ -4275,6 +4275,21 @@ def _fh_calibrated_players(
                     calibration_curve,
                 )
             )
+        elif variant == "hybrid_band_position":
+            soft_monotonic = (
+                _fh_soft_monotonic_projection(
+                    base,
+                    calibration_curve,
+                )
+            )
+            position_regressed = (
+                0.5 * base
+                + 0.5 * prior
+            )
+            calibrated = (
+                0.5 * soft_monotonic
+                + 0.5 * position_regressed
+            )
         else:
             season_reliability = min(
                 1.0,
@@ -4368,8 +4383,10 @@ def _fh_calibration_case_result(
     free_hit = _solve_projected_free_hit(
         calibrated,
         captain_ownership_tiebreak=(
-            variant
-            == "soft_monotonic_band"
+            variant in {
+                "soft_monotonic_band",
+                "hybrid_band_position",
+            }
         ),
     )
     template_squad = [
@@ -4516,6 +4533,10 @@ def _fh_player_calibration_validation(
             "soft_monotonic_band",
             "Soft monotonic projection-band correction",
         ),
+        (
+            "hybrid_band_position",
+            "50/25/25 raw/band/position hybrid",
+        ),
     )
     model_rows = {
         key: []
@@ -4641,7 +4662,7 @@ def _fh_player_calibration_validation(
         for row in summaries
     }
     candidate = summaries_by_key.get(
-        "soft_monotonic_band",
+        "hybrid_band_position",
         {},
     )
     baseline = summaries_by_key.get(
@@ -4729,6 +4750,24 @@ def _fh_player_calibration_validation(
                 ]
             ),
         },
+        {
+            "label": (
+                "Realised uplift does not fall below "
+                "regressed-form baseline"
+            ),
+            "candidate":
+                candidate.get("realised_mean"),
+            "benchmark":
+                baseline.get("realised_mean"),
+            "passed": (
+                candidate.get("realised_mean")
+                is not None
+                and baseline.get("realised_mean")
+                is not None
+                and candidate["realised_mean"]
+                >= baseline["realised_mean"]
+            ),
+        },
     ]
 
     return {
@@ -4746,7 +4785,7 @@ def _fh_player_calibration_validation(
             summaries,
         "candidate_acceptance": {
             "candidate_key":
-                "soft_monotonic_band",
+                "hybrid_band_position",
             "passed":
                 all(
                     row["passed"]
