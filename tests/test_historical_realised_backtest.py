@@ -22,6 +22,7 @@ from historical_realised_backtest import (
     _score_fixed_squad,
     _score_predeadline_lineup,
     _solve_projected_free_hit,
+    _shape_breakdown,
     _spearman,
     _tc_realised_ceiling,
     _weighted_isotonic_values,
@@ -1228,6 +1229,62 @@ class HistoricalRealisedBacktestTests(
             calibration_players[-1][
                 "free_hit_starter"
             ]
+        )
+
+    def test_shape_breakdown_keeps_fixture_kinds_separate(self):
+        result = _shape_breakdown(
+            [
+                {
+                    "kind": "blank",
+                    "signal": 10.0,
+                    "outcome": 20.0,
+                },
+                {
+                    "kind": "blank",
+                    "signal": 20.0,
+                    "outcome": 30.0,
+                },
+                {
+                    "kind": "blank_double",
+                    "signal": 5.0,
+                    "outcome": 80.0,
+                },
+                {
+                    "kind": "blank_double",
+                    "signal": 7.0,
+                    "outcome": 70.0,
+                },
+            ]
+        )
+
+        by_kind = {
+            row["kind"]: row
+            for row in result
+        }
+
+        self.assertEqual(
+            by_kind["blank"][
+                "case_count"
+            ],
+            2,
+        )
+        self.assertEqual(
+            by_kind["blank"][
+                "spearman"
+            ],
+            1.0,
+        )
+        self.assertEqual(
+            by_kind["blank_double"][
+                "spearman"
+            ],
+            -1.0,
+        )
+        self.assertEqual(
+            by_kind["blank_double"][
+                "outcome_mean"
+            ],
+            75.0,
         )
 
     @patch(
