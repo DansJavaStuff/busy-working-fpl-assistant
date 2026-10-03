@@ -51,6 +51,13 @@ FORM_REGRESSION_POINTS_PER_APPEARANCE = 2.0
 CALIBRATION_SEASON_APPEARANCES = 10
 CALIBRATION_RECENT_MINUTES = 360
 CALIBRATION_PROJECTION_CAP_QUANTILE = 0.9
+SOFT_MONOTONIC_CALIBRATION_BLEND = 0.5
+CALIBRATION_PROJECTION_BANDS = (
+    (0.0, 4.0),
+    (4.0, 6.0),
+    (6.0, 8.0),
+    (8.0, None),
+)
 
 
 def _normalise_position(position):
@@ -1435,6 +1442,7 @@ def _score_predeadline_lineup(
 
 def _solve_projected_free_hit(
     rows,
+    captain_ownership_tiebreak=False,
 ):
     players = _eligible_players(
         rows
@@ -1624,6 +1632,28 @@ def _solve_projected_free_hit(
 
     if captain_player is None:
         return None
+
+    if captain_ownership_tiebreak:
+        captain_player = max(
+            starter_rows,
+            key=lambda player: (
+                float(
+                    player.get(
+                        "projection",
+                        0.0,
+                    )
+                    or 0.0
+                ),
+                int(
+                    player.get(
+                        "selected",
+                        0,
+                    )
+                    or 0
+                ),
+                player["player_name"],
+            ),
+        )
 
     starter_points = sum(
         player["total_points"]
@@ -3933,10 +3963,268 @@ def _fh_position_calibration_stats(
     return result
 
 
+def _weighted_isotonic_values(
+    values,
+    weights,
+):
+    blocks = []
+
+    for index, (value, weight) in enumerate(
+        zip(values, weights)
+    ):
+        block = {
+            "start": index,
+            "end": index,
+            "weight": float(weight),
+            "weighted_value":
+                float(value)
+                * float(weight),
+        }
+        blocks.append(block)
+
+        while len(blocks) >= 2:
+            previous = blocks[-2]
+            current = blocks[-1]
+            previous_mean = (
+                previous[
+                    "weighted_value"
+                ]
+                / previous["weight"]
+            )
+            current_mean = (
+                current[
+                    "weighted_value"
+                ]
+                / current["weight"]
+            )
+
+            if previous_mean <= current_mean:
+                break
+
+            blocks[-2:] = [{
+                "start":
+                    previous["start"],
+                "end":
+                    current["end"],
+                "weight":
+                    previous["weight"]
+                    + current["weight"],
+                "weighted_value":
+                    previous[
+                        "weighted_value"
+                    ]
+                    + current[
+                        "weighted_value"
+                    ],
+            }]
+
+    result = [
+        0.0
+        for _value in values
+    ]
+
+    for block in blocks:
+        fitted = (
+            block["weighted_value"]
+            / block["weight"]
+        )
+
+        for index in range(
+            block["start"],
+            block["end"] + 1,
+        ):
+            result[index] = fitted
+
+    return result
+
+
+def _fh_soft_monotonic_curve(
+    rows,
+):
+    active = [
+        row
+        for row in rows
+        if int(
+            row.get(
+                "fixture_rows",
+                0,
+            )
+            or 0
+        ) > 0
+    ]
+    points = [{
+        "projection": 0.0,
+        "actual": 0.0,
+        "player_count": 1,
+    }]
+
+    for lower, upper in (
+        CALIBRATION_PROJECTION_BANDS
+    ):
+        band = [
+            row
+            for row in active
+            if (
+                float(
+                    row.get(
+                        "regressed_projection",
+                        0.0,
+                    )
+                    or 0.0
+                )
+                >= lower
+                and (
+                    upper is None
+                    or float(
+                        row.get(
+                            "regressed_projection",
+                            0.0,
+                        )
+                        or 0.0
+                    ) < upper
+                )
+            )
+        ]
+
+        if not band:
+            continue
+
+        projection = mean(
+            float(
+                row.get(
+                    "regressed_projection",
+                    0.0,
+                )
+                or 0.0
+            )
+            for row in band
+        )
+
+        if projection <= points[-1][
+            "projection"
+        ]:
+            continue
+
+        points.append({
+            "projection":
+                projection,
+            "actual":
+                mean(
+                    float(
+                        row.get(
+                            "total_points",
+                            0.0,
+                        )
+                        or 0.0
+                    )
+                    for row in band
+                ),
+            "player_count":
+                len(band),
+        })
+
+    fitted = _weighted_isotonic_values(
+        [
+            point["actual"]
+            for point in points
+        ],
+        [
+            point["player_count"]
+            for point in points
+        ],
+    )
+
+    return [
+        {
+            **point,
+            "calibrated":
+                fitted[index],
+        }
+        for index, point
+        in enumerate(points)
+    ]
+
+
+def _fh_soft_monotonic_projection(
+    projection,
+    curve,
+):
+    projection = max(
+        0.0,
+        float(projection),
+    )
+
+    if not curve:
+        return projection
+
+    if projection <= curve[0][
+        "projection"
+    ]:
+        mapped = float(
+            curve[0]["calibrated"]
+        )
+    elif projection >= curve[-1][
+        "projection"
+    ]:
+        mapped = float(
+            curve[-1]["calibrated"]
+        )
+    else:
+        mapped = projection
+
+        for left, right in zip(
+            curve,
+            curve[1:],
+        ):
+            if (
+                left["projection"]
+                <= projection
+                <= right["projection"]
+            ):
+                width = (
+                    right["projection"]
+                    - left["projection"]
+                )
+                share = (
+                    projection
+                    - left["projection"]
+                ) / width
+                mapped = (
+                    float(
+                        left["calibrated"]
+                    )
+                    + share
+                    * (
+                        float(
+                            right[
+                                "calibrated"
+                            ]
+                        )
+                        - float(
+                            left[
+                                "calibrated"
+                            ]
+                        )
+                    )
+                )
+                break
+
+    return (
+        (
+            1.0
+            - SOFT_MONOTONIC_CALIBRATION_BLEND
+        )
+        * projection
+        + SOFT_MONOTONIC_CALIBRATION_BLEND
+        * mapped
+    )
+
+
 def _fh_calibrated_players(
     players,
     position_stats,
     variant,
+    calibration_curve=None,
 ):
     result = []
 
@@ -3979,6 +4267,13 @@ def _fh_calibrated_players(
             calibrated = (
                 0.5 * base
                 + 0.5 * prior
+            )
+        elif variant == "soft_monotonic_band":
+            calibrated = (
+                _fh_soft_monotonic_projection(
+                    base,
+                    calibration_curve,
+                )
             )
         else:
             season_reliability = min(
@@ -4046,6 +4341,7 @@ def _fh_calibration_case_result(
     case,
     position_stats,
     variant,
+    calibration_curve=None,
 ):
     players = (
         (
@@ -4065,9 +4361,16 @@ def _fh_calibration_case_result(
         players,
         position_stats,
         variant,
+        calibration_curve=(
+            calibration_curve
+        ),
     )
     free_hit = _solve_projected_free_hit(
-        calibrated
+        calibrated,
+        captain_ownership_tiebreak=(
+            variant
+            == "soft_monotonic_band"
+        ),
     )
     template_squad = [
         player
@@ -4209,6 +4512,10 @@ def _fh_player_calibration_validation(
             "history_position_cap",
             "History-weighted regression + position cap",
         ),
+        (
+            "soft_monotonic_band",
+            "Soft monotonic projection-band correction",
+        ),
     )
     model_rows = {
         key: []
@@ -4230,6 +4537,11 @@ def _fh_player_calibration_validation(
                 training_rows
             )
         )
+        calibration_curve = (
+            _fh_soft_monotonic_curve(
+                training_rows
+            )
+        )
 
         for case in blank_cases:
             if case["season"] != season:
@@ -4241,6 +4553,9 @@ def _fh_player_calibration_validation(
                         case,
                         position_stats,
                         key,
+                        calibration_curve=(
+                            calibration_curve
+                        ),
                     )
                 )
 
@@ -4321,6 +4636,101 @@ def _fh_player_calibration_validation(
                 season_summaries,
         })
 
+    summaries_by_key = {
+        row["key"]: row
+        for row in summaries
+    }
+    candidate = summaries_by_key.get(
+        "soft_monotonic_band",
+        {},
+    )
+    baseline = summaries_by_key.get(
+        "regressed_form",
+        {},
+    )
+    calibration_benchmark = (
+        summaries_by_key.get(
+            "position_regression",
+            {},
+        )
+    )
+    acceptance_checks = [
+        {
+            "label": (
+                "Projection Spearman exceeds "
+                "regressed-form baseline"
+            ),
+            "candidate":
+                candidate.get("spearman"),
+            "benchmark":
+                baseline.get("spearman"),
+            "passed": (
+                candidate.get("spearman")
+                is not None
+                and baseline.get("spearman")
+                is not None
+                and candidate["spearman"]
+                > baseline["spearman"]
+            ),
+        },
+        {
+            "label": (
+                "MAE does not exceed 50% "
+                "position-regression benchmark"
+            ),
+            "candidate":
+                candidate.get(
+                    "mean_absolute_error"
+                ),
+            "benchmark":
+                calibration_benchmark.get(
+                    "mean_absolute_error"
+                ),
+            "passed": (
+                candidate.get(
+                    "mean_absolute_error"
+                ) is not None
+                and calibration_benchmark.get(
+                    "mean_absolute_error"
+                ) is not None
+                and candidate[
+                    "mean_absolute_error"
+                ]
+                <= calibration_benchmark[
+                    "mean_absolute_error"
+                ]
+            ),
+        },
+        {
+            "label": (
+                "GK/DEF captain count does not "
+                "exceed regressed-form baseline"
+            ),
+            "candidate":
+                candidate.get(
+                    "implausible_captain_count"
+                ),
+            "benchmark":
+                baseline.get(
+                    "implausible_captain_count"
+                ),
+            "passed": (
+                candidate.get(
+                    "implausible_captain_count"
+                ) is not None
+                and baseline.get(
+                    "implausible_captain_count"
+                ) is not None
+                and candidate[
+                    "implausible_captain_count"
+                ]
+                <= baseline[
+                    "implausible_captain_count"
+                ]
+            ),
+        },
+    ]
+
     return {
         "case_count":
             len(blank_cases),
@@ -4334,6 +4744,18 @@ def _fh_player_calibration_validation(
             ),
         "models":
             summaries,
+        "candidate_acceptance": {
+            "candidate_key":
+                "soft_monotonic_band",
+            "passed":
+                all(
+                    row["passed"]
+                    for row
+                    in acceptance_checks
+                ),
+            "checks":
+                acceptance_checks,
+        },
         "mixed_blank_double_status": (
             "Uncalibrated: mixed blank/double weeks remain "
             "outside player-level model fitting."
