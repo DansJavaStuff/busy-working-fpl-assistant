@@ -15,7 +15,8 @@ Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first 
 ## Latest milestone
 
 - Latest merged baseline: PR #47, `7c1c766` — add the handoff file; PR #46, `abe3e9f` — fixture-shape breakdown.
-- Current change: blank-only FH ranking stability benchmark, extending the existing leave-one-season-out comparison. Check its PR/merge status before resuming.
+- This milestone: PR #48 — blank-only FH ranking stability benchmark, extending the existing leave-one-season-out comparison. PR #48 contains this handoff; check its merge status when resuming.
+- Local verification: 110 unit tests, compilation, undefined-name lint and runtime dependency audit passed. GitHub CI and CodeQL must also pass before merge.
 - No live FH thresholds, BB metrics or TC metrics change in this milestone.
 
 ## Latest supplied historical results
