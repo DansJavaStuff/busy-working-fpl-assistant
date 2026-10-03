@@ -613,3 +613,10 @@ The realised historical FH backtest now reports separate summaries for:
 This matters because the current historical `free_hit_signal` is explicitly a blank-severity feature. A mixed Gameweek can create Free Hit value through both blank avoidance and attacking Double Gameweek players, so combining both archetypes into one correlation can make the blank signal look misleadingly weak or negative.
 
 The split is diagnostic only. No new live FH threshold is introduced from these retrospective results.
+
+
+### Realised backtest fixture-shape breakdown
+
+The realised chip-opportunity backtest now reports results separately by fixture shape (for example blank-only, double-only and mixed blank+double) as well as overall.
+
+This is particularly important for Free Hit. A severe blank and a mixed blank/double Gameweek can create value in different ways, so an overall correlation can hide opposing behaviours. The breakdown reports case count, Spearman signal/outcome correlation, mean realised outcome and realised-outcome range for each fixture shape.
