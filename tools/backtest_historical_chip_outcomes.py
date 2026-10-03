@@ -350,7 +350,7 @@ def main():
                 "candidate_acceptance"
             ]
             print(
-                "    Soft-calibration acceptance:",
+                "    Hybrid-calibration acceptance:",
                 (
                     "PASS"
                     if acceptance["passed"]

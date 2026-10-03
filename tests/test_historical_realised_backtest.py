@@ -687,6 +687,21 @@ class HistoricalRealisedBacktestTests(
             stats,
             "history_position_cap",
         )[0]
+        hybrid = _fh_calibrated_players(
+            [player],
+            stats,
+            "hybrid_band_position",
+            calibration_curve=[
+                {
+                    "projection": 0.0,
+                    "calibrated": 0.0,
+                },
+                {
+                    "projection": 10.0,
+                    "calibrated": 8.0,
+                },
+            ],
+        )[0]
 
         self.assertEqual(
             stats["GKP"]["prior"],
@@ -703,6 +718,10 @@ class HistoricalRealisedBacktestTests(
         self.assertEqual(
             capped["projection"],
             6.0,
+        )
+        self.assertEqual(
+            hybrid["projection"],
+            13.0,
         )
 
     def test_weighted_isotonic_values_merge_decreasing_blocks(self):
@@ -917,7 +936,7 @@ class HistoricalRealisedBacktestTests(
         )
         self.assertEqual(
             len(validation["models"]),
-            5,
+            6,
         )
         self.assertTrue(
             all(
@@ -931,7 +950,15 @@ class HistoricalRealisedBacktestTests(
             validation[
                 "candidate_acceptance"
             ]["candidate_key"],
-            "soft_monotonic_band",
+            "hybrid_band_position",
+        )
+        self.assertEqual(
+            len(
+                validation[
+                    "candidate_acceptance"
+                ]["checks"]
+            ),
+            4,
         )
 
     def test_sensitivity_summary_pairs_baseline_on_same_cases(self):
