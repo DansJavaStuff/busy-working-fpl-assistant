@@ -7,6 +7,8 @@ from historical_realised_backtest import (
     _fh_calibrated_players,
     _fh_archetype_summaries,
     _fh_blank_only_loso_validation,
+    _fh_blank_rank_stability,
+    _fh_top_week,
     _fh_extreme_diagnostics,
     _fh_model_metrics,
     _fh_outcome_detail,
@@ -1099,6 +1101,75 @@ class HistoricalRealisedBacktestTests(
                 "mixed_blank_double_status"
             ],
         )
+
+    def test_blank_rank_stability_holds_empty_constant_and_equal_models(self):
+        self.assertEqual(_fh_blank_rank_stability([])["status"], "HOLD")
+        rows = [
+            {"season": season, "gameweek": gw, "signal_score": gw,
+             "combined_score": gw, "realised_uplift": gw}
+            for season in ("A", "B", "C") for gw in (1, 2, 3)
+        ]
+        self.assertEqual(_fh_blank_rank_stability(rows)["status"], "HOLD")
+        for row in rows:
+            row["realised_uplift"] = 0
+        result = _fh_blank_rank_stability(rows)
+        self.assertEqual(result["informative_seasons"], 0)
+        self.assertEqual(result["status"], "HOLD")
+
+    def test_blank_rank_stability_accepts_consistent_ranking_improvement(self):
+        rows = [
+            {"season": season, "gameweek": gw, "signal_score": signal,
+             "combined_score": outcome, "realised_uplift": outcome}
+            for season in ("A", "B", "C")
+            for gw, signal, outcome in ((1, 3, 1), (2, 1, 2), (3, 2, 3))
+        ]
+        result = _fh_blank_rank_stability(rows)
+        self.assertEqual(result["status"], "RESEARCH CANDIDATE")
+        self.assertEqual(result["improved_seasons"], 3)
+        self.assertEqual(result["fixture_mean_top_week_regret"], 2)
+        self.assertEqual(result["blend_mean_top_week_regret"], 0)
+
+    def test_top_week_ties_average_without_outcome_tiebreak(self):
+        rows = [
+            {"gameweek": 2, "signal_score": 1, "realised_uplift": -10},
+            {"gameweek": 1, "signal_score": 1, "realised_uplift": 20},
+        ]
+        self.assertEqual(_fh_top_week(rows, "signal_score"), {
+            "gameweeks": [1, 2], "realised_uplift": 5, "regret": 15,
+        })
+
+    def test_blank_rank_gate_rejects_improvement_in_only_one_season(self):
+        rows = [
+            {"season": season, "gameweek": gw,
+             "signal_score": -gw if season == "A" else gw,
+             "combined_score": gw if season == "A" else -gw,
+             "realised_uplift": gw}
+            for season in ("A", "B", "C") for gw in (1, 2, 3)
+        ]
+        result = _fh_blank_rank_stability(rows)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["improved_seasons"], 1)
+        without_a = result["season_deletions"][0]
+        self.assertEqual(without_a["omitted_season"], "A")
+        self.assertLess(without_a["blend_delta"], 0)
+
+    def test_loso_scores_do_not_depend_on_realised_results_or_mixed_cases(self):
+        cases = [
+            {"season": season, "gameweek": gw, "kind": "blank", "signal": gw,
+             "detail": {"sensitivity_models": [{"key": "regressed_form",
+                 "available": True, "projected_uplift": gw, "realised_uplift": gw}]}}
+            for season in ("A", "B", "C") for gw in (1, 2, 3)
+        ]
+        with patch("historical_realised_backtest._fh_blank_rank_stability") as capture:
+            _fh_blank_only_loso_validation(cases)
+            before = capture.call_args.args[0]
+            for case in cases:
+                case["detail"]["sensitivity_models"][0]["realised_uplift"] *= -100
+            cases.append({"kind": "blank_double"})
+            _fh_blank_only_loso_validation(cases)
+            after = capture.call_args.args[0]
+        for key in ("signal_score", "projection_score", "combined_score"):
+            self.assertEqual([row[key] for row in before], [row[key] for row in after])
 
     def test_projection_error_diagnostics_rank_overprediction(self):
         diagnostics = (

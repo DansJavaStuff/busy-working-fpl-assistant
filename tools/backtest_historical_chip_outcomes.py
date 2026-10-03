@@ -250,6 +250,37 @@ def main():
                 ],
             )
 
+            stability = loso["ranking_stability"]
+            print("  Blank-only FH ranking stability:")
+            print(
+                f"    {stability['status']} · preferred research model "
+                f"{stability['preferred_research_model']} · improved seasons "
+                f"{stability['improved_seasons']}/{stability['informative_seasons']}"
+            )
+            print(
+                "    Mean top-week regret (points, equal season weight): "
+                f"fixture {stability['fixture_mean_top_week_regret']} · "
+                f"blend {stability['blend_mean_top_week_regret']}"
+            )
+            for season in stability["seasons"]:
+                print(
+                    f"    {season['season']}: delta {season['blend_delta']} · "
+                    f"fixture top {season['fixture_top_week']} · "
+                    f"blend top {season['blend_top_week']}"
+                )
+            print("    Season deletions of fixed out-of-fold scores (no refitting):")
+            for deletion in stability["season_deletions"]:
+                print(
+                    f"      Without {deletion['omitted_season']}: "
+                    f"{deletion['case_count']} cases · "
+                    f"fixture {deletion['signal_spearman']} · "
+                    f"blend {deletion['combined_spearman']} · "
+                    f"delta {deletion['blend_delta']}"
+                )
+            for check in stability["checks"]:
+                print(f"    {'PASS' if check['passed'] else 'FAIL'} {check['label']}")
+            print("   ", stability["production_status"])
+
         calibration = chip.get(
             "player_calibration_validation"
         )

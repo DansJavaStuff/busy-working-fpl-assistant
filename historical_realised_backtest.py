@@ -3342,6 +3342,101 @@ def _empirical_percentile(
     ) / len(reference)
 
 
+def _fh_rank_comparison(rows):
+    outcomes = [row["realised_uplift"] for row in rows]
+    signal = _spearman([row["signal_score"] for row in rows], outcomes)
+    blend = _spearman([row["combined_score"] for row in rows], outcomes)
+    return {
+        "case_count": len(rows),
+        "signal_spearman": signal,
+        "combined_spearman": blend,
+        "blend_delta": (
+            round(blend - signal, 3)
+            if signal is not None and blend is not None else None
+        ),
+    }
+
+
+def _fh_top_week(rows, score_key):
+    """Average outcomes across tied first choices; never break ties with outcomes."""
+    if not rows:
+        return None
+    best_score = max(row[score_key] for row in rows)
+    selected = [row for row in rows if row[score_key] == best_score]
+    realised = sum(row["realised_uplift"] for row in selected) / len(selected)
+    return {
+        "gameweeks": sorted(row["gameweek"] for row in selected),
+        "realised_uplift": round(realised, 3),
+        "regret": round(max(row["realised_uplift"] for row in rows) - realised, 3),
+    }
+
+
+def _fh_blank_rank_stability(scored):
+    """Fixed research gate, not production calibration or a significance test.
+
+    Season deletions summarise existing out-of-fold predictions; they do not
+    refit percentiles. Each season has equal weight in the top-week comparison.
+    """
+    seasons = sorted({row["season"] for row in scored})
+    by_season = []
+    deletions = []
+    for season in seasons:
+        held = [row for row in scored if row["season"] == season]
+        by_season.append({
+            "season": season,
+            **_fh_rank_comparison(held),
+            "fixture_top_week": _fh_top_week(held, "signal_score"),
+            "blend_top_week": _fh_top_week(held, "combined_score"),
+        })
+        deletions.append({
+            "omitted_season": season,
+            **_fh_rank_comparison([
+                row for row in scored if row["season"] != season
+            ]),
+        })
+    overall = _fh_rank_comparison(scored)
+    informative = [row for row in by_season if row["blend_delta"] is not None]
+    improved = sum(row["blend_delta"] > 0 for row in informative)
+    signal_regret = (
+        sum(row["fixture_top_week"]["regret"] for row in by_season) / len(seasons)
+        if seasons else None
+    )
+    blend_regret = (
+        sum(row["blend_top_week"]["regret"] for row in by_season) / len(seasons)
+        if seasons else None
+    )
+    checks = [
+        {"label": "At least three informative held-out seasons",
+         "passed": len(informative) >= 3},
+        {"label": "Blend improves pooled out-of-fold Spearman",
+         "passed": overall["blend_delta"] is not None and overall["blend_delta"] > 0},
+        {"label": "Blend improves a majority of informative seasons",
+         "passed": improved > len(informative) / 2},
+        {"label": "No negative delta after any season deletion",
+         "passed": bool(deletions) and all(
+             row["blend_delta"] is not None and row["blend_delta"] >= 0
+             for row in deletions
+         )},
+        {"label": "Blend does not increase mean top-week regret",
+         "passed": signal_regret is not None and blend_regret <= signal_regret},
+    ]
+    accepted = all(check["passed"] for check in checks)
+    return {
+        "archetype": "blank_only",
+        "status": "RESEARCH CANDIDATE" if accepted else "HOLD",
+        "preferred_research_model": "equal_rank_blend" if accepted else "fixture_only",
+        "production_status": "Uncalibrated: archived deadline inputs still require audit.",
+        "overall": overall,
+        "informative_seasons": len(informative),
+        "improved_seasons": improved,
+        "fixture_mean_top_week_regret": round(signal_regret, 3) if seasons else None,
+        "blend_mean_top_week_regret": round(blend_regret, 3) if seasons else None,
+        "seasons": by_season,
+        "season_deletions": deletions,
+        "checks": checks,
+    }
+
+
 def _fh_blank_only_loso_validation(
     cases,
 ):
@@ -3551,6 +3646,7 @@ def _fh_blank_only_loso_validation(
             ),
         "seasons":
             season_summaries,
+        "ranking_stability": _fh_blank_rank_stability(scored),
         "mixed_blank_double_status":
             (
                 "Uncalibrated: only eight historical cases; "
