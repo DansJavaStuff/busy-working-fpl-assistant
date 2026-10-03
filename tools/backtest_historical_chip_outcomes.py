@@ -346,6 +346,31 @@ def main():
                         f"realised {season['realised_mean']} · "
                         f"MAE {season['mean_absolute_error']}",
                     )
+            acceptance = calibration[
+                "candidate_acceptance"
+            ]
+            print(
+                "    Soft-calibration acceptance:",
+                (
+                    "PASS"
+                    if acceptance["passed"]
+                    else "HOLD"
+                ),
+            )
+            for check in acceptance[
+                "checks"
+            ]:
+                print(
+                    "     ",
+                    (
+                        "PASS"
+                        if check["passed"]
+                        else "FAIL"
+                    ),
+                    f"{check['label']}: "
+                    f"{check['candidate']} vs "
+                    f"{check['benchmark']}",
+                )
             print(
                 "   ",
                 calibration[
