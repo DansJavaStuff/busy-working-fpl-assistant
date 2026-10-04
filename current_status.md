@@ -14,11 +14,11 @@ Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first 
 
 ## Latest milestone
 
-- Previous merged code: PR #48, `66ae9f7` — blank-only FH ranking stability benchmark; results recorded by PR #49, `12d8775`.
-- Latest merged code: PR #50, `13db55e` — deadline-input source/code audit, pinned evidence and read-only Pi provenance helper.
-- Pi provenance check completed on 2026-10-04: import SHA matches the audited source head, and both target fixture rows match the final rearrangements.
-- Audit verification: 112 unit tests, compilation, undefined-name lint, runtime dependency audit and GitHub CI/CodeQL all passed before merge.
-- The user has now run the benchmark on the Pi; findings below are from that supplied output.
+- Snapshot reliability: completion-time metadata, fresh deadline, post-deadline discard and read-only `tools.snapshot_health` diagnostic.
+- Local verification: 122 unit tests, compilation, undefined-name lint and dependency audit; GitHub CI/security must pass before merge.
+- Previous merged work: PR #50 historical input audit (`13db55e`) and PR #51 Pi findings (`3ecf728`).
+- Pi source SHA matches the audited source head; all 190 historical deadlines are missing. Pause full reconstruction and prioritise current-season snapshots.
+- Pi timer and new health-report verification are still pending user output.
 - No live FH thresholds, BB metrics or TC metrics change in this milestone.
 
 ## Latest supplied historical results
@@ -81,9 +81,13 @@ Source/code audit and targeted Pi provenance verification are complete; see `doc
 
 ## Immediate next step
 
-Proposed next implementation: create an evidence-backed historical deadline catalogue in UTC, recording source references and leaving unresolved deadlines missing rather than inferring them from final fixture kickoffs. The current 190 missing deadlines prevent reliable before/after comparisons.
+Pause full historical reconstruction. The user agreed to useful improvements before the restart; prioritise current-season collection reliability and practical decision support.
 
-Then build immutable dated decision snapshots / evidenced fixture amendments, separate from final outcomes, with explicit verified/stale/unknown coverage. Recreate candidate weeks from deadline-known schedules; only then test expanding chronological validation. A chronological training split cannot repair hindsight fixture/FDR leakage by itself. Keep fixture-only as provisional research baseline, blend HOLD and mixed FH uncalibrated. This reconstruction has not yet been implemented.
+Current snapshot reliability change: timing now uses completed collection and the fresh bootstrap deadline; post-deadline completions are discarded. `python3 -m tools.snapshot_health` reads the recorded heartbeat and latest stored Gameweek, recomputes checkpoint timing and checks required payload presence without writes or API calls. It omits team details/error text and separates entries. This is not proof of timer enablement or forecast accuracy.
+
+Next Pi verification: pull the change, run the snapshot health command and inspect `fpl-snapshot-collector.timer`. Address missing/stale/error records before doing more historical research. After 4–5 complete Gameweeks, compare checkpoint changes and realised outcomes to decide whether the later checkpoints add value. No live chip thresholds change here.
+
+Historical deadline catalogue and fixture reconstruction remain deferred. The historical results stay diagnostic; a chronological split alone cannot repair revised inputs.
 
 ## Caveats that must survive handoff
 

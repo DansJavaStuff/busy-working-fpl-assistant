@@ -60,6 +60,10 @@ def main():
         )
         return
 
+    if status == "deadline_passed_during_collection":
+        print(f"GW{gameweek} deadline passed during collection; snapshot discarded.")
+        return
+
     if status == "locked":
         print(
             f"GW{gameweek} deadline "

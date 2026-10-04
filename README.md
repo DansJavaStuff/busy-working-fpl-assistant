@@ -192,6 +192,16 @@ The dashboard also compares consecutive snapshots and reports changes in availab
 
 When a snapshot is actually due, the collector bypasses the normal public-data cache and requires fresh official FPL bootstrap and fixture responses, then captures the authenticated current squad and public entry data. If a live public FPL request fails, that checkpoint is not silently filled with stale cached data.
 
+Capture timing is measured after all responses arrive, using the deadline in the fresh bootstrap. A collection that finishes at or after that deadline is discarded. Responses are sequential, so this is a conservative completion timestamp, not an atomic API snapshot.
+
+Check the recorded heartbeat and latest stored Gameweek without changing the database or contacting FPL:
+
+```bash
+python3 -m tools.snapshot_health
+```
+
+The report recomputes timing for old snapshots, flags absent payload sections, and distinguishes missing checkpoints from ones whose target has not arrived yet. Coverage is separate for each entry; team details and collector error messages are omitted. `recent` means a check was recorded within ten minutes; it does not establish that the timer is enabled. The latest stored Gameweek may lag the live planning Gameweek, which this offline command cannot query.
+
 The timer can be inspected with:
 
 ```bash
