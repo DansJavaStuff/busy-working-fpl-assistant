@@ -1,8 +1,33 @@
 # Fantasy EPL Assistant — Roadmap
 
+_Last reviewed: 2026-10-04. Detailed evidence and handoff: [current_status.md](current_status.md)._
+
 This roadmap tracks the current state, immediate priorities and longer-term direction of the Fantasy EPL assistant.
 
 The guiding principle is to improve the quality of real weekly FPL decisions rather than add complexity for its own sake. Priorities may change when a live gameweek exposes a more important weakness in the model.
+
+## Where we are now
+
+**Core weekly decision support and chip planning are implemented. The current phase is validating advice and improving reliability, before promoting further model changes.** A functioning optimiser or a stable ranking is not evidence that its predictions are accurate.
+
+| Area | Position on 4 October 2026 | Next evidence/action |
+|---|---|---|
+| Weekly HQ, transfers, lineup and captain | Operational; fresh-input refresh and hit-display fixes verified on Pi | Refresh near GW6 deadline after later team news; review actual proposed choices |
+| Chip strategy and coordinated schedule | Implemented; explicit HOLD and unscheduled chips supported | Keep values provisional; improve evidence before changing gates |
+| Current-season snapshots | Collector/timer verified; baseline saved, late checkpoints pending | Observe the GW6 captures; evaluate checkpoint value after 4–5 complete Gameweeks |
+| Early-form/captain sensitivity | Full-pool Pi comparison complete; transfer/captain stable, vice sensitive | Keep live weighting unchanged; evaluate forward predictions against realised outcomes |
+| Historical research | Diagnostics/audit complete for this pass; archived inputs revised and deadlines missing | Full reconstruction deferred; only a bounded evidence-backed pilot if it later merits priority |
+| Hosting, automatic scheduling and advanced transfer planning | Backlog | Revisit after decision quality is better evidenced |
+
+Latest completed work: historical provenance audit (PRs #50–51), snapshot reliability (PR #52), planner refresh/freshness and hit-display fixes (PR #53), frozen-input sensitivity tool/result (PRs #54–55). Full sensitivity run took 1m37.589s on the Pi; 143 tests and CI/security checks passed for the latest modelling tool. None of these results promote new production weights or chip thresholds.
+
+## Immediate plan
+
+1. Leave the Pi's snapshot timer running; no immediate repeat research/optimiser run is needed.
+2. Towards the GW6 deadline, refresh weekly and chip advice as availability/team news settle and inspect transfer, lineup, captain/vice and HOLD reasoning.
+3. Collect the dated predictions/decision evidence and realised outcomes. Build/complete the comparison reports needed to judge player and decision accuracy; this evaluation is not yet established.
+4. After 4–5 complete Gameweeks, review checkpoint differences and whether they materially change advice. Simplify redundant collection only when evidence supports it.
+5. Use the findings to choose the next bounded refinement: form/captain calibration, playing-time confidence or transfer valuation. Do not choose a new weighting simply because one week favours it.
 
 ## Current Status
 
@@ -12,7 +37,7 @@ The assistant currently supports:
 - [x] Authenticated retrieval of the current FPL squad
 - [x] Rolling multi-gameweek player projections
 - [x] Fixture difficulty and team-strength adjustments
-- [x] Early-season shrinkage to reduce overreaction to small samples
+- [x] Initial early-season shrinkage implemented (calibration remains unvalidated)
 - [x] Fresh 15-player squad optimisation under FPL constraints
 - [x] Current-squad optimisation for HOLD, one-transfer and multi-transfer paths
 - [x] Actual selling prices and available bank
@@ -26,34 +51,35 @@ The assistant currently supports:
 - [x] Minimum free-transfer gain threshold so tiny numerical improvements do not automatically consume a transfer
 - [x] Season benchmark history in `data/season_history.csv`
 
-LATER MILESTONE — HOSTED WEEKLY MANAGER
+### Hosted Weekly Manager — core local workflow built; hosting deferred
 
-[x] Build local Flask dashboard
-[x] Display current FPL squad
-[x] Display transfer scenarios
-[x] Display recommended transfers
-[x] Show proposed XI / bench / captain
-[x] Add Approve / Reject workflow
-[x] Add dry-run FPL write layer
-[x] Test team-selection API write
-[x] Test transfer API write
-[ ] Add authentication
-[ ] Add scheduled Friday optimiser run
-[ ] Deploy to hosted service
+- [x] Build local Flask dashboard
+- [x] Display current FPL squad
+- [x] Display transfer scenarios
+- [x] Display recommended transfers
+- [x] Show proposed XI / bench / captain
+- [x] Add Approve / Reject workflow
+- [x] Add dry-run FPL write layer
+- [x] Test team-selection API write
+- [x] Test transfer API write
+- [ ] Add authentication
+- [ ] Add scheduled Friday optimiser run
+- [ ] Deploy to hosted service
 
 The local dashboard is now the main interactive surface. It also includes Gameweek history, first-run local setup and a read-only chip planner. Hosted deployment remains deliberately deferred while the decision model is improved.
 
-ONGOING — OPTIMISER REFINEMENT
+### Ongoing — Optimiser Refinement
 
-[✓] Previous-season player baselines
-[✓] Historical positional priors
-[✓] Rolling fixture horizon
-[✓] Safer transfer-hit decisions
-[ ] Refine early-season projections
-[ ] Review captaincy model
-[ ] Add price-change awareness
-[ ] Improve transfer value / budget flexibility
-[ ] Track recommendation accuracy through season
+- [x] Previous-season player baselines
+- [x] Historical positional priors
+- [x] Rolling fixture horizon
+- [x] Safer transfer-hit decisions
+- [x] Investigate early-form/captain ranking sensitivity on a frozen input pool
+- [ ] Validate/refine early-season projections using outcome evidence
+- [ ] Validate/refine captaincy model beyond current position multipliers
+- [ ] Add price-change awareness
+- [ ] Improve transfer value / budget flexibility
+- [ ] Track recommendation accuracy through season
 
 ### Goal
 
@@ -81,9 +107,9 @@ Saving £2.5m costs only 0.17 projected points.
 
 The cheaper squad may be strategically preferable even though it is not the mathematical maximum for the current projection window.
 
-## Current — Chip Schedule & Historical Intelligence
+## Implemented — Chip Schedule & Historical Intelligence
 
-Before moving on to transfer valuation, turn the chip opportunity model into a coordinated, confidence-aware schedule.
+The coordinated schedule and its HOLD/unscheduled behaviour are implemented. Historical backtests remain diagnostics because the input audit found hindsight revisions. Improving their evidential validity is deferred; they are not a blocker requiring full reconstruction before practical live improvements.
 
 - [x] Historical data foundation: versioned local SQLite store
 - [x] Rebuildable schema migrations
@@ -97,6 +123,8 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Recover checkpoint captures after short Pi outages and record lateness
 - [x] Show snapshot collector health and checkpoint status on Gameweek HQ
 - [x] Compare consecutive snapshots for material/dependency changes
+- [x] Measure completion-time lateness and reject post-deadline collections
+- [x] Add read-only snapshot-health diagnostic; verify Pi timer scheduling
 - [ ] Review checkpoint value after 4–5 complete Gameweeks and simplify T−15m / T−10m / T−5m if evidence shows they are redundant
 - [ ] Extend snapshot comparison to answer whether the optimiser/chip recommendation would actually have changed
 - [x] Import historical fixture / Gameweek context
@@ -131,12 +159,15 @@ Before moving on to transfer valuation, turn the chip opportunity model into a c
 - [x] Add retrospective realised chip-opportunity ceiling backtest
 - [x] Break realised chip backtests down by fixture shape
 - [x] Split realised FH calibration into blank-only vs mixed blank+double archetypes
+- [x] Benchmark blank-only FH ranking stability; retain fixture-only / blend HOLD when fixed gates fail
+- [x] Audit source/code provenance and confirm missing historical deadlines on Pi
+- [ ] Pilot evidence-backed historical reconstruction (deferred; missing archives cannot be repaired by computation alone)
 - [ ] Build a look-ahead-safe historical feature set from pre-deadline-only inputs
 - [ ] Backtest historical chip outcomes without look-ahead leakage
 - [ ] Recalibrate historical-similarity thresholds from pattern + outcome evidence
 - [ ] Explain useful historical analogues without overfitting to Gameweek number
 
-## Next — Smarter Free-Transfer Valuation
+## Backlog — Smarter Free-Transfer Valuation
 
 Improve the current fixed minimum projected-gain threshold.
 
@@ -169,10 +200,12 @@ Potential work:
 - [ ] Account for European / cup fixture congestion
 - [ ] Build an explicit outfield expected-start probability
 
-## Near Term — Projection Validation
+## Current Evidence Phase — Projection and Decision Validation
 
-Use accumulated gameweek data to compare projected and actual FPL points.
+Use dated current-season predictions and realised outcomes to compare projected and actual FPL points. Collection/reliability is implemented; meaningful forward accuracy evaluation and calibration remain open.
 
+- [x] Capture frozen projection inputs for controlled research replay
+- [x] Compare three fixed early-form weightings without altering live weights
 - [ ] Compare projected vs actual points overall
 - [ ] Analyse error by position
 - [ ] Analyse error by player price
@@ -215,16 +248,16 @@ Move from “What is the best move this week?” toward “What is the best tran
 - [ ] Quantify team-value consequences
 - [ ] Ensure price movement informs decisions rather than automatically triggering them
 
-## Later — Weekly Decision Report
+## Implemented — Weekly Decision Report; further reporting remains open
 
-Create a concise decision-focused output while retaining detailed optimiser output as a diagnostic mode.
+Gameweek HQ presents weekly advice and `tools.review_weekly_report` prints a compact offline review. Further optional/future-transfer reporting remains open.
 
-- [ ] Build concise weekly recommendation format
-- [ ] Report transfer / roll recommendation
+- [x] Build concise weekly recommendation format
+- [x] Report transfer / roll recommendation
 - [ ] Report best optional transfer
-- [ ] Report captain and vice-captain
-- [ ] Report key availability concerns
-- [ ] Report bank
+- [x] Report captain and vice-captain
+- [x] Report key availability concerns
+- [x] Report bank
 - [ ] Report expected free transfers next gameweek
 
 Example target output:
@@ -246,26 +279,30 @@ Bank: £1.5m
 Free transfers next GW: 2
 ```
 
-## Later — Web Dashboard
+## Implemented — Local Web Dashboard; dedicated analysis views remain open
 
-Once recommendations are sufficiently trusted, build a lightweight Raspberry Pi web interface.
+Gameweek HQ is the main local interface. Its existence does not imply the model's accuracy is established.
 
-Potential views:
-
-- [ ] This Gameweek
-- [ ] My Squad
-- [ ] Transfers
-- [ ] Player Comparison
-- [ ] Fixture Planner
-- [ ] Season Performance
-- [ ] Model Diagnostics
+- [x] This Gameweek
+- [x] Current/proposed squad, lineup, bench and captain
+- [x] Transfers and scenario comparison
+- [x] Read-only Chips strategy, timing curves and Why explanations
+- [x] Gameweek history and local configuration
+- [x] Analysis generation/freshness reminder and fresh official-input refresh
+- [x] Explain model ranking scores and deduct transfer hits once in displayed gains
+- [x] Recompute displayed deadline lock when serving saved advice
+- [ ] Dedicated Player Comparison view
+- [ ] Dedicated Fixture Planner view
+- [ ] Season Performance / accuracy dashboard
+- [ ] Consolidated web Model Diagnostics view
 
 The terminal tools should remain independently usable.
 
 ## Technical / Maintenance Backlog
 
-- [ ] Add automated tests for projection logic
-- [ ] Add automated tests for transfer logic
+- [x] Add initial projection regressions: blank/double GWs, research replay and weighting controls
+- [x] Add transfer-report/gate regression tests and CBC smoke validation
+- [ ] Broaden direct transfer-constraint/solver regression coverage as changes require
 - [x] Add initial automated tests for chip-planner logic
 - [x] Add GitHub Actions CI for compile, tests and lightweight linting
 - [x] Add runtime / development dependency manifests
@@ -371,20 +408,18 @@ Good ideas that are deliberately not current priorities:
 
 ## Priority Order
 
-1. **Chip schedule & historical intelligence** — current modelling priority.
-2. Smarter free-transfer valuation.
-3. Outfield playing-time confidence.
-4. Projection validation.
-5. Multi-gameweek transfer planning.
-6. Captaincy improvements.
-7. Price-change awareness.
-8. Weekly decision report.
-9. Hosted-service work: authentication, scheduling and deployment.
-10. Project rename and technical cleanup.
+1. **Current-season decision reliability and forward evaluation** — collect deadline evidence and compare predictions/choices with realised outcomes.
+2. Form/captain calibration and outfield playing-time confidence, guided by observed weaknesses.
+3. Smarter free-transfer valuation and budget flexibility.
+4. Multi-Gameweek transfer planning.
+5. Richer fixture certainty and chip calibration, with historical reconstruction limited to a worthwhile evidenced pilot.
+6. Price-change awareness and further concise reporting.
+7. Hosted-service work: authentication, scheduling and deployment.
+8. Project rename and technical cleanup.
 
-Budget-efficiency work can continue as a refinement alongside the current transfer-valuation work; it does not block the next modelling milestone.
+Chip schedule implementation is complete; trusting and calibrating its advice remains ongoing. Full historical reconstruction is deferred. There is no justified production weighting/threshold change from the current one-week sensitivity result.
 
-The order is intentionally flexible: a live gameweek decision can promote an issue if it reveals a material weakness in the model.
+The order is flexible: a material live decision problem can take priority. Routine fixes and maintenance continue alongside evaluation, without requiring speculative feature work before the next deadline.
 
 ## Development Principle
 
