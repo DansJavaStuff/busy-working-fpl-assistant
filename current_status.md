@@ -1,6 +1,6 @@
 # Current Status
 
-_Last updated: 2026-10-03_
+_Last updated: 2026-10-04_
 
 Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first in a new conversation and replace stale details when milestones finish.
 
@@ -14,8 +14,9 @@ Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first 
 
 ## Latest milestone
 
-- Latest merged code: PR #48, `66ae9f7` — blank-only FH ranking stability benchmark, extending the existing leave-one-season-out comparison.
-- Verification: 110 unit tests, compilation, undefined-name lint, dependency audit and GitHub CI/CodeQL passed before merge.
+- Previous merged code: PR #48, `66ae9f7` — blank-only FH ranking stability benchmark; results recorded by PR #49, `12d8775`.
+- Current milestone: PR #50 — deadline-input source/code audit, pinned evidence and read-only Pi provenance helper. Match exact Pi imports before any snapshot reconstruction.
+- Audit local verification: 112 unit tests, compilation, undefined-name lint and runtime dependency audit passed; GitHub CI/CodeQL must pass before merging this milestone.
 - The user has now run the benchmark on the Pi; findings below are from that supplied output.
 - No live FH thresholds, BB metrics or TC metrics change in this milestone.
 
@@ -57,18 +58,33 @@ Report additions:
 - Fixed research gate: at least three informative seasons, positive pooled delta, improvement in a majority of informative seasons, no negative season-deletion delta, and no worse mean top-week regret.
 - Verdict RESEARCH CANDIDATE only if all gates pass; otherwise HOLD / fixture-only. Neither verdict promotes a production model.
 
+## Deadline-input audit (2026-10-04)
+
+Source/code audit is complete; see `docs/historical_input_audit.md` and its pinned JSON evidence. Exact Pi import revisions remain to be matched.
+
+- Confirmed retrospective fixture contamination: Bournemouth–Luton (2023-24 fixture 162) moves from scheduled GW17 to final GW28 after the GW17 deadline; final schedule produces 9 rather than 10 GW17 fixtures.
+- Confirmed FDR revisions: 168/380 2023-24 fixtures differ between December/final files, including 72 assigned to completed GW1–16.
+- All 20 2023-24 teams change strength-related values. Application top-six premium clubs change, affecting even FH fixture-only signal.
+- Everton–Liverpool GW15 was postponed BEFORE the 2024-25 deadline, but the latest Git file beforehand was stale. Pre-deadline Git timestamps alone cannot establish exact known availability.
+- 2025-26 archive has sparse updates; earlier-GW player filtering is only a partial safeguard. Actual capture/correction timing remains unknown. No repaired-input correlations or live threshold changes have been computed.
+- Backtest caution now explicitly labels retrospective fixture inputs and links to the audit. Provenance helper reads SQLite in read-only mode without migrations/network/credentials.
+
 ## Immediate next step
 
-The PR #48 experiment is complete. No repeat Pi run is needed for this unchanged model.
+After the audit PR is merged, run on the Pi:
 
-Recommended next development step (proposed, not yet implemented): audit the deadline-time inputs and add a chronological walk-forward check before further FH model tuning. In particular, confirm whether historical fixture availability includes postponements announced after the FPL deadline; audit archived FDR/team strength and ownership timing as well. Any retrospective fixture schedule must be labelled as such rather than assumed knowable at the deadline.
+```bash
+cd ~/busy-working-fpl-assistant
+git pull
+python3 -m tools.audit_historical_input_provenance
+```
 
-Keep fixture-only as the blank-FH research baseline, retain the equal-rank blend as an experimental comparator because of its top-choice improvement, and keep mixed FH uncalibrated. Do not change live thresholds or relax the acceptance gate.
+Paste that output to match imported source commits and the two fixture rows. This is quick; no optimiser rerun or service restart required.
 
-A later squad-damage experiment could compare legal playable XI coverage / blank exposure with the current fixture signal, on a common outcome and deadline-valid inputs. This has not been authorised as the next implementation or built yet.
+Then build immutable dated decision snapshots / evidenced fixture amendments, separate from final outcomes. Recreate candidate weeks from deadline-known schedules; only then test expanding chronological validation. A chronological training split cannot repair hindsight fixture/FDR leakage by itself. Keep fixture-only as provisional research baseline, blend HOLD and mixed FH uncalibrated.
 
 ## Caveats that must survive handoff
 
-Archived fixture / team-strength / FDR fields are not proven exact deadline snapshots. FH selection uses prior-GW ownership and form proxies; season-level LOSO is not chronological walk-forward validation. BB and TC still use hindsight ceilings. These are research diagnostics, not sufficient evidence for retuning live thresholds.
+Archived fixtures and rating fields have confirmed retrospective revisions; they are not deadline snapshots. FH selection uses prior-GW ownership and form proxies; season-level LOSO is not chronological walk-forward validation. BB and TC still use hindsight ceilings. These are research diagnostics, not sufficient evidence for retuning live thresholds.
 
 Top-week regret compares only the observed blank weeks in a season, without modelling chip inventory, availability or a real manager's squad and transfer options. Five seasons / 22 cases give limited stability evidence. Gate thresholds are research heuristics, not statistical significance claims.
