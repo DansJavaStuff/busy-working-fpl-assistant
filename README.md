@@ -225,6 +225,16 @@ python3 -m tools.review_weekly_report
 
 This command reads the saved report without FPL calls, database migrations or file writes. It prints transfer options, captain/vice, availability flags and freshness, while omitting tokens, entry IDs and the raw player pool. It does not verify the live squad. See `docs/live_planner_review.md` for this review's findings and limits.
 
+### Early-season form sensitivity (research only)
+
+Compare the current six-Gameweek form weight with a twelve-Gameweek weight and a minutes-capped alternative, using one captured projection pool and squad:
+
+```bash
+time python3 -m tools.compare_form_sensitivity
+```
+
+The tool saves private inputs locally for offline replay, tests transfer/captain choices and submits no FPL changes. Live weights remain unchanged. See `docs/form_sensitivity.md` for initial GW6 results, capture/replay options and limits.
+
 ## Main Scripts
 
 ### `transfer_optimizer.py`
