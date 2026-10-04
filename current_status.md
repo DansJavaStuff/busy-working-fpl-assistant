@@ -14,13 +14,13 @@ Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first 
 
 ## Latest milestone
 
-- Live planner code review: fixed double subtraction of transfer hits in the options table; explicit weekly/Chips refreshes now request fresh official inputs and refuse stale fallback rebuilds. Weekly refresh failure preserves saved advice.
-- Weekly report generation time and freshness reminder added; page-serving recomputes the deadline lock. Model-score explanation distinguishes ranking scores from projected weekly points.
-- Added read-only `python3 -m tools.review_weekly_report` for Pi advice verification. Review findings and limitations: `docs/live_planner_review.md`.
-- Local verification: 133 unit tests, compilation, undefined-name lint, full HQ template rendering and dependency audit. CI/security must pass before merge.
-- Previous merged code: PR #52, `f47a75a` — snapshot completion timing and health diagnostic.
-- Pi verification on 2026-10-04: collector checked 23 seconds earlier, status already_saved, GW6 baseline present/on-time/all required data present; all four later checkpoints pending. Timer enabled/active, next trigger scheduled. Stored deadline 2026-10-10 10:00 UTC (11:00 BST).
-- Actual refreshed GW6 transfer/captain/Chips output still needed from the Pi. No calibrated confidence claim or live chip threshold change.
+- Early-season sensitivity investigation: research-only `tools.compare_form_sensitivity` captures one pool/squad for three fixed alternatives and offline replay. Exact control reproduction checked before solving; production weights unchanged.
+- Initial supplied-player calculation: 12-GW weighting lowers Groß 8.668→7.519, Bogle 8.059→6.911, Haaland 6.999→6.791, Tarkowski 7.594→6.719, Mukiele 2.265→2.580. Groß remains captain among the three supplied candidates; Haaland overtakes Bogle for vice. Full-pool transfer outcome remains pending Pi run.
+- Local validation: 143 unit tests, compilation, undefined-name lint, dependency audit and real CBC smoke comparison. CI/security required before merge.
+- Latest prior merged code: PR #53, `748fdaf` — live planner refresh/freshness and transfer hit display fixes. Pi supplied output confirms display/selection gates: one free Mukiele→Tarkowski transfer (+7.014); paid options add only +1.812/+2.068 vs best free plan and fail the 3-point gate.
+- GW6 chips: BB +5.5 / best later GW9 +7.8; TC +8.7 / later GW16 +7.3; WC +12.7 / later GW10 +20.0; FH +16.7 / later GW12 +8.2. All HOLD, matching normal-slate/ranking gates. These remain provisional model values.
+- Supplied current captain/vice model is Groß/Bogle; Richarlison unavailable and benched. User emphasises ongoing international duty and later team news: review mechanics now, defer final squad decisions until closer to deadline.
+- Pi timer enabled/active; GW6 baseline saved and all later checkpoints pending. Stored deadline 2026-10-10 10:00 UTC (11:00 BST).
 
 ## Latest supplied historical results
 
@@ -86,7 +86,9 @@ Pause full historical reconstruction. The user agreed to useful improvements bef
 
 Current snapshot reliability change: timing now uses completed collection and the fresh bootstrap deadline; post-deadline completions are discarded. `python3 -m tools.snapshot_health` reads the recorded heartbeat and latest stored Gameweek, recomputes checkpoint timing and checks required payload presence without writes or API calls. It omits team details/error text and separates entries. This is not proof of timer enablement or forecast accuracy.
 
-Snapshot collection is verified as scheduled on the Pi; leave it running. Current next step: pull/restart the web service, refresh HQ analysis, run `tools.review_weekly_report` and inspect refreshed Chips recommendations/Why explanations. Review actual squad-specific choices before calling the live review complete.
+Run `time python3 -m tools.compare_form_sensitivity` on the Pi and inspect whether the full-pool transfer/captain/vice choices survive the fixed alternatives. Saved input bundles permit offline replay; do not select a production weighting from this one week. See `docs/form_sensitivity.md`.
+
+Snapshot collection is verified as scheduled; leave it running. Refresh live planner advice later in the week as availability/team news settle. This is not a recommendation to apply the early GW6 plan.
 
 After 4–5 complete Gameweeks, compare checkpoint changes and realised outcomes to decide whether later checkpoints add value. No live chip thresholds change here.
 

@@ -91,6 +91,7 @@ def project_gameweeks(
     planning_gameweek,
     projection_end_gameweek=None,
     long_range_regression=False,
+    current_season_weight_override=None,
 ):
 
     ppg = player["points_per_game"]
@@ -106,6 +107,12 @@ def project_gameweeks(
         current_season_games / 6.0,
         1.0
     )
+
+    # Optional research override; live callers retain the existing six-GW rule.
+    if current_season_weight_override is not None:
+        if not 0 <= current_season_weight_override <= 1:
+            raise ValueError("Current-season weight must be between zero and one")
+        current_season_weight = current_season_weight_override
 
     position = player["position"]
 
@@ -1197,6 +1204,9 @@ def load_players(
                     "rotowire_order"
                 )
             ),
+            # Preserve the exact inputs needed for offline sensitivity replay.
+            "projection_input": projection_input,
+            "availability_factor": availability_factor,
             "projection_debug":
                 projection_debug,
         })
