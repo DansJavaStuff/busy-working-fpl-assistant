@@ -12,6 +12,10 @@ Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first 
 - User authorises pushes and merges once tests and required CI/security checks are green.
 - Keep this file current as part of each meaningful milestone.
 
+## Roadmap alignment (2026-10-04)
+
+`ROADMAP.md` reviewed after PR #55. Core local dashboard, decision report and coordinated chip schedule are implemented; current focus is decision reliability and forward accuracy evidence. Historical reconstruction is deferred. Next session: refresh/review advice closer to GW6 deadline; leave collection running. No immediate repeat optimiser run or production model change is needed. Projection/outcome evaluation and broader model calibration remain open.
+
 ## Latest milestone
 
 - Early-season sensitivity investigation: research-only `tools.compare_form_sensitivity` captures one pool/squad for three fixed alternatives and offline replay. Exact control reproduction checked before solving; production weights unchanged.
