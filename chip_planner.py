@@ -3732,6 +3732,10 @@ def build_chip_planner(
     include_opportunity=False,
     force_refresh=False,
 ):
+    if force_refresh:
+        get_bootstrap(force_refresh=True, allow_stale=False)
+        get_fixtures(force_refresh=True, allow_stale=False)
+
     planning_gameweek = (
         get_planning_gameweek()
     )
@@ -4159,6 +4163,10 @@ def build_chip_planner(
 def build_chip_opportunity(
     force_refresh=False,
 ):
+    if force_refresh:
+        get_bootstrap(force_refresh=True, allow_stale=False)
+        get_fixtures(force_refresh=True, allow_stale=False)
+
     planning_gameweek = (
         get_planning_gameweek()
     )

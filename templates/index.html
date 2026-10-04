@@ -155,6 +155,14 @@
 
 </section>
 
+<section class="card analysis-freshness">
+    <strong>Analysis freshness</strong>
+    <p>{{ freshness.message }}</p>
+    {% if freshness.generated_display %}
+        <small>Generated {{ freshness.generated_display }}</small>
+    {% endif %}
+</section>
+
 <section class="card collector-card">
     <div class="collector-card-header">
         <div>
@@ -476,7 +484,7 @@
 
             <div>
                 <span>
-                    Model gain
+                    Net model gain
                 </span>
 
                 <strong class="positive">
@@ -627,6 +635,8 @@
 
     <h2>Transfer options</h2>
 
+    <p class="model-score-note">{{ model_score_note }}</p>
+
     <div class="scenario scenario-header">
 
         <strong>
@@ -634,7 +644,7 @@
         </strong>
 
         <span>
-            Score
+            Net model score
         </span>
 
         <span>
@@ -653,10 +663,8 @@
 
     {% for scenario in report.scenarios %}
 
-        {% set net_gain = (
-            scenario.gain
-            - scenario.hit_cost
-        ) %}
+        {% set net_gain = scenario.gain %}
+        {% set gross_gain = scenario.get("gross_gain", scenario.gain + scenario.hit_cost) %}
 
         <div
             class="
@@ -695,10 +703,10 @@
             </span>
 
             <span>
-                {% if scenario.gain >= 0 %}
-                    +{{ "%.2f"|format(scenario.gain) }}
+                {% if gross_gain >= 0 %}
+                    +{{ "%.2f"|format(gross_gain) }}
                 {% else %}
-                    {{ "%.2f"|format(scenario.gain) }}
+                    {{ "%.2f"|format(gross_gain) }}
                 {% endif %}
             </span>
 

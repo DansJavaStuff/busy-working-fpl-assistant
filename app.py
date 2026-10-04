@@ -1,10 +1,14 @@
 REPORT_SCHEMA_VERSION = 4
 
 from fpl_api import (
+    get_bootstrap,
+    get_fixtures,
     get_my_team,
     get_planning_gameweek,
     get_gameweek_deadline
 )
+
+from report_review import MODEL_SCORE_NOTE, report_freshness, transfer_scenario_summary
 
 from optimizer import load_players
 
@@ -50,7 +54,7 @@ from snapshot_analysis import (
 
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from flask import (
@@ -219,7 +223,12 @@ def pair_transfers(result):
 def build_weekly_report(
     must_keep_ids=None,
     must_include_ids=None,
+    force_refresh=False,
 ):
+
+    if force_refresh:
+        get_bootstrap(force_refresh=True, allow_stale=False)
+        get_fixtures(force_refresh=True, allow_stale=False)
 
     must_keep_ids = list(
         must_keep_ids or []
@@ -388,23 +397,8 @@ def build_weekly_report(
     for result in results:
 
         scenarios.append({
-            "transfers":
-                result["transfers"],
-            "score":
-                result["net_score"],
-            "raw_score":
-                result["raw_score"],
-            "hit_cost":
-                result["hit_cost"],
-            "gain":
-                result["net_score"]
-                - hold["net_score"],
-            "bank_after":
-                result["bank_after"] / 10,
-            "pairs":
-                pair_transfers(result)
-                if result["transfers"]
-                else [],
+            **transfer_scenario_summary(result, hold),
+            "pairs": pair_transfers(result) if result["transfers"] else [],
         })
 
     starters = [
@@ -514,6 +508,7 @@ def build_weekly_report(
     approval = load_approval()
 
     return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "schema_version":
             REPORT_SCHEMA_VERSION,
         "gameweek":
@@ -1192,10 +1187,14 @@ def index():
     report["approval"] = (
         load_approval()
     )
+    freshness = report_freshness(report)
+    report["deadline_locked"] = freshness["deadline_locked"]
 
     return render_template(
         "index.html",
         report=report,
+        freshness=freshness,
+        model_score_note=MODEL_SCORE_NOTE,
         snapshot_status=
             build_snapshot_status(
                 report["gameweek"]
@@ -1207,8 +1206,6 @@ def index():
     methods=["POST"],
 )
 def refresh_analysis():
-
-    clear_approval()
 
     old_report = (
         load_weekly_report()
@@ -1223,18 +1220,17 @@ def refresh_analysis():
         else {}
     )
 
-    report = build_weekly_report(
-        must_keep_ids=
-            constraints.get(
-                "must_keep_ids",
-                [],
-            ),
-        must_include_ids=
-            constraints.get(
-                "must_include_ids",
-                [],
-            ),
-    )
+    try:
+        report = build_weekly_report(
+            must_keep_ids=constraints.get("must_keep_ids", []),
+            must_include_ids=constraints.get("must_include_ids", []),
+            force_refresh=True,
+        )
+    except Exception:
+        app.logger.exception("Unable to refresh weekly analysis")
+        return "Analysis could not be refreshed. Saved advice is unchanged; try again before making decisions.", 503
+
+    clear_approval()
 
     save_recommendation_snapshot(
         report

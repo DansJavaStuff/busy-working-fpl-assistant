@@ -209,6 +209,22 @@ sudo systemctl status fpl-snapshot-collector.timer
 sudo journalctl -u fpl-snapshot-collector.service
 ```
 
+### Review the live planner advice
+
+Gameweek HQ shows when the weekly analysis was generated. Reports older than 30 minutes, reports from before generation timestamps were added, and future timestamps prompt a refresh. This is a review reminder, not a guarantee that the squad or every external source remains unchanged. The deadline lock is recalculated when the page is served.
+
+**Refresh Analysis**, and explicit refreshes on the Chips pages, fetch fresh official bootstrap and fixture data before rebuilding. If those requests fail, the explicit refresh fails rather than rebuilding from stale official fallback data. A failed weekly refresh preserves the previous report and approval state. Normal page loads keep the saved analysis to avoid repeatedly solving on the Pi.
+
+Transfer-option gross gain compares raw model scores; net gain compares scores after hits. Each hit is deducted once. Scores include captain weighting and the squad's five-Gameweek horizon; they are not predicted points for this week. HOLD compares an optimised lineup from the existing squad.
+
+After refreshing in the web app, print a compact review from the Pi:
+
+```bash
+python3 -m tools.review_weekly_report
+```
+
+This command reads the saved report without FPL calls, database migrations or file writes. It prints transfer options, captain/vice, availability flags and freshness, while omitting tokens, entry IDs and the raw player pool. It does not verify the live squad. See `docs/live_planner_review.md` for this review's findings and limits.
+
 ## Main Scripts
 
 ### `transfer_optimizer.py`
