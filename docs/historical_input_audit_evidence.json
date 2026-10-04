@@ -312,7 +312,7 @@
       "Aston Villa",
       "Liverpool",
       "Spurs",
-      "Bournemouth"
+      "Brighton"
     ],
     "changes": [
       {
@@ -867,6 +867,7 @@
           ]
         }
       }
-    ]
+    ],
+    "ordering": "strength descending, short_name (or name) ascending, as historical_chip_features.py"
   }
 }

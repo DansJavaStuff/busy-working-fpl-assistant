@@ -15,8 +15,8 @@ Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first 
 ## Latest milestone
 
 - Previous merged code: PR #48, `66ae9f7` — blank-only FH ranking stability benchmark; results recorded by PR #49, `12d8775`.
-- Current milestone: deadline-input source/code audit, pinned evidence and read-only Pi provenance helper. Match exact Pi imports before any snapshot reconstruction.
-- Audit local verification: 112 unit tests, compilation and undefined-name lint passed; GitHub CI/CodeQL must pass before merging this milestone.
+- Current milestone: PR #50 — deadline-input source/code audit, pinned evidence and read-only Pi provenance helper. Match exact Pi imports before any snapshot reconstruction.
+- Audit local verification: 112 unit tests, compilation, undefined-name lint and runtime dependency audit passed; GitHub CI/CodeQL must pass before merging this milestone.
 - The user has now run the benchmark on the Pi; findings below are from that supplied output.
 - No live FH thresholds, BB metrics or TC metrics change in this milestone.
 

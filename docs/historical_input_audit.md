@@ -14,7 +14,7 @@ Scope: code-path inspection; latest file-change metadata for three input files a
 |---|---|---|---|
 | Fixture membership, blanks/doubles | One pinned source revision per import, applied to all historical weeks | **Confirmed retrospective source contamination**: Bournemouth–Luton reassigned after GW17 deadline | Use dated decision snapshots plus evidenced last-minute amendments; keep final fixtures separately for outcomes |
 | Fixture difficulty | Stored from that same season file; reused across historical weeks | **Confirmed revisions**: 168 fixture rows differ between December and final 2023-24 versions | Freeze FDR as of each deadline, or use a prior-results-only alternative |
-| Team strength / premium clubs | One season-wide team row; top six ranked by strength, ties by name | **Confirmed revisions**: all 20 teams have a strength-related change; top-six membership changes | Use dated strength values; do not apply later ratings retrospectively |
+| Team strength / premium clubs | One season-wide team row; top six ranked by strength, ties by short name (or full name if missing) | **Confirmed revisions**: all 20 teams have a strength-related change; top-six membership changes | Use dated strength values; do not apply later ratings retrospectively |
 | Form / past points and minutes | Query selects rows with Gameweek number less than target | **Partial safeguard only** | Verify observation times: earlier GW number does not prove all its fixtures finished before the target deadline; retain correction provenance |
 | Ownership / price | Latest available row from an earlier GW, not a target-deadline snapshot | **Unknown capture timing / known lagged proxy** | Check original per-GW files, collection timing and revisions; label lagged values |
 | Actual points | Used to score already selected squads; BB/TC remain ceilings | **Outcome data, intentionally retrospective** | Keep inaccessible to decision selection; apply historical scoring/auto-sub rules when testing real decisions |
@@ -40,10 +40,10 @@ Scope: code-path inspection; latest file-change metadata for three input files a
 
 Comparing the 2023-24 December fixture revision with the final fixture revision gives **168/380 rows** with changed home or away FDR. **72** of those rows are assigned to final GW1–16 (already completed by the December archive). For fixture **2**, the away difficulty changes **4 → 5**; fixture **8**, away difficulty changes **3 → 2**. A final historical CSV is not a record of the ratings at the time those matches occurred.
 
-Team-file comparison: December commit `392588ec1664432358f9481b81c3a8c1d53a60a3` versus latest team-file change `446af195d2ee324a1217f34a5a2b591189efc983` (**2024-03-07**). All **20 teams** change at least one strength field. Using the application's top-six strength/name ordering:
+Team-file comparison: December commit `392588ec1664432358f9481b81c3a8c1d53a60a3` versus latest team-file change `446af195d2ee324a1217f34a5a2b591189efc983` (**2024-03-07**). All **20 teams** change at least one strength field. Using the application's top-six strength/short-name ordering:
 
 - December: Man City, Arsenal, Liverpool, Man Utd, Newcastle, Aston Villa.
-- Later file: Arsenal, Man City, Aston Villa, Liverpool, Spurs, Bournemouth.
+- Later file: Arsenal, Man City, Aston Villa, Liverpool, Spurs, Brighton.
 
 The FH fixture signal includes premium-club blank share, so even its apparently simple fixture-only score depends on these later team ratings. BB/TC also consume premium-double share and FDR. This audit does not quantify the effect on their reported correlations.
 
