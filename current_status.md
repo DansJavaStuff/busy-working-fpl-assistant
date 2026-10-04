@@ -15,8 +15,10 @@ Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first 
 ## Latest milestone
 
 - Early-season sensitivity investigation: research-only `tools.compare_form_sensitivity` captures one pool/squad for three fixed alternatives and offline replay. Exact control reproduction checked before solving; production weights unchanged.
-- Initial supplied-player calculation: 12-GW weighting lowers Groß 8.668→7.519, Bogle 8.059→6.911, Haaland 6.999→6.791, Tarkowski 7.594→6.719, Mukiele 2.265→2.580. Groß remains captain among the three supplied candidates; Haaland overtakes Bogle for vice. Full-pool transfer outcome remains pending Pi run.
-- Local validation: 143 unit tests, compilation, undefined-name lint, dependency audit and real CBC smoke comparison. CI/security required before merge.
+- Initial supplied-player calculation: 12-GW weighting lowers Groß 8.668→7.519, Bogle 8.059→6.911, Haaland 6.999→6.791, Tarkowski 7.594→6.719, Mukiele 2.265→2.580. Groß remains captain among the three supplied candidates; Haaland overtakes Bogle for vice. Full-pool Pi result now confirms the same free Mukiele→Tarkowski transfer and Groß captain under all three variants; vice changes Bogle→Haaland. Net gain +7.0136 / +5.0498 / +4.9785.
+- Latest merged code: PR #54, `6d3c8f2`; 143 tests, compilation, undefined-name lint, dependency audit, CBC smoke check and CI/security passed.
+- Pi comparison completed in 1m37.589s (user 1m33.819s, system 1.387s). Control three-transfer plan adds only +2.8502 vs best free, 0.1498 below the 3-point gate; reduced-form best paid increments are +0.2750 / +0.0109.
+- No production weighting/threshold change: stable transfer/captain in this one capture is not proof of accuracy. See `docs/form_sensitivity.md` for results and the separate-capture three-transfer discrepancy.
 - Latest prior merged code: PR #53, `748fdaf` — live planner refresh/freshness and transfer hit display fixes. Pi supplied output confirms display/selection gates: one free Mukiele→Tarkowski transfer (+7.014); paid options add only +1.812/+2.068 vs best free plan and fail the 3-point gate.
 - GW6 chips: BB +5.5 / best later GW9 +7.8; TC +8.7 / later GW16 +7.3; WC +12.7 / later GW10 +20.0; FH +16.7 / later GW12 +8.2. All HOLD, matching normal-slate/ranking gates. These remain provisional model values.
 - Supplied current captain/vice model is Groß/Bogle; Richarlison unavailable and benched. User emphasises ongoing international duty and later team news: review mechanics now, defer final squad decisions until closer to deadline.
@@ -86,7 +88,7 @@ Pause full historical reconstruction. The user agreed to useful improvements bef
 
 Current snapshot reliability change: timing now uses completed collection and the fresh bootstrap deadline; post-deadline completions are discarded. `python3 -m tools.snapshot_health` reads the recorded heartbeat and latest stored Gameweek, recomputes checkpoint timing and checks required payload presence without writes or API calls. It omits team details/error text and separates entries. This is not proof of timer enablement or forecast accuracy.
 
-Run `time python3 -m tools.compare_form_sensitivity` on the Pi and inspect whether the full-pool transfer/captain/vice choices survive the fixed alternatives. Saved input bundles permit offline replay; do not select a production weighting from this one week. See `docs/form_sensitivity.md`.
+Full-pool sensitivity comparison is complete. Leave live weighting unchanged and use later pre-deadline snapshots plus realised outcomes to judge accuracy. No immediate repeat optimiser run is needed. The saved input bundle can be replayed if further analysis is required; avoid mixing separate captures when attributing changes to weights.
 
 Snapshot collection is verified as scheduled; leave it running. Refresh live planner advice later in the week as availability/team news settle. This is not a recommendation to apply the early GW6 plan.
 
