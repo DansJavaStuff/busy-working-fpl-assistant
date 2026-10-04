@@ -83,9 +83,21 @@ python3 -m tools.audit_historical_input_provenance
 
 The command prints only historical import metadata, deadline coverage and the two fixture cases. It opens SQLite with `mode=ro`, does not create a database, apply migrations, contact the network, or read credentials. Paste the output to match the source evidence against the exact imported SHAs and rows. No service restart or expensive optimiser backtest is needed.
 
+## Pi verification result (2026-10-04)
+
+The user ran the read-only command against the Pi on PR #50 (`13db55e`). It completed in 0.519s.
+
+- All five historical import records name `9779cdbc0c07f6c900c2d0c181ddf6bb9c800f88`, the exact source head inspected here, covering fixtures, teams and merged player GW files.
+- All five seasons have 38 Gameweeks and 380 fixtures. **None of the 190 historical Gameweeks has a deadline timestamp.** A sourced UTC deadline catalogue is therefore the first reconstruction step, before per-deadline source comparisons. Do not derive deadlines from final rearranged kickoff times.
+- Fixture 162 is stored in GW28, kickoff 2024-03-13 19:30 UTC, FDR 2–2. Fixture 144 is stored in GW24, kickoff 2025-02-12 19:30 UTC, FDR 5–3. Both match the audited final-source examples.
+- Fixture source_updated_at values are 2026-09-25, whereas import logs show 2026-09-26. They reflect local import activity rather than original data capture; the difference must not be used as evidence for historical availability.
+- The current-season 2026-27 row has one deadline and no history-table fixtures; this diagnostic does not inspect the live API or establish whether collection timers work.
+
+This confirms the targeted local provenance findings, not byte-for-byte identity of every imported row. No repaired-input model results were produced. The verification command need not be repeated for this unchanged dataset.
+
 ## Next implementation after provenance is checked
 
-1. Build immutable decision snapshots with UTC cutoffs and source/evidence lineage. Keep final scoring data in separate outcome records; do not overwrite the current runtime history to approximate snapshots.
+1. First source the 190 historical UTC deadlines with evidence references and explicit missing coverage. Then build immutable decision snapshots with UTC cutoffs and source/evidence lineage. Keep final scoring data in separate outcome records; do not overwrite the current runtime history to approximate snapshots.
 2. For each deadline, distinguish verified information, stale archive observations and unknowns. Add evidenced fixture amendments; do not infer their announcement times from final kickoffs/events. Mark missing coverage explicitly.
 3. Recreate candidate Gameweeks from deadline-known schedules, not final blank lists. Evaluate all eligible weeks for a true chip-timing experiment, including later unexpected blanks as outcomes.
 4. Only then run expanding chronological validation (earlier seasons only), keeping weights/gates fixed. This alone cannot cure retrospective fixture/FDR inputs.
