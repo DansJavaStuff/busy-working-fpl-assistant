@@ -190,6 +190,14 @@ Gameweek HQ shows the current collector health, last check and saved/waiting sta
 
 The dashboard also compares consecutive snapshots and reports changes in availability, prices, fixture assignments, the authenticated team state and FPL projection inputs. This is deliberately being collected as an experiment: after roughly 4–5 complete Gameweeks, review whether T−15m, T−10m and T−5m provide meaningfully different decision information. If they are consistently redundant, reduce the checkpoint schedule rather than keeping extra collection indefinitely.
 
+Once official results have been collected from the Gameweek History page, aggregate the archived final pre-deadline recommendations with:
+
+```bash
+python3 -m tools.evaluate_live_snapshots
+```
+
+The report compares projected and actual scores, transfer gains, captain outcomes and bench points. It remains in `COLLECTING` state until five completed Gameweeks are available; do not retune live thresholds from a smaller sample.
+
 When a snapshot is actually due, the collector bypasses the normal public-data cache and requires fresh official FPL bootstrap and fixture responses, then captures the authenticated current squad and public entry data. If a live public FPL request fails, that checkpoint is not silently filled with stale cached data.
 
 The timer can be inspected with:
