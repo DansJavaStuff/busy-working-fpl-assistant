@@ -14,12 +14,13 @@ Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first 
 
 ## Latest milestone
 
-- Snapshot reliability: completion-time metadata, fresh deadline, post-deadline discard and read-only `tools.snapshot_health` diagnostic.
-- Local verification: 122 unit tests, compilation, undefined-name lint and dependency audit; GitHub CI/security must pass before merge.
-- Previous merged work: PR #50 historical input audit (`13db55e`) and PR #51 Pi findings (`3ecf728`).
-- Pi source SHA matches the audited source head; all 190 historical deadlines are missing. Pause full reconstruction and prioritise current-season snapshots.
-- Pi timer and new health-report verification are still pending user output.
-- No live FH thresholds, BB metrics or TC metrics change in this milestone.
+- Live planner code review: fixed double subtraction of transfer hits in the options table; explicit weekly/Chips refreshes now request fresh official inputs and refuse stale fallback rebuilds. Weekly refresh failure preserves saved advice.
+- Weekly report generation time and freshness reminder added; page-serving recomputes the deadline lock. Model-score explanation distinguishes ranking scores from projected weekly points.
+- Added read-only `python3 -m tools.review_weekly_report` for Pi advice verification. Review findings and limitations: `docs/live_planner_review.md`.
+- Local verification: 133 unit tests, compilation, undefined-name lint, full HQ template rendering and dependency audit. CI/security must pass before merge.
+- Previous merged code: PR #52, `f47a75a` — snapshot completion timing and health diagnostic.
+- Pi verification on 2026-10-04: collector checked 23 seconds earlier, status already_saved, GW6 baseline present/on-time/all required data present; all four later checkpoints pending. Timer enabled/active, next trigger scheduled. Stored deadline 2026-10-10 10:00 UTC (11:00 BST).
+- Actual refreshed GW6 transfer/captain/Chips output still needed from the Pi. No calibrated confidence claim or live chip threshold change.
 
 ## Latest supplied historical results
 
@@ -85,7 +86,9 @@ Pause full historical reconstruction. The user agreed to useful improvements bef
 
 Current snapshot reliability change: timing now uses completed collection and the fresh bootstrap deadline; post-deadline completions are discarded. `python3 -m tools.snapshot_health` reads the recorded heartbeat and latest stored Gameweek, recomputes checkpoint timing and checks required payload presence without writes or API calls. It omits team details/error text and separates entries. This is not proof of timer enablement or forecast accuracy.
 
-Next Pi verification: pull the change, run the snapshot health command and inspect `fpl-snapshot-collector.timer`. Address missing/stale/error records before doing more historical research. After 4–5 complete Gameweeks, compare checkpoint changes and realised outcomes to decide whether the later checkpoints add value. No live chip thresholds change here.
+Snapshot collection is verified as scheduled on the Pi; leave it running. Current next step: pull/restart the web service, refresh HQ analysis, run `tools.review_weekly_report` and inspect refreshed Chips recommendations/Why explanations. Review actual squad-specific choices before calling the live review complete.
+
+After 4–5 complete Gameweeks, compare checkpoint changes and realised outcomes to decide whether later checkpoints add value. No live chip thresholds change here.
 
 Historical deadline catalogue and fixture reconstruction remain deferred. The historical results stay diagnostic; a chronological split alone cannot repair revised inputs.
 
