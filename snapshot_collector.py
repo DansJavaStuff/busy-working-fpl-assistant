@@ -252,6 +252,16 @@ def collect_if_due():
         allow_stale=False,
     )
 
+    fresh_event = next(
+        (event for event in bootstrap.get("events", [])
+         if event.get("id") == planning_gameweek),
+        None,
+    )
+    if not fresh_event or not fresh_event.get("deadline_time"):
+        raise RuntimeError("Fresh bootstrap is missing the planning Gameweek deadline.")
+    deadline["deadline_iso"] = fresh_event["deadline_time"]
+    upsert_gameweek(season_id, planning_gameweek, deadline_time=deadline["deadline_iso"])
+
     fixtures = get_fixtures(
         force_refresh=True,
         allow_stale=False,
@@ -271,6 +281,26 @@ def collect_if_due():
         ).isoformat()
     )
 
+    # Timing must describe completed data collection, not the earlier timer tick.
+    seconds_remaining = (
+        datetime.fromisoformat(deadline["deadline_iso"].replace("Z", "+00:00"))
+        - datetime.fromisoformat(captured_at)
+    ).total_seconds()
+    if seconds_remaining <= 0:
+        return {
+            "status": "deadline_passed_during_collection",
+            "gameweek": planning_gameweek,
+            "checkpoint": checkpoint,
+            "seconds_remaining": seconds_remaining,
+        }
+    target = checkpoint_details["target_seconds"]
+    late_by = max(0, (target if target is not None else 3600) - seconds_remaining)
+    checkpoint_details["late_by_seconds"] = late_by
+    checkpoint_details["on_time"] = (
+        0 < seconds_remaining <= target and late_by <= CHECKPOINT_TOLERANCE_SECONDS
+        if target is not None else seconds_remaining > 3600
+    )
+
     payload = {
         "checkpoint":
             checkpoint,
@@ -281,9 +311,7 @@ def collect_if_due():
                 "deadline_iso"
             ],
         "seconds_remaining":
-            deadline[
-                "seconds_remaining"
-            ],
+            seconds_remaining,
         "target_seconds_remaining":
             checkpoint_details.get(
                 "target_seconds"
@@ -329,9 +357,7 @@ def collect_if_due():
         "snapshot_type":
             snapshot_type,
         "seconds_remaining":
-            deadline[
-                "seconds_remaining"
-            ],
+            seconds_remaining,
         "late_by_seconds":
             checkpoint_details.get(
                 "late_by_seconds",
