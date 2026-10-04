@@ -15,8 +15,9 @@ Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first 
 ## Latest milestone
 
 - Previous merged code: PR #48, `66ae9f7` — blank-only FH ranking stability benchmark; results recorded by PR #49, `12d8775`.
-- Current milestone: PR #50 — deadline-input source/code audit, pinned evidence and read-only Pi provenance helper. Match exact Pi imports before any snapshot reconstruction.
-- Audit local verification: 112 unit tests, compilation, undefined-name lint and runtime dependency audit passed; GitHub CI/CodeQL must pass before merging this milestone.
+- Latest merged code: PR #50, `13db55e` — deadline-input source/code audit, pinned evidence and read-only Pi provenance helper.
+- Pi provenance check completed on 2026-10-04: import SHA matches the audited source head, and both target fixture rows match the final rearrangements.
+- Audit verification: 112 unit tests, compilation, undefined-name lint, runtime dependency audit and GitHub CI/CodeQL all passed before merge.
 - The user has now run the benchmark on the Pi; findings below are from that supplied output.
 - No live FH thresholds, BB metrics or TC metrics change in this milestone.
 
@@ -60,7 +61,7 @@ Report additions:
 
 ## Deadline-input audit (2026-10-04)
 
-Source/code audit is complete; see `docs/historical_input_audit.md` and its pinned JSON evidence. Exact Pi import revisions remain to be matched.
+Source/code audit and targeted Pi provenance verification are complete; see `docs/historical_input_audit.md` and its pinned JSON evidence. This is not a byte-for-byte check of every imported row.
 
 - Confirmed retrospective fixture contamination: Bournemouth–Luton (2023-24 fixture 162) moves from scheduled GW17 to final GW28 after the GW17 deadline; final schedule produces 9 rather than 10 GW17 fixtures.
 - Confirmed FDR revisions: 168/380 2023-24 fixtures differ between December/final files, including 72 assigned to completed GW1–16.
@@ -69,19 +70,20 @@ Source/code audit is complete; see `docs/historical_input_audit.md` and its pinn
 - 2025-26 archive has sparse updates; earlier-GW player filtering is only a partial safeguard. Actual capture/correction timing remains unknown. No repaired-input correlations or live threshold changes have been computed.
 - Backtest caution now explicitly labels retrospective fixture inputs and links to the audit. Provenance helper reads SQLite in read-only mode without migrations/network/credentials.
 
+## Pi provenance findings (2026-10-04)
+
+- All five historical import records list source SHA `9779cdbc0c07f6c900c2d0c181ddf6bb9c800f88`, exactly the source head inspected in the audit, covering fixtures, teams and merged player GWs.
+- Each historical season has 38 Gameweeks / 380 fixtures, but zero deadline timestamps: **190/190 historical deadlines are missing**.
+- Stored 2023-24 fixture 162 is GW28 / 2024-03-13 19:30 UTC / FDR 2–2; stored 2024-25 fixture 144 is GW24 / 2025-02-12 19:30 UTC / FDR 5–3. Both match the final-source rows in the audit.
+- Fixture source_updated_at timestamps are from 25 September 2026, while import log timestamps are from 26 September. These are import metadata, not historical collection times; the mismatch reinforces that logs are not per-row lineage.
+- The separate current-season 2026-27 row has one recorded Gameweek/deadline and no historical fixtures. This report does not diagnose the live API or snapshot timers.
+- Provenance command completed in 0.519s. No repeat audit command or optimiser run is needed for these unchanged inputs.
+
 ## Immediate next step
 
-After the audit PR is merged, run on the Pi:
+Proposed next implementation: create an evidence-backed historical deadline catalogue in UTC, recording source references and leaving unresolved deadlines missing rather than inferring them from final fixture kickoffs. The current 190 missing deadlines prevent reliable before/after comparisons.
 
-```bash
-cd ~/busy-working-fpl-assistant
-git pull
-python3 -m tools.audit_historical_input_provenance
-```
-
-Paste that output to match imported source commits and the two fixture rows. This is quick; no optimiser rerun or service restart required.
-
-Then build immutable dated decision snapshots / evidenced fixture amendments, separate from final outcomes. Recreate candidate weeks from deadline-known schedules; only then test expanding chronological validation. A chronological training split cannot repair hindsight fixture/FDR leakage by itself. Keep fixture-only as provisional research baseline, blend HOLD and mixed FH uncalibrated.
+Then build immutable dated decision snapshots / evidenced fixture amendments, separate from final outcomes, with explicit verified/stale/unknown coverage. Recreate candidate weeks from deadline-known schedules; only then test expanding chronological validation. A chronological training split cannot repair hindsight fixture/FDR leakage by itself. Keep fixture-only as provisional research baseline, blend HOLD and mixed FH uncalibrated. This reconstruction has not yet been implemented.
 
 ## Caveats that must survive handoff
 
