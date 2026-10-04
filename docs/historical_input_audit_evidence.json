@@ -1,0 +1,872 @@
+{
+  "audited_at": "2026-10-04",
+  "source_repository": "vaastav/Fantasy-Premier-League",
+  "inspected_source_head": "9779cdbc0c07f6c900c2d0c181ddf6bb9c800f88",
+  "file_history": [
+    {
+      "season": "2021-22",
+      "path": "fixtures.csv",
+      "sha": "969ebcc35cf19520b6c6318bf833a54074b7dfab",
+      "date": "2022-05-23T11:50:22Z",
+      "message": "Add GW38 data"
+    },
+    {
+      "season": "2021-22",
+      "path": "teams.csv",
+      "sha": "ddf97caea4220a48959cb3b6628f6d89146e5f95",
+      "date": "2022-04-07T14:14:36Z",
+      "message": "Add GW31 data"
+    },
+    {
+      "season": "2021-22",
+      "path": "gws/merged_gw.csv",
+      "sha": "cea8b414ac603500d9bd33e0b9ad202e1b43bd01",
+      "date": "2022-08-02T13:29:28Z",
+      "message": "add GW37 data"
+    },
+    {
+      "season": "2022-23",
+      "path": "fixtures.csv",
+      "sha": "7009d351b6077cc3f3ae5bdc3a7e23f58f6817e6",
+      "date": "2023-05-29T06:53:24Z",
+      "message": "Add GW38 data"
+    },
+    {
+      "season": "2022-23",
+      "path": "teams.csv",
+      "sha": "611f2f64be2d3d3907350066893f263221b98a9e",
+      "date": "2023-02-17T11:47:30Z",
+      "message": "Add DGW23 data"
+    },
+    {
+      "season": "2022-23",
+      "path": "gws/merged_gw.csv",
+      "sha": "8bed39b22239129b6b5ad342cb268e2ea8e378df",
+      "date": "2023-06-15T21:06:34Z",
+      "message": "Fix merged gw file"
+    },
+    {
+      "season": "2023-24",
+      "path": "fixtures.csv",
+      "sha": "204c134d8e90e2b6e69ec252aa3ef6f10f21e73c",
+      "date": "2024-05-27T18:05:02Z",
+      "message": "Add GW38 data"
+    },
+    {
+      "season": "2023-24",
+      "path": "teams.csv",
+      "sha": "446af195d2ee324a1217f34a5a2b591189efc983",
+      "date": "2024-03-07T16:57:57Z",
+      "message": "Add GW27 data"
+    },
+    {
+      "season": "2023-24",
+      "path": "gws/merged_gw.csv",
+      "sha": "204c134d8e90e2b6e69ec252aa3ef6f10f21e73c",
+      "date": "2024-05-27T18:05:02Z",
+      "message": "Add GW38 data"
+    },
+    {
+      "season": "2024-25",
+      "path": "fixtures.csv",
+      "sha": "59c767596750f554ba464de94cf4fce8664a6cbe",
+      "date": "2025-06-04T15:20:23Z",
+      "message": "Add GW38 data"
+    },
+    {
+      "season": "2024-25",
+      "path": "teams.csv",
+      "sha": "59c767596750f554ba464de94cf4fce8664a6cbe",
+      "date": "2025-06-04T15:20:23Z",
+      "message": "Add GW38 data"
+    },
+    {
+      "season": "2024-25",
+      "path": "gws/merged_gw.csv",
+      "sha": "a59a43a8343d960a58cbe7a1f9fba2d2ce431856",
+      "date": "2026-01-02T07:35:49Z",
+      "message": "fix: Handle schema drift in merged_gw.csv when API adds new columns (#221)\n\nFixes #203 - FALSE instead of 0 in saves column\n\nThe issue occurred because:\n1. FPL API added 7 new mng_* columns mid-season (GW22)\n2. merge_gw() appended new data without updating the header\n3. This caused column misalignment (data shifted by 7 positions)\n\nChanges:\n- Rewrote merge_gw() to detect and handle schema changes\n- Added regenerate_merged_gw() to rebuild merged file from scratch\n- Updated main() with proper CLI interface and backwards compatibility\n- Regenerated data/2024-25/gws/merged_gw.csv with correct schema\n\nNew columns properly handled:\n- mng_clean_sheets, mng_draw, mng_goals_scored\n- mng_loss, mng_underdog_draw, mng_underdog_win, mng_win\n\nUsage:\n  python collector.py regenerate data/2024-25/gws\n  python collector.py merge 38 data/2024-25/gws\n\nCo-authored-by: Mr-Neutr0n <neutr0n.git@gmail.com>"
+    },
+    {
+      "season": "2025-26",
+      "path": "fixtures.csv",
+      "sha": "a8337d50698de908f92e8d1905142d968384a2ca",
+      "date": "2026-06-17T12:07:17Z",
+      "message": "Add gw38 data"
+    },
+    {
+      "season": "2025-26",
+      "path": "teams.csv",
+      "sha": "a8337d50698de908f92e8d1905142d968384a2ca",
+      "date": "2026-06-17T12:07:17Z",
+      "message": "Add gw38 data"
+    },
+    {
+      "season": "2025-26",
+      "path": "gws/merged_gw.csv",
+      "sha": "f9ed3e8839b0f970e0d5d4a83c5628f6eaee755a",
+      "date": "2026-06-17T12:19:44Z",
+      "message": "Final 2025-26 update"
+    }
+  ],
+  "fixture_history_2025_26": [
+    {
+      "sha": "a8337d50698de908f92e8d1905142d968384a2ca",
+      "date": "2026-06-17T12:07:17Z",
+      "message": "Add gw38 data"
+    },
+    {
+      "sha": "77ab48216404b0f49f55fa724c520af25b32ddae",
+      "date": "2026-03-13T01:04:19Z",
+      "message": "update data till gw29"
+    },
+    {
+      "sha": "2c43a95002e0a3ec0700b725da76fdd5fefcd1a6",
+      "date": "2026-02-05T08:00:25Z",
+      "message": "Mid-season output"
+    },
+    {
+      "sha": "d8f2ea3f56d1e6c25cfc1ed2773fbd945241fb93",
+      "date": "2025-11-01T00:11:46Z",
+      "message": "Add gw9 data"
+    },
+    {
+      "sha": "c0b610997ff299a1077f88ed09dc453ac5c00ebe",
+      "date": "2025-10-24T09:01:31Z",
+      "message": "Add gw8 data"
+    },
+    {
+      "sha": "cd74fdea7d792f816e96e9ada4551f443d0e82c9",
+      "date": "2025-09-30T20:29:48Z",
+      "message": "Add gw6 data (#217)"
+    },
+    {
+      "sha": "8db66f4fe0b8afc1a4bcf6aaee2255f56bfd29a4",
+      "date": "2025-09-24T22:45:24Z",
+      "message": "Add gw5 data (#216)"
+    },
+    {
+      "sha": "45cb8d6210b4009c25980fb22426787902c5dac8",
+      "date": "2025-09-18T12:07:27Z",
+      "message": "Add gw4 data (#213)"
+    },
+    {
+      "sha": "19b31c9cbf7f7a329123ead3720b24594ac46abe",
+      "date": "2025-09-08T09:23:37Z",
+      "message": "Add gw3 data"
+    },
+    {
+      "sha": "20f6d05bc6ca02aa02fa241291a088e90bb3b46e",
+      "date": "2025-08-28T16:42:42Z",
+      "message": "Add gw2 data"
+    },
+    {
+      "sha": "e930bb766ff82d6dff6a47f40eefd4e65bba29ef",
+      "date": "2025-08-20T07:59:03Z",
+      "message": "update gw1 data (#208)"
+    },
+    {
+      "sha": "46277afda009b340e738336dabc4b0822dd80c57",
+      "date": "2025-08-01T08:49:42Z",
+      "message": "Add 1st update for 2025-26"
+    }
+  ],
+  "comparisons": {
+    "pre2023": {
+      "sha": "392588ec1664432358f9481b81c3a8c1d53a60a3",
+      "date": "2023-12-11T13:35:55Z"
+    },
+    "final2023": {
+      "season": "2023-24",
+      "path": "fixtures.csv",
+      "sha": "204c134d8e90e2b6e69ec252aa3ef6f10f21e73c",
+      "date": "2024-05-27T18:05:02Z",
+      "message": "Add GW38 data"
+    },
+    "pre2024": {
+      "sha": "651e9adea9e420416fdde96faf920de232383036",
+      "date": "2024-12-07T01:35:27Z"
+    },
+    "final2024": {
+      "season": "2024-25",
+      "path": "fixtures.csv",
+      "sha": "59c767596750f554ba464de94cf4fce8664a6cbe",
+      "date": "2025-06-04T15:20:23Z",
+      "message": "Add GW38 data"
+    },
+    "teamsFinal2023": {
+      "season": "2023-24",
+      "path": "teams.csv",
+      "sha": "446af195d2ee324a1217f34a5a2b591189efc983",
+      "date": "2024-03-07T16:57:57Z",
+      "message": "Add GW27 data"
+    }
+  },
+  "fixture_cases": [
+    {
+      "season": "2023-24",
+      "gameweek": 17,
+      "fixture_id": "162",
+      "before": {
+        "id": "162",
+        "event": 17,
+        "kickoff_time": "2023-12-16T15:00:00Z",
+        "team_h": "3",
+        "team_a": "12",
+        "team_h_difficulty": "2",
+        "team_a_difficulty": "2"
+      },
+      "final": {
+        "id": "162",
+        "event": 28,
+        "kickoff_time": "2024-03-13T19:30:00Z",
+        "team_h": "3",
+        "team_a": "12",
+        "team_h_difficulty": "2",
+        "team_a_difficulty": "2"
+      },
+      "before_fixture_count": 10,
+      "final_fixture_count": 9
+    },
+    {
+      "season": "2024-25",
+      "gameweek": 15,
+      "fixture_id": "144",
+      "before": {
+        "id": "144",
+        "event": 15,
+        "kickoff_time": "2024-12-07T12:30:00Z",
+        "team_h": "8",
+        "team_a": "12",
+        "team_h_difficulty": "5",
+        "team_a_difficulty": "2"
+      },
+      "final": {
+        "id": "144",
+        "event": 24,
+        "kickoff_time": "2025-02-12T19:30:00Z",
+        "team_h": "8",
+        "team_a": "12",
+        "team_h_difficulty": "5",
+        "team_a_difficulty": "3"
+      },
+      "before_fixture_count": 10,
+      "final_fixture_count": 9
+    }
+  ],
+  "fdr_2023_24": {
+    "changed_fixtures": 168,
+    "already_played_by_archive_gw16": 72,
+    "examples": [
+      {
+        "fixture_id": "2",
+        "final_gameweek": 1,
+        "before": [
+          "2",
+          "4"
+        ],
+        "final": [
+          "2",
+          "5"
+        ]
+      },
+      {
+        "fixture_id": "8",
+        "final_gameweek": 1,
+        "before": [
+          "3",
+          "3"
+        ],
+        "final": [
+          "3",
+          "2"
+        ]
+      },
+      {
+        "fixture_id": "13",
+        "final_gameweek": 2,
+        "before": [
+          "3",
+          "2"
+        ],
+        "final": [
+          "2",
+          "3"
+        ]
+      }
+    ]
+  },
+  "team_strength_2023_24": {
+    "teams_with_changes": 20,
+    "before_premium": [
+      "Man City",
+      "Arsenal",
+      "Liverpool",
+      "Man Utd",
+      "Newcastle",
+      "Aston Villa"
+    ],
+    "final_premium": [
+      "Arsenal",
+      "Man City",
+      "Aston Villa",
+      "Liverpool",
+      "Spurs",
+      "Bournemouth"
+    ],
+    "changes": [
+      {
+        "team": "Arsenal",
+        "fields": {
+          "strength": [
+            "4",
+            "5"
+          ],
+          "strength_overall_home": [
+            "1230",
+            "1350"
+          ],
+          "strength_overall_away": [
+            "1285",
+            "1365"
+          ],
+          "strength_attack_home": [
+            "1250",
+            "1370"
+          ],
+          "strength_attack_away": [
+            "1250",
+            "1370"
+          ],
+          "strength_defence_home": [
+            "1210",
+            "1330"
+          ],
+          "strength_defence_away": [
+            "1320",
+            "1360"
+          ]
+        }
+      },
+      {
+        "team": "Aston Villa",
+        "fields": {
+          "strength": [
+            "3",
+            "4"
+          ],
+          "strength_overall_home": [
+            "1115",
+            "1160"
+          ],
+          "strength_overall_away": [
+            "1175",
+            "1285"
+          ],
+          "strength_attack_home": [
+            "1130",
+            "1140"
+          ],
+          "strength_attack_away": [
+            "1190",
+            "1220"
+          ],
+          "strength_defence_home": [
+            "1100",
+            "1180"
+          ],
+          "strength_defence_away": [
+            "1160",
+            "1350"
+          ]
+        }
+      },
+      {
+        "team": "Bournemouth",
+        "fields": {
+          "strength_overall_home": [
+            "1060",
+            "1100"
+          ],
+          "strength_overall_away": [
+            "1095",
+            "1100"
+          ],
+          "strength_attack_home": [
+            "1050",
+            "1055"
+          ],
+          "strength_attack_away": [
+            "1100",
+            "1130"
+          ],
+          "strength_defence_home": [
+            "1060",
+            "1145"
+          ],
+          "strength_defence_away": [
+            "1090",
+            "1075"
+          ]
+        }
+      },
+      {
+        "team": "Brentford",
+        "fields": {
+          "strength_overall_home": [
+            "1125",
+            "1100"
+          ],
+          "strength_overall_away": [
+            "1205",
+            "1100"
+          ],
+          "strength_attack_home": [
+            "1120",
+            "1110"
+          ],
+          "strength_attack_away": [
+            "1220",
+            "1055"
+          ],
+          "strength_defence_home": [
+            "1130",
+            "1090"
+          ],
+          "strength_defence_away": [
+            "1190",
+            "1150"
+          ]
+        }
+      },
+      {
+        "team": "Brighton",
+        "fields": {
+          "strength_overall_home": [
+            "1165",
+            "1100"
+          ],
+          "strength_attack_home": [
+            "1120",
+            "1070"
+          ],
+          "strength_attack_away": [
+            "1200",
+            "1180"
+          ],
+          "strength_defence_home": [
+            "1210",
+            "1135"
+          ]
+        }
+      },
+      {
+        "team": "Burnley",
+        "fields": {
+          "strength_overall_home": [
+            "1060",
+            "1045"
+          ],
+          "strength_overall_away": [
+            "1080",
+            "1050"
+          ],
+          "strength_attack_home": [
+            "1060",
+            "1050"
+          ],
+          "strength_attack_away": [
+            "1080",
+            "1050"
+          ],
+          "strength_defence_home": [
+            "1060",
+            "1040"
+          ],
+          "strength_defence_away": [
+            "1080",
+            "1050"
+          ]
+        }
+      },
+      {
+        "team": "Chelsea",
+        "fields": {
+          "strength_overall_home": [
+            "1115",
+            "1125"
+          ],
+          "strength_overall_away": [
+            "1160",
+            "1190"
+          ],
+          "strength_attack_home": [
+            "1130",
+            "1080"
+          ],
+          "strength_attack_away": [
+            "1210",
+            "1150"
+          ],
+          "strength_defence_home": [
+            "1100",
+            "1170"
+          ],
+          "strength_defence_away": [
+            "1110",
+            "1230"
+          ]
+        }
+      },
+      {
+        "team": "Crystal Palace",
+        "fields": {
+          "strength_overall_home": [
+            "1100",
+            "1070"
+          ],
+          "strength_attack_home": [
+            "1140",
+            "1080"
+          ],
+          "strength_attack_away": [
+            "1170",
+            "1120"
+          ],
+          "strength_defence_home": [
+            "1080",
+            "1060"
+          ]
+        }
+      },
+      {
+        "team": "Everton",
+        "fields": {
+          "strength_overall_home": [
+            "1075",
+            "1095"
+          ],
+          "strength_attack_home": [
+            "1070",
+            "1125"
+          ],
+          "strength_attack_away": [
+            "1120",
+            "1125"
+          ],
+          "strength_defence_home": [
+            "1080",
+            "1065"
+          ]
+        }
+      },
+      {
+        "team": "Fulham",
+        "fields": {
+          "strength_overall_home": [
+            "1095",
+            "1055"
+          ],
+          "strength_overall_away": [
+            "1100",
+            "1175"
+          ],
+          "strength_attack_home": [
+            "1090",
+            "1050"
+          ],
+          "strength_attack_away": [
+            "1090",
+            "1180"
+          ],
+          "strength_defence_home": [
+            "1100",
+            "1060"
+          ],
+          "strength_defence_away": [
+            "1140",
+            "1170"
+          ]
+        }
+      },
+      {
+        "team": "Liverpool",
+        "fields": {
+          "strength_overall_home": [
+            "1220",
+            "1240"
+          ],
+          "strength_overall_away": [
+            "1285",
+            "1370"
+          ],
+          "strength_attack_home": [
+            "1170",
+            "1210"
+          ],
+          "strength_attack_away": [
+            "1270",
+            "1350"
+          ],
+          "strength_defence_home": [
+            "1260",
+            "1270"
+          ],
+          "strength_defence_away": [
+            "1300",
+            "1390"
+          ]
+        }
+      },
+      {
+        "team": "Luton",
+        "fields": {
+          "strength_overall_home": [
+            "1045",
+            "1055"
+          ],
+          "strength_overall_away": [
+            "1050",
+            "1090"
+          ],
+          "strength_attack_home": [
+            "1050",
+            "1020"
+          ],
+          "strength_attack_away": [
+            "1050",
+            "1060"
+          ],
+          "strength_defence_home": [
+            "1040",
+            "1090"
+          ],
+          "strength_defence_away": [
+            "1050",
+            "1120"
+          ]
+        }
+      },
+      {
+        "team": "Man City",
+        "fields": {
+          "strength_overall_home": [
+            "1350",
+            "1355"
+          ],
+          "strength_overall_away": [
+            "1355",
+            "1365"
+          ],
+          "strength_attack_home": [
+            "1320",
+            "1350"
+          ],
+          "strength_attack_away": [
+            "1340",
+            "1360"
+          ],
+          "strength_defence_home": [
+            "1320",
+            "1360"
+          ]
+        }
+      },
+      {
+        "team": "Man Utd",
+        "fields": {
+          "strength": [
+            "4",
+            "3"
+          ],
+          "strength_overall_home": [
+            "1145",
+            "1125"
+          ],
+          "strength_overall_away": [
+            "1275",
+            "1220"
+          ],
+          "strength_attack_home": [
+            "1150",
+            "1130"
+          ],
+          "strength_attack_away": [
+            "1310",
+            "1210"
+          ],
+          "strength_defence_home": [
+            "1140",
+            "1120"
+          ],
+          "strength_defence_away": [
+            "1240",
+            "1230"
+          ]
+        }
+      },
+      {
+        "team": "Newcastle",
+        "fields": {
+          "strength": [
+            "4",
+            "3"
+          ],
+          "strength_overall_home": [
+            "1220",
+            "1105"
+          ],
+          "strength_attack_home": [
+            "1250",
+            "1050"
+          ],
+          "strength_attack_away": [
+            "1310",
+            "1210"
+          ],
+          "strength_defence_home": [
+            "1190",
+            "1160"
+          ],
+          "strength_defence_away": [
+            "1250",
+            "1355"
+          ]
+        }
+      },
+      {
+        "team": "Nott'm Forest",
+        "fields": {
+          "strength_overall_home": [
+            "1050",
+            "1065"
+          ],
+          "strength_attack_away": [
+            "1110",
+            "1125"
+          ],
+          "strength_defence_home": [
+            "1050",
+            "1080"
+          ],
+          "strength_defence_away": [
+            "1120",
+            "1080"
+          ]
+        }
+      },
+      {
+        "team": "Sheffield Utd",
+        "fields": {
+          "strength_overall_home": [
+            "1045",
+            "1030"
+          ],
+          "strength_overall_away": [
+            "1070",
+            "1040"
+          ],
+          "strength_attack_home": [
+            "1050",
+            "1045"
+          ],
+          "strength_attack_away": [
+            "1060",
+            "1020"
+          ],
+          "strength_defence_home": [
+            "1040",
+            "1020"
+          ],
+          "strength_defence_away": [
+            "1080",
+            "1060"
+          ]
+        }
+      },
+      {
+        "team": "Spurs",
+        "fields": {
+          "strength": [
+            "3",
+            "4"
+          ],
+          "strength_overall_home": [
+            "1130",
+            "1170"
+          ],
+          "strength_overall_away": [
+            "1200",
+            "1230"
+          ],
+          "strength_attack_away": [
+            "1200",
+            "1150"
+          ],
+          "strength_defence_home": [
+            "1150",
+            "1230"
+          ],
+          "strength_defence_away": [
+            "1200",
+            "1310"
+          ]
+        }
+      },
+      {
+        "team": "West Ham",
+        "fields": {
+          "strength_overall_home": [
+            "1095",
+            "1100"
+          ],
+          "strength_overall_away": [
+            "1140",
+            "1145"
+          ],
+          "strength_attack_home": [
+            "1100",
+            "1055"
+          ],
+          "strength_attack_away": [
+            "1150",
+            "1140"
+          ],
+          "strength_defence_home": [
+            "1090",
+            "1150"
+          ],
+          "strength_defence_away": [
+            "1130",
+            "1150"
+          ]
+        }
+      },
+      {
+        "team": "Wolves",
+        "fields": {
+          "strength_overall_home": [
+            "1065",
+            "1100"
+          ],
+          "strength_attack_home": [
+            "1070",
+            "1085"
+          ],
+          "strength_attack_away": [
+            "1160",
+            "1105"
+          ],
+          "strength_defence_home": [
+            "1060",
+            "1115"
+          ],
+          "strength_defence_away": [
+            "1080",
+            "1100"
+          ]
+        }
+      }
+    ]
+  }
+}

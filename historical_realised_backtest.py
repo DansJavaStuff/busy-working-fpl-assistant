@@ -5603,11 +5603,13 @@ def backtest_historical_chip_outcomes(
             (
                 "This is a retrospective realised-opportunity "
                 "calibration. FH squads and lineups are selected "
-                "from prior-Gameweek ownership, form and fixture "
-                "inputs before being scored with actual points; "
-                "BB and TC remain outcome ceilings. Archived "
-                "team-strength/FDR inputs have not yet been proven "
-                "to be pre-deadline snapshots. Do not use this "
+                "using prior-Gameweek ownership/form proxies and "
+                "retrospective fixture inputs, then scored with actual points; "
+                "BB and TC remain outcome ceilings. The source audit "
+                "confirmed a post-deadline fixture reassignment and "
+                "historical FDR/team-strength revisions. See "
+                "docs/historical_input_audit.md. These inputs are not "
+                "verified deadline snapshots. Do not use this "
                 "report alone to retune live decision thresholds."
             ),
     }
