@@ -1,4 +1,4 @@
-REPORT_SCHEMA_VERSION = 4
+REPORT_SCHEMA_VERSION = 5
 
 from fpl_api import (
     get_bootstrap,
@@ -11,6 +11,7 @@ from fpl_api import (
 from report_review import MODEL_SCORE_NOTE, report_freshness, transfer_scenario_summary
 
 from optimizer import load_players
+from advice_policy import cautious_paid_plan_check, lineup_summary
 
 from transfer_optimizer import (
     optimise_transfers,
@@ -392,6 +393,16 @@ def build_weekly_report(
     ):
         recommended = hold
 
+    paid_plan_check = None
+    if recommended["hit_cost"] > 0:
+        paid_plan_check = cautious_paid_plan_check(
+            players, recommended, best_no_hit, planning_gameweek,
+        )
+        if not paid_plan_check["passed"]:
+            recommended = best_no_hit
+            if recommended["net_score"] - hold["net_score"] < MINIMUM_FREE_TRANSFER_GAIN:
+                recommended = hold
+
     scenarios = []
 
     for result in results:
@@ -519,6 +530,8 @@ def build_weekly_report(
             free_transfers,
         "hold_score":
             hold["net_score"],
+        "hold_lineup": lineup_summary(hold, planning_gameweek),
+        "paid_plan_check": paid_plan_check,
         "recommended":
             recommended,
         "recommended_pairs":

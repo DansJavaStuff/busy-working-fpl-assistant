@@ -330,13 +330,41 @@
     </section>
 
 
+    {% if report.paid_plan_check %}
+    <section class="card">
+        <h2>Paid-transfer check</h2>
+        <p>The {{ report.paid_plan_check.transfers }} additional-transfer plan
+        costs {{ report.paid_plan_check.hit_cost }} points. With more cautious form weighting,
+        its net model gain over the best tested no-hit plan is
+        {{ "%+.2f"|format(report.paid_plan_check.cautious_net_gain) }}
+        (required: {{ "%.2f"|format(report.paid_plan_check.required_gain) }}).</p>
+        <p>{% if report.paid_plan_check.passed %}The plan passes this sensitivity check.
+        {% else %}The recommendation falls back to a no-hit plan because the paid plan
+        does not pass this sensitivity check.{% endif %}
+        This checks the assumptions behind the advice; it does not prove accuracy.</p>
+    </section>
+    {% endif %}
+
+    {% if report.hold_lineup %}
+    <section class="card">
+        <h2>Best lineup without transfers</h2>
+        <p>Starting XI:
+        {% for player in report.hold_lineup.starters %}{{ player.name }}{% if not loop.last %}, {% endif %}{% endfor %}.</p>
+        <p>Captain: <strong>{{ report.hold_lineup.captain.name }}</strong>.
+        Vice-captain: <strong>{{ report.hold_lineup.vice.name }}</strong>.</p>
+        <p>Bench (goalkeeper, then outfield order):
+        {% for player in report.hold_lineup.bench %}{{ player.name }}{% if not loop.last %}, {% endif %}{% endfor %}.</p>
+        <p>Uses only your current squad. Apply lineup changes on FPL.</p>
+    </section>
+    {% endif %}
+
     <section class="card recommendation">
 
         <h2>Recommendation</h2>
 
         {% if report.recommended.transfers == 0 %}
 
-            <h3>ROLL THE TRANSFER</h3>
+            <h3>{% if report.free_transfers > 0 %}ROLL THE TRANSFER{% else %}HOLD — NO MORE TRANSFERS{% endif %}</h3>
 
         {% else %}
 

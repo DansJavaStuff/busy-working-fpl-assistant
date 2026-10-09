@@ -37,7 +37,7 @@ def reweight_player(player, gameweek, variant, projection_policy='weekly'):
     item = deepcopy(player)
     inputs = item['projection_input']
     games = inputs.get('current_season_games', 0)
-    control_weight = min(games / 6, 1)
+    control_weight = min(games / 6, max(0, inputs['minutes']) / 1080, 1)
     weight = control_weight if variant == 'control_6gw' else min(games / 12, 1)
     if variant == 'form_12gw_minutes_cap':
         weight = min(weight, inputs['minutes'] / 1080)
@@ -58,7 +58,7 @@ def reweight_player(player, gameweek, variant, projection_policy='weekly'):
 
 
 def select_plan(results):
-    """Reproduce HQ's existing net-score gates, without submitting changes."""
+    """Apply the original score gates for research, without the live sensitivity gate."""
     hold = next((r for r in results if r['transfers'] == 0), None)
     if hold is None:
         raise ResearchComparisonError('No feasible HOLD baseline; check squad and constraints')
@@ -223,11 +223,14 @@ def compare_frozen_inputs(bundle, progress=None, include_wildcard=False):
         'research_only': True, 'gameweek': gameweek, 'captured_at': bundle['captured_at'],
         'projection_policy': projection_policy,
         'long_range_regression': projection_policy == 'chips',
+        'live_paid_sensitivity_gate_applied': False,
         'variants': variants,
         'transfer_choice_stable': len(transfer_choices) == 1,
         'captain_choice_stable': len(captain_choices) == 1,
         'vice_choice_stable': len(vice_choices) == 1,
-        'note': 'Sensitivity is not calibration or proof of accuracy. Live weights remain unchanged. '
+        'note': 'Sensitivity is not calibration or proof of accuracy. This tool does not change live weights. '
+                'Research plans use the original score gates; the additional live paid-plan '
+                'sensitivity gate is not applied, so plan choices may differ from HQ. '
                 'Official ep_next, fixtures, availability, priors, captain weights and transfer gates '
                 'are fixed across variants. No future injury/news forecast is made. '
                 + ('All variants retain the live Chips long-range regression unchanged. '
