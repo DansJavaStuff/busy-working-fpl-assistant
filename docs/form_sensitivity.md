@@ -58,7 +58,7 @@ Three variants run on that same input bundle, each solving 0–3 transfers:
 
 The projection function accepts an explicit research override; default callers use the live minutes-capped six-GW rule. Players now preserve their original projection inputs and availability factor for replay. The control must reproduce all five captured weekly projections to within 1e-9 before any solver comparisons proceed. Bundles must match the projection/context/transfer/research code signature; a model-code change requires a new capture.
 
-The output reports recommended transfers/hits/gains, captain/vice, owned captain rankings and stability across variants. It reproduces HQ's existing free/paid transfer gates, including the 3-point additional net-gain gate for paid plans. Gains are compared with HOLD *within each variant*; do not interpret a lower absolute score under stronger shrinkage as worse performance.
+The output reports recommended transfers/hits/gains, captain/vice, owned captain rankings and stability across variants. It uses the original free/paid score gates, including the 3-point additional net-gain gate for paid plans. It does not apply HQ's new additional paid-plan sensitivity gate: projection control reproduction does not guarantee the same final recommendation. The output explicitly reports `live_paid_sensitivity_gate_applied: false`. Gains are compared with HOLD *within each variant*; do not interpret a lower absolute score under stronger shrinkage as worse performance.
 
 The captured bundle path is printed before solving. To replay later without API calls or changes to that bundle:
 

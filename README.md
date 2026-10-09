@@ -233,7 +233,7 @@ Compare the current six-Gameweek form weight with a twelve-Gameweek weight and a
 time python3 -m tools.compare_form_sensitivity
 ```
 
-The tool saves private inputs locally for offline replay, tests transfer/captain choices and submits no FPL changes. The control now uses the live minutes-capped six-GW rule. See `docs/form_sensitivity.md` for initial GW6 results, capture/replay options and limits.
+The tool saves private inputs locally for offline replay, tests transfer/captain choices and submits no FPL changes. The control now uses the live minutes-capped six-GW projections; research plan selection does not apply HQ's additional paid-plan sensitivity gate. See `docs/form_sensitivity.md` for initial GW6 results, capture/replay options and limits.
 
 ## Main Scripts
 
