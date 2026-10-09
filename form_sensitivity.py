@@ -16,6 +16,7 @@ class ResearchComparisonError(ValueError):
 
 
 VARIANTS = ('control_6gw', 'form_12gw', 'form_12gw_minutes_cap')
+PROJECTION_POLICIES = ('weekly', 'chips')
 
 
 def model_signature():
@@ -28,9 +29,11 @@ def model_signature():
     return digest.hexdigest()
 
 
-def reweight_player(player, gameweek, variant):
+def reweight_player(player, gameweek, variant, projection_policy='weekly'):
     if variant not in VARIANTS:
         raise ResearchComparisonError('Unknown sensitivity variant')
+    if projection_policy not in PROJECTION_POLICIES:
+        raise ResearchComparisonError('Unknown projection policy')
     item = deepcopy(player)
     inputs = item['projection_input']
     games = inputs.get('current_season_games', 0)
@@ -40,6 +43,7 @@ def reweight_player(player, gameweek, variant):
         weight = min(weight, inputs['minutes'] / 1080)
     projections = project_gameweeks(
         inputs, item['fixtures'], gameweek, gameweek + 4,
+        long_range_regression=projection_policy == 'chips',
         current_season_weight_override=weight,
     )
     for gw in range(gameweek, gameweek + 5):
@@ -149,13 +153,16 @@ def compare_frozen_inputs(bundle, progress=None, include_wildcard=False):
     if bundle.get('schema_version') != 1 or bundle.get('model_signature') != model_signature():
         raise ResearchComparisonError('Input schema/model differs; capture a new bundle with this code version')
     gameweek = bundle['gameweek']
+    projection_policy = bundle.get('projection_policy', 'weekly')
+    if projection_policy not in PROJECTION_POLICIES:
+        raise ResearchComparisonError('Unknown projection policy')
     players = bundle['players']
     if any(p.get('planning_gameweek') != gameweek for p in players):
         raise ResearchComparisonError('Captured players do not match the planning Gameweek')
     constraints = bundle.get('constraints', {})
     if include_wildcard and any(constraints.get(key) for key in ('must_keep_ids', 'must_include_ids')):
         raise ResearchComparisonError('Wildcard comparison requires no active KEEP/INCLUDE constraints')
-    control = [reweight_player(p, gameweek, 'control_6gw') for p in players]
+    control = [reweight_player(p, gameweek, 'control_6gw', projection_policy) for p in players]
     # Refuse to compare if the replay cannot reproduce the captured live projections.
     for saved, replayed in zip(players, control):
         for gw in range(gameweek, gameweek + 5):
@@ -168,7 +175,7 @@ def compare_frozen_inputs(bundle, progress=None, include_wildcard=False):
         if progress:
             progress(variant)
         adjusted = control if variant == 'control_6gw' else [
-            reweight_player(p, gameweek, variant) for p in players]
+            reweight_player(p, gameweek, variant, projection_policy) for p in players]
         results = []
         for count in range(4):
             result = optimise_transfers(
@@ -214,6 +221,8 @@ def compare_frozen_inputs(bundle, progress=None, include_wildcard=False):
         variants.append(summary)
     return {
         'research_only': True, 'gameweek': gameweek, 'captured_at': bundle['captured_at'],
+        'projection_policy': projection_policy,
+        'long_range_regression': projection_policy == 'chips',
         'variants': variants,
         'transfer_choice_stable': len(transfer_choices) == 1,
         'captain_choice_stable': len(captain_choices) == 1,
@@ -221,6 +230,8 @@ def compare_frozen_inputs(bundle, progress=None, include_wildcard=False):
         'note': 'Sensitivity is not calibration or proof of accuracy. Live weights remain unchanged. '
                 'Official ep_next, fixtures, availability, priors, captain weights and transfer gates '
                 'are fixed across variants. No future injury/news forecast is made. '
+                + ('All variants retain the live Chips long-range regression unchanged. '
+                   if projection_policy == 'chips' else 'All variants use weekly planner projection defaults. ')
                 + ('Wildcard uses the existing GW XI/captain plus 15% squad five-week objective. '
                    'Five-week evaluations hold each selected squad fixed, reselect XI/captain weekly '
                    'and deduct the initial hit once; no later transfers, autosubs, price changes or '
