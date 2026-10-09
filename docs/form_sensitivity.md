@@ -94,3 +94,23 @@ Each variant reports:
 The Wildcard squad still uses the existing selection objective: current XI plus position-weighted captain score plus 15% of the squad's five-week projection. The five-week assessment is a separate evaluation of those selected squads, not an optimisation over all weekly transfers, future news, autosubs or prices. It does not create a chip recommendation, update the live Chips cache/report, activate a chip or submit transfers. Current injury penalties affect the first GW only, exactly as in control; later uncertainty remains a limitation rather than an invented recovery forecast. The comparison does not reproduce the full future chip-timing curve.
 
 Assess whether the Wildcard and paid normal plans survive stronger sample protection before interpreting the earlier +25.1 timing value or +21.5 selection-score advantage. Those earlier figures use different metrics/baselines and must not be added or compared directly with one another. No live weight change is justified solely by this one sensitivity run.
+
+## Full-pool Wildcard Pi result — 9 October 2026
+
+Frozen inputs captured at **18:51:15 UTC** under PR #58 (`9d1bc7f`), with successful control replay. Runtime **2m9.797s** elapsed, 2m6.164s user, 1.551s system. No FPL changes submitted; live weights remain unchanged.
+
+| Variant | HQ-selected normal plan | Hit | Normal ranking gain vs own HOLD | WC ranking gain vs selected normal | WC fixed-squad five-week gain vs selected normal | WC five-week gain vs highest-scoring tested normal |
+|---|---|---:|---:|---:|---:|---:|
+| Control 6-GW | Scott → Schade; Dewsbury-Hall → Hinshelwood; Mukiele → Tarkowski | 8 | +15.3337 | +28.9234 | +33.0528 | +33.0528 |
+| 12-GW | Richarlison → João Pedro | 0 | +6.5089 | +22.8215 | +36.2229 | +34.5941 |
+| 12-GW, minutes cap | Richarlison → João Pedro | 0 | +6.1625 | +20.8391 | +21.8958 | +19.4375 |
+
+The paid normal plan fails HQ's 3-point additional ranking-gain gate under both alternatives: its incremental gains above the best free plan are 2.6734 and 2.6862. These are close to the threshold, not proof that paid transfers are always poor. Normal transfer choice is unstable; Groß remains captain in all three variants and vice changes from Schade to Haaland.
+
+Hinshelwood's current PPG weight falls from 83.33% to 41.67% to 5.83%, using his captured 63 minutes. His GW6 projection falls from 5.9747 to 3.7196 to 1.7802, and his five-week sum from 51.7187 to 32.1980 to 15.4102. He appears in control and 12-GW Wildcards but drops out with the minutes cap. Semenyo is absent from all three Wildcard squads; his 75% flag remains unchanged. The flags are held fixed, so these changes cannot be attributed to new injury news within the comparison.
+
+All three Wildcards change ten players, but the exact squad varies. Ten players are common: Raya, Tzolakis, Bogle, Gvardiol, Tarkowski, Belloumi, Groß, Schade, Haaland and João Pedro. The minutes-capped squad costs £99.2m within a £99.4m selling-value-plus-bank budget. Its GW6 XI is Raya; Bogle, De Cuyper, Gvardiol, Tarkowski; Belloumi, Groß, Schade; Haaland, João Pedro, Kostoulas. Remaining squad: Tzolakis, Gabriel, Bruno G., Tavernier. These are research selections, not submitted moves or verified starting lineups.
+
+**Comparison boundary:** research capture uses `load_players()` with the normal weekly planner's default `long_range_regression=False`. The live Chips page loads with `long_range_regression=True`; that adds a separate regression towards priors for fallback/future projections. Therefore the research control is a weekly-model control, not a reproduction of the earlier Chips-page +21.5 advantage, +25.1 timing value or exact 11-change squad. All variants within this run share the same policy, inputs and baselines. The differences across those variants remain meaningful, but absolute research numbers must not be presented as refreshed live chip-timing values.
+
+Interpretation: the eight-point plan is sensitive to early-form weighting and Hinshelwood's tiny sample. A positive hypothetical Wildcard advantage survives both alternatives, including roughly +19.4 five-week projected points over the highest-scoring tested normal plan under the cap. That supports further review of a rebuild, not proof of accuracy or optimal Wildcard timing. The normal squads are held fixed after their initial moves; future free transfers, chip opportunity cost, recovery uncertainty and starting-role uncertainty are not modelled. Next review: minutes/starting roles of the capped Wildcard squad, then a consistent comparison under the live chip projection policy before activating anything. Do not promote new live weights from this single result.
