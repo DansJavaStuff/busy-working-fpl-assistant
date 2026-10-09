@@ -2,7 +2,9 @@ from copy import deepcopy
 import unittest
 from unittest.mock import patch
 
-from form_sensitivity import compare_frozen_inputs, model_signature, reweight_player, select_plan
+from form_sensitivity import (
+    compare_frozen_inputs, model_signature, reweight_player, select_plan, wildcard_comparison,
+)
 from optimizer import calculate_captain_score, project_gameweeks
 from tests.test_special_gameweeks import projection_player, attacking_fixture
 
@@ -55,6 +57,21 @@ class FormSensitivityTests(unittest.TestCase):
         saved['can_select'] = False
         adjusted = reweight_player(saved, 6, 'form_12gw')
         self.assertEqual(adjusted['proj_5gw'], 0)
+
+    def test_63_minute_high_ppg_doubt_is_shrunk_without_changing_availability(self):
+        saved = saved_player(minutes=63, fixtures=[attacking_fixture(gw) for gw in range(6, 11)])
+        saved['projection_input'].update(points_per_game=16, ep_next=0)
+        saved['availability_factor'] = 0.5
+        control = reweight_player(saved, 6, 'control_6gw')
+        capped = reweight_player(saved, 6, 'form_12gw_minutes_cap')
+        self.assertAlmostEqual(capped['projection_debug']['current_season_weight'], 63/1080)
+        self.assertLess(capped['proj_5gw'], control['proj_5gw'])
+        self.assertEqual(capped['projection_debug']['ep_next'], 0)
+        unflagged = deepcopy(saved)
+        unflagged['availability_factor'] = 1
+        unflagged = reweight_player(unflagged, 6, 'form_12gw_minutes_cap')
+        self.assertAlmostEqual(capped['proj_gw6'], unflagged['proj_gw6'] * 0.5)
+        self.assertEqual(capped['proj_gw7'], unflagged['proj_gw7'])
 
     def test_supplied_gw6_examples_preserve_captain_but_change_vice(self):
         rows = [
@@ -121,6 +138,60 @@ class FormSensitivityTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     compare_frozen_inputs(bundle)
                 solver.assert_not_called()
+
+    def test_wildcard_refuses_active_constraints_before_solving(self):
+        with patch('form_sensitivity.optimise_transfers') as solver:
+            with self.assertRaisesRegex(ValueError, 'KEEP/INCLUDE'):
+                compare_frozen_inputs(self.bundle(), include_wildcard=True)
+            solver.assert_not_called()
+
+    def test_each_wildcard_variant_receives_same_frozen_team_and_adjusted_pool(self):
+        bundle = self.bundle()
+        bundle['constraints'] = {}
+        before = deepcopy(bundle)
+        def solve(players, team, gw, count, **constraints):
+            if count:
+                return None
+            squad = deepcopy(players)
+            squad[0]['captain'] = True
+            squad[1]['captain'] = False
+            return {'transfers': 0, 'hit_cost': 0, 'net_score': 100, 'squad': squad,
+                    'incoming': [], 'outgoing': [], 'vice_captain': squad[1]}
+        weights = []
+        def wildcard(pool, team, gw, results, selected, hold):
+            self.assertEqual(team, before['current_team'])
+            self.assertEqual(gw, 6)
+            self.assertIs(selected, hold)
+            weights.append(pool[0]['projection_debug']['current_season_weight'])
+            return {'changes': 0}
+        with patch('form_sensitivity.optimise_transfers', side_effect=solve), \
+                patch('form_sensitivity.wildcard_comparison', side_effect=wildcard):
+            report = compare_frozen_inputs(bundle, include_wildcard=True)
+        self.assertEqual(weights, [5/6, 5/12, 5/12])
+        self.assertTrue(all('wildcard' in v for v in report['variants']))
+        self.assertEqual(bundle, before)
+
+    def test_wildcard_uses_selling_budget_and_deducts_hit_only_once(self):
+        players = [reweight_player(saved_player(i), 6, 'control_6gw') for i in (1, 2, 3)]
+        for p in players:
+            p.update(cost=50, position_id=3, starter=True, captain=p['id'] == 1)
+        team = {'picks': [{'element': 1, 'selling_price': 47},
+                          {'element': 2, 'selling_price': 48}], 'transfers': {'bank': 10}}
+        hold = {'squad': players[:2], 'net_score': 90, 'hit_cost': 0, 'transfers': 0}
+        paid = {'squad': players[:2], 'net_score': 100, 'hit_cost': 8, 'transfers': 3}
+        def horizon(pool, squad, start, end):
+            self.assertIs(pool, players)
+            self.assertEqual((start, end), (6, 10))
+            return {'score': 250, 'weekly': [{'gameweek': gw, 'score': 50} for gw in range(6, 11)]}
+        with patch('form_sensitivity.optimise_squad', return_value=[players[0], players[2]]) as solve, \
+                patch('chip_planner._fixed_squad_horizon_score', side_effect=horizon):
+            result = wildcard_comparison(players, team, 6, [hold, paid], paid, hold)
+        solve.assert_called_once_with(players, budget_limit=105)
+        self.assertEqual(result['changes'], 1)
+        self.assertEqual(result['fixed_squad_evaluation']['selected_normal']['net_five_week_projection'], 242)
+        self.assertEqual(result['five_week_gain_vs_selected_normal'], 8)
+        self.assertEqual(result['five_week_gain_vs_highest_scoring_normal'], 8)
+        self.assertNotIn('id', result['squad'][0])
 
 
 class SensitivityCommandTests(unittest.TestCase):

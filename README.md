@@ -656,3 +656,11 @@ The split is diagnostic only. No new live FH threshold is introduced from these 
 The realised chip-opportunity backtest now reports results separately by fixture shape (for example blank-only, double-only and mixed blank+double) as well as overall.
 
 This is particularly important for Free Hit. A severe blank and a mixed blank/double Gameweek can create value in different ways, so an overall correlation can hide opposing behaviours. The breakdown reports case count, Spearman signal/outcome correlation, mean realised outcome and realised-outcome range for each fixture shape.
+
+For a research-only normal-plan/Wildcard comparison using identical frozen inputs:
+
+```bash
+time nice -n 10 python3 -m tools.compare_form_sensitivity --include-wildcard
+```
+
+This adds fixed-squad five-week projections and availability/minutes diagnostics. Live weights and advice remain unchanged; no chip or transfer is submitted. See [limits and replay instructions](docs/form_sensitivity.md#controlled-wildcard-comparison--9-october-2026).

@@ -67,6 +67,30 @@ To capture now and defer solving, use `--capture-only`. A failed solve leaves it
 - FPL `ep_next`, fixtures, priors, availability, captain multipliers and transfer gates remain fixed. `ep_next` may itself contain form information, so these variants do not remove all early-season form influence.
 - Availability and team news can change after capture, especially during international duty. These are provisional research rankings, not an instruction to apply today's plan. Refresh live advice closer to the deadline.
 - Three fixed alternatives are a sensitivity check, not tuning against a preferred player. Stability does not prove accuracy; instability identifies a decision to scrutinise.
-- The tool compares transfer/captain advice, not chip values or future news. It is not an evaluation of realised points.
+- The default tool compares transfer/captain advice. Optional Wildcard mode adds the existing unrestricted selection and fixed-squad evaluation described below; it does not evaluate realised points or forecast future news.
 - An infeasible HOLD baseline, including an incoming INCLUDE constraint, prevents a meaningful comparison and stops the run. A larger transfer-count search is out of scope.
 - Next evidence: refreshed pre-deadline advice, chronological live snapshots and realised outcomes. Do not promote an alternative solely because it makes a familiar player captain or changes this week's transfer.
+
+## Controlled Wildcard comparison — 9 October 2026
+
+The supplied GW6 Wildcard report changed 11 players and included Hinshelwood (50% availability, 16 PPG with approximately 63 current-season minutes) and Semenyo (75%). Website screenshots confirmed both ankle-injury flags. Hinshelwood retained an 83.3% current-season PPG weight despite that tiny sample; the separate minutes reliability only protects underlying statistics. The optional comparison now exposes this behaviour across the same three weighting alternatives. It does not alter live projections or infer an injury recovery date.
+
+```bash
+time nice -n 10 python3 -m tools.compare_form_sensitivity --include-wildcard
+```
+
+Use a new capture after updating code: the signature now also includes `chip_planner.py`. Earlier captures remain untouched but cannot replay under this version. `--input PATH --include-wildcard` replays a compatible capture without API calls. Default mode remains 12 normal solves; optional mode adds one unrestricted Wildcard solve per variant (15 CBC solves in total), plus inexpensive fixed-squad lineup enumeration. Runtime on the Pi has not yet been measured for this mode.
+
+For a fair unrestricted comparison, optional mode stops before solving if the saved weekly report has active KEEP/INCLUDE constraints. Clear those constraints in the app, refresh the weekly report, and capture again; the research command never clears them itself.
+
+Each variant reports:
+
+- The normal 0–3-transfer options and HQ-selected plan, with existing gates unchanged.
+- An unrestricted legal Wildcard using total official selling values plus bank as its budget, with current player purchase prices as in the existing chip solver.
+- Wildcard ranking gains against HOLD, the HQ-selected normal plan and the highest-scoring tested normal plan, explicitly distinguishing these baselines.
+- Five-week fixed-squad projections for HOLD, best no-hit plan, selected normal plan, highest-scoring normal plan and Wildcard. Each initial squad is held fixed, its legal XI/captain is reselected each week using existing captain ranking, projected points include the captain's extra unweighted projection, and the initial transfer hit is deducted once from the total. These are modelled projections, not observed or calibrated returns.
+- Every Wildcard player's price, current availability/status, raw minutes/PPG, form weight, starting-probability assumption, weekly projections and fixtures; Hinshelwood/Semenyo are shown separately even if no longer selected. Private entry IDs, tokens and full captured team state are omitted.
+
+The Wildcard squad still uses the existing selection objective: current XI plus position-weighted captain score plus 15% of the squad's five-week projection. The five-week assessment is a separate evaluation of those selected squads, not an optimisation over all weekly transfers, future news, autosubs or prices. It does not create a chip recommendation, update the live Chips cache/report, activate a chip or submit transfers. Current injury penalties affect the first GW only, exactly as in control; later uncertainty remains a limitation rather than an invented recovery forecast. The comparison does not reproduce the full future chip-timing curve.
+
+Assess whether the Wildcard and paid normal plans survive stronger sample protection before interpreting the earlier +25.1 timing value or +21.5 selection-score advantage. Those earlier figures use different metrics/baselines and must not be added or compared directly with one another. No live weight change is justified solely by this one sensitivity run.

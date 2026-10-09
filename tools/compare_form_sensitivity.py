@@ -8,7 +8,7 @@ from pathlib import Path
 import sys
 import uuid
 
-from form_sensitivity import compare_frozen_inputs, model_signature
+from form_sensitivity import ResearchComparisonError, compare_frozen_inputs, model_signature
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,6 +40,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--input', type=Path, help='Replay an existing frozen JSON bundle offline')
     parser.add_argument('--capture-only', action='store_true', help='Save inputs without solving')
+    parser.add_argument('--include-wildcard', action='store_true',
+                        help='Also compare unrestricted Wildcard and fixed-squad five-week projections')
     args = parser.parse_args()
     if args.input and args.capture_only:
         parser.error('--capture-only cannot be combined with --input')
@@ -60,7 +62,12 @@ def main():
         print(f'Frozen inputs: {input_path}', file=sys.stderr)
         if args.capture_only:
             return
-        result = compare_frozen_inputs(bundle, progress=lambda variant: print(f'Comparing {variant}…', file=sys.stderr))
+        result = compare_frozen_inputs(
+            bundle, include_wildcard=args.include_wildcard,
+            progress=lambda variant: print(f'Comparing {variant}…', file=sys.stderr))
+    except ResearchComparisonError as exc:
+        print(f'Comparison stopped: {exc}. No FPL changes submitted.', file=sys.stderr)
+        raise SystemExit(1) from None
     except Exception as exc:
         print(f'Comparison failed ({type(exc).__name__}). Check inputs, local configuration and CBC; no FPL changes submitted.', file=sys.stderr)
         raise SystemExit(1) from None
