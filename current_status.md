@@ -16,6 +16,13 @@ Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first 
 
 `ROADMAP.md` reviewed after PR #55. Core local dashboard, decision report and coordinated chip schedule are implemented; current focus is decision reliability and forward accuracy evidence. Historical reconstruction is deferred. Next session: refresh/review advice closer to GW6 deadline; leave collection running. No immediate repeat optimiser run or production model change is needed. Projection/outcome evaluation and broader model calibration remain open.
 
+## Live Chips policy comparison ready (2026-10-09)
+
+- Added explicit `--projection-policy chips` to the research command. Capture uses the same long-range regression and projection horizon arguments as the live Chips page. The saved policy is replayed unchanged across control, 12-GW and minutes-capped alternatives; control reproduction is checked before solving. Default weekly mode and live advice remain unchanged.
+- Pi next command: `time nice -n 10 python3 -m tools.compare_form_sensitivity --include-wildcard --projection-policy chips`. Requires fresh capture after pulling because code signature changed. Replay automatically uses saved policy and rejects attempts to switch it. Results are pending.
+- Validation: 151 tests, compilation, undefined-name lint and dependency audit pass. Real CBC smoke exercises all three chip-policy variants and verifies control ranking-score parity with the live Wildcard analysis on identical synthetic inputs.
+- This resolves the projection-settings mismatch for a fresh controlled run; it does not reproduce an old timestamp's exact advice, rerun full chip timing or account for future transfers/news. Highest-scoring tested normal plan remains distinct from HQ's threshold-selected plan.
+
 ## Controlled Wildcard review (2026-10-09)
 
 - Pi GW6 advice now recommends three transfers with an 8-point hit; normal model gains are +8.71 / +12.73 / +15.33 for 1 / 2 / 3 moves. Chips flags WC as CANDIDATE (+25.1 five-week timing value); unrestricted selection changes 11 players and reports +21.5 ranking-score advantage over the best tested normal plan. These use different metrics/baselines.
@@ -36,10 +43,10 @@ Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first 
 
 - Early-season sensitivity investigation: research-only `tools.compare_form_sensitivity` captures one pool/squad for three fixed alternatives and offline replay. Exact control reproduction checked before solving; production weights unchanged.
 - Initial supplied-player calculation: 12-GW weighting lowers Groß 8.668→7.519, Bogle 8.059→6.911, Haaland 6.999→6.791, Tarkowski 7.594→6.719, Mukiele 2.265→2.580. Groß remains captain among the three supplied candidates; Haaland overtakes Bogle for vice. Full-pool Pi result now confirms the same free Mukiele→Tarkowski transfer and Groß captain under all three variants; vice changes Bogle→Haaland. Net gain +7.0136 / +5.0498 / +4.9785.
-- Latest merged code: PR #54, `6d3c8f2`; 143 tests, compilation, undefined-name lint, dependency audit, CBC smoke check and CI/security passed.
+- Prior merged code: PR #54, `6d3c8f2`; 143 tests, compilation, undefined-name lint, dependency audit, CBC smoke check and CI/security passed.
 - Pi comparison completed in 1m37.589s (user 1m33.819s, system 1.387s). Control three-transfer plan adds only +2.8502 vs best free, 0.1498 below the 3-point gate; reduced-form best paid increments are +0.2750 / +0.0109.
 - No production weighting/threshold change: stable transfer/captain in this one capture is not proof of accuracy. See `docs/form_sensitivity.md` for results and the separate-capture three-transfer discrepancy.
-- Latest prior merged code: PR #53, `748fdaf` — live planner refresh/freshness and transfer hit display fixes. Pi supplied output confirms display/selection gates: one free Mukiele→Tarkowski transfer (+7.014); paid options add only +1.812/+2.068 vs best free plan and fail the 3-point gate.
+- Prior merged code: PR #53, `748fdaf` — live planner refresh/freshness and transfer hit display fixes. Pi supplied output confirms display/selection gates: one free Mukiele→Tarkowski transfer (+7.014); paid options add only +1.812/+2.068 vs best free plan and fail the 3-point gate.
 - GW6 chips: BB +5.5 / best later GW9 +7.8; TC +8.7 / later GW16 +7.3; WC +12.7 / later GW10 +20.0; FH +16.7 / later GW12 +8.2. All HOLD, matching normal-slate/ranking gates. These remain provisional model values.
 - Supplied current captain/vice model is Groß/Bogle; Richarlison unavailable and benched. User emphasises ongoing international duty and later team news: review mechanics now, defer final squad decisions until closer to deadline.
 - Pi timer enabled/active; GW6 baseline saved and all later checkpoints pending. Stored deadline 2026-10-10 10:00 UTC (11:00 BST).

@@ -114,3 +114,25 @@ All three Wildcards change ten players, but the exact squad varies. Ten players 
 **Comparison boundary:** research capture uses `load_players()` with the normal weekly planner's default `long_range_regression=False`. The live Chips page loads with `long_range_regression=True`; that adds a separate regression towards priors for fallback/future projections. Therefore the research control is a weekly-model control, not a reproduction of the earlier Chips-page +21.5 advantage, +25.1 timing value or exact 11-change squad. All variants within this run share the same policy, inputs and baselines. The differences across those variants remain meaningful, but absolute research numbers must not be presented as refreshed live chip-timing values.
 
 Interpretation: the eight-point plan is sensitive to early-form weighting and Hinshelwood's tiny sample. A positive hypothetical Wildcard advantage survives both alternatives, including roughly +19.4 five-week projected points over the highest-scoring tested normal plan under the cap. That supports further review of a rebuild, not proof of accuracy or optimal Wildcard timing. The normal squads are held fixed after their initial moves; future free transfers, chip opportunity cost, recovery uncertainty and starting-role uncertainty are not modelled. Next review: minutes/starting roles of the capped Wildcard squad, then a consistent comparison under the live chip projection policy before activating anything. Do not promote new live weights from this single result.
+
+## Live Chips projection-policy comparison
+
+To resolve the projection-policy boundary found in the first Wildcard run:
+
+```bash
+time nice -n 10 python3 -m tools.compare_form_sensitivity --include-wildcard --projection-policy chips
+```
+
+Capture uses exactly the live Chips `load_players` arguments: `long_range_regression=True` and a projection end derived from the chip-half boundary plus the five-week Wildcard horizon, capped at season end. The frozen bundle records `projection_policy=chips`; output also states that policy and the regression flag. Each replayed variant passes `long_range_regression=True` through the same production projection function. The existing long-range regression's sample/horizon factors are retained; only the current-season PPG blend changes across variants. The control must reproduce the first five captured weekly projections before solving. This regression applies when the production function does not use a positive current-GW `ep_next`, including fallback current-GW estimates.
+
+The default remains `--projection-policy weekly`, with the normal planner's unchanged projection settings. A compatible offline replay automatically uses its saved policy:
+
+```bash
+python3 -m tools.compare_form_sensitivity --input data/runtime/form_sensitivity/PASTE_CAPTURE_FILENAME.json --include-wildcard
+```
+
+An explicit `--projection-policy` on replay must match the bundle; changing that argument cannot relabel or convert an earlier capture. These code changes alter the model signature, so capture fresh inputs after pulling; prior frozen bundles remain untouched.
+
+The chip-policy comparison uses the same normal/HOLD/Wildcard metrics and baselines as the first research comparison. It reuses live projection settings and the unrestricted squad objective, but does not rerun the full future chip-timing curve or change strategic thresholds, injury assumptions, live cache/report or FPL team. The normal plan still applies HQ's existing free/paid gates; the highest-scoring tested normal baseline is reported separately, matching the baseline used for the live unrestricted Wildcard selection-score comparison. Compare variants within this newly frozen run. Do not attribute differences from older captures entirely to the policy change; those captures also have different timestamps and may have different news/input values.
+
+Full-pool Pi chip-policy results remain pending. The previous weekly-policy run took 2m9.797s; chip policy still uses 15 CBC solves and fixed-squad evaluations, but no new runtime guarantee is made.

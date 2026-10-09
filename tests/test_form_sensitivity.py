@@ -73,6 +73,24 @@ class FormSensitivityTests(unittest.TestCase):
         self.assertAlmostEqual(capped['proj_gw6'], unflagged['proj_gw6'] * 0.5)
         self.assertEqual(capped['proj_gw7'], unflagged['proj_gw7'])
 
+    def test_chips_policy_replays_live_regression_for_every_variant(self):
+        saved = saved_player(minutes=63, fixtures=[attacking_fixture(gw) for gw in range(6, 11)])
+        saved['projection_input'].update(points_per_game=16, ep_next=0)
+        before = deepcopy(saved)
+        for variant, weight in [('control_6gw', 5/6), ('form_12gw', 5/12),
+                                ('form_12gw_minutes_cap', 63/1080)]:
+            with self.subTest(variant=variant):
+                replay = reweight_player(saved, 6, variant, 'chips')
+                expected = project_gameweeks(
+                    saved['projection_input'], saved['fixtures'], 6, 10,
+                    long_range_regression=True, current_season_weight_override=weight)
+                for gw in range(6, 11):
+                    self.assertAlmostEqual(replay[f'proj_gw{gw}'],
+                                           expected[gw] * (saved['availability_factor'] if gw == 6 else 1))
+                weekly = reweight_player(saved, 6, variant, 'weekly')
+                self.assertNotAlmostEqual(replay['proj_gw7'], weekly['proj_gw7'])
+        self.assertEqual(saved, before)
+
     def test_supplied_gw6_examples_preserve_captain_but_change_vice(self):
         rows = [
             ('Groß', 'MID', 9.4, 4.008829339143064, .2535, 10.7, 1.009827113858007),
@@ -145,6 +163,16 @@ class FormSensitivityTests(unittest.TestCase):
                 compare_frozen_inputs(self.bundle(), include_wildcard=True)
             solver.assert_not_called()
 
+    def test_mislabeled_chips_capture_cannot_pass_control_replay(self):
+        bundle = self.bundle()
+        bundle['players'] = [saved_player(i, fixtures=[attacking_fixture(gw) for gw in range(6, 11)])
+                             for i in (1, 2)]
+        bundle['projection_policy'] = 'chips'
+        with patch('form_sensitivity.optimise_transfers') as solve:
+            with self.assertRaisesRegex(ValueError, 'Control replay'):
+                compare_frozen_inputs(bundle)
+            solve.assert_not_called()
+
     def test_each_wildcard_variant_receives_same_frozen_team_and_adjusted_pool(self):
         bundle = self.bundle()
         bundle['constraints'] = {}
@@ -195,6 +223,48 @@ class FormSensitivityTests(unittest.TestCase):
 
 
 class SensitivityCommandTests(unittest.TestCase):
+    def test_chips_capture_uses_same_horizon_and_regression_as_live_chips(self):
+        from tools import compare_form_sensitivity as command
+        from chip_planner import _chip_horizon_end, _wildcard_projection_horizon_end
+        from pathlib import Path
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(command, 'ROOT', Path(directory)), \
+                patch('fpl_api.get_bootstrap') as bootstrap, \
+                patch('fpl_api.get_fixtures') as fixtures, \
+                patch('fpl_api.get_planning_gameweek', return_value=6), \
+                patch('fpl_api.get_my_team', return_value={'picks': []}) as team, \
+                patch('optimizer.load_players', return_value=[]) as players:
+            bundle = command.capture_inputs('chips')
+        bootstrap.assert_called_once_with(force_refresh=True, allow_stale=False)
+        fixtures.assert_called_once_with(force_refresh=True, allow_stale=False)
+        players.assert_called_once_with(
+            projection_end_gameweek=_wildcard_projection_horizon_end(_chip_horizon_end(6)),
+            long_range_regression=True)
+        team.assert_called_once_with()
+        self.assertEqual(bundle['projection_policy'], 'chips')
+
+    def test_replay_refuses_projection_policy_switch_without_capture(self):
+        import contextlib
+        import io
+        import json
+        from pathlib import Path
+        import tempfile
+        from tools import compare_form_sensitivity as command
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'capture.json'
+            path.write_text(json.dumps({'projection_policy': 'weekly'}))
+            error = io.StringIO()
+            with patch('sys.argv', ['compare', '--input', str(path), '--projection-policy', 'chips']), \
+                    patch.object(command, 'compare_frozen_inputs') as compare, \
+                    patch.object(command, 'capture_inputs') as capture, \
+                    contextlib.redirect_stderr(error):
+                with self.assertRaises(SystemExit):
+                    command.main()
+            compare.assert_not_called()
+            capture.assert_not_called()
+            self.assertIn('policy differs', error.getvalue())
+
     def test_capture_only_saves_private_bundle_without_solving(self):
         import contextlib
         import io

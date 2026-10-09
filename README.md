@@ -664,3 +664,11 @@ time nice -n 10 python3 -m tools.compare_form_sensitivity --include-wildcard
 ```
 
 This adds fixed-squad five-week projections and availability/minutes diagnostics. Live weights and advice remain unchanged; no chip or transfer is submitted. See [limits and replay instructions](docs/form_sensitivity.md#controlled-wildcard-comparison--9-october-2026).
+
+To keep the live Chips page's additional projection regression enabled throughout that comparison, add `--projection-policy chips`:
+
+```bash
+time nice -n 10 python3 -m tools.compare_form_sensitivity --include-wildcard --projection-policy chips
+```
+
+Capture fresh inputs after updating; offline replay uses the policy recorded in its bundle.
