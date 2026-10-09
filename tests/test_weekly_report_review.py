@@ -14,7 +14,7 @@ NOW = datetime(2026, 10, 4, 18, 0, tzinfo=timezone.utc)
 def player(i):
     return {'id': i, 'name': f'Player {i}', 'position': 'GKP' if i in (1, 12) else 'MID',
             'position_id': 1 if i in (1, 12) else 3, 'starter': i <= 11,
-            'captain': i == 2, 'proj_gw6': 5, 'price': 5, 'team': 'Club',
+            'captain': i == 2, 'planning_gameweek': 6, 'proj_gw6': 5, 'price': 5, 'team': 'Club',
             'private_field': 'PRIVATE'}
 
 
@@ -100,7 +100,7 @@ class WeeklyReportIntegrationTests(unittest.TestCase):
         with patch('history_store.ensure_database'):
             cls.module = importlib.import_module('app')
 
-    def build(self, force_refresh):
+    def build(self, force_refresh, paid_passes=True):
         squad = [player(i) for i in range(1, 16)]
         team = {'picks': [{'element': p['id'], 'position': i,
                          'is_captain': i == 2, 'is_vice_captain': i == 3}
@@ -115,10 +115,22 @@ class WeeklyReportIntegrationTests(unittest.TestCase):
                             load_approval=lambda: None), \
                 patch.object(self.module, 'get_bootstrap') as bootstrap, \
                 patch.object(self.module, 'get_fixtures') as fixtures, \
+                patch.object(self.module, 'cautious_paid_plan_check', return_value={
+                    'passed': paid_passes, 'cautious_net_gain': 4 if paid_passes else 1,
+                    'required_gain': 3, 'transfers': 2, 'hit_cost': 4}) as check, \
                 patch.object(self.module, 'optimise_transfers', side_effect=[
                     result(0, 100, 0), result(1, 102, 0), result(2, 110, 4), None]):
             report = self.module.build_weekly_report(force_refresh=force_refresh)
+        check.assert_called_once()
         return report, bootstrap, fixtures
+
+    def test_paid_plan_falls_back_and_keeps_hold_lineup_when_check_fails(self):
+        report, _, _ = self.build(False, paid_passes=False)
+        self.assertEqual(report['recommended']['transfers'], 1)
+        self.assertFalse(report['paid_plan_check']['passed'])
+        self.assertEqual(len(report['hold_lineup']['starters']), 11)
+        self.assertEqual(len(report['hold_lineup']['bench']), 4)
+        self.assertEqual({p['id'] for p in report['hold_lineup']['starters'] + report['hold_lineup']['bench']}, set(range(1,16)))
 
     def test_live_refresh_and_report_metadata(self):
         report, bootstrap, fixtures = self.build(True)

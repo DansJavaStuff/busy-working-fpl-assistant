@@ -37,7 +37,7 @@ def reweight_player(player, gameweek, variant, projection_policy='weekly'):
     item = deepcopy(player)
     inputs = item['projection_input']
     games = inputs.get('current_season_games', 0)
-    control_weight = min(games / 6, 1)
+    control_weight = min(games / 6, max(0, inputs['minutes']) / 1080, 1)
     weight = control_weight if variant == 'control_6gw' else min(games / 12, 1)
     if variant == 'form_12gw_minutes_cap':
         weight = min(weight, inputs['minutes'] / 1080)

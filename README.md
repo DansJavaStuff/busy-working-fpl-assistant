@@ -233,7 +233,7 @@ Compare the current six-Gameweek form weight with a twelve-Gameweek weight and a
 time python3 -m tools.compare_form_sensitivity
 ```
 
-The tool saves private inputs locally for offline replay, tests transfer/captain choices and submits no FPL changes. Live weights remain unchanged. See `docs/form_sensitivity.md` for initial GW6 results, capture/replay options and limits.
+The tool saves private inputs locally for offline replay, tests transfer/captain choices and submits no FPL changes. The control now uses the live minutes-capped six-GW rule. See `docs/form_sensitivity.md` for initial GW6 results, capture/replay options and limits.
 
 ## Main Scripts
 
@@ -663,7 +663,7 @@ For a research-only normal-plan/Wildcard comparison using identical frozen input
 time nice -n 10 python3 -m tools.compare_form_sensitivity --include-wildcard
 ```
 
-This adds fixed-squad five-week projections and availability/minutes diagnostics. Live weights and advice remain unchanged; no chip or transfer is submitted. See [limits and replay instructions](docs/form_sensitivity.md#controlled-wildcard-comparison--9-october-2026).
+This adds fixed-squad five-week projections and availability/minutes diagnostics. The comparison does not change live advice or submit a chip or transfer. See [limits and replay instructions](docs/form_sensitivity.md#controlled-wildcard-comparison--9-october-2026).
 
 To keep the live Chips page's additional projection regression enabled throughout that comparison, add `--projection-policy chips`:
 
@@ -672,3 +672,23 @@ time nice -n 10 python3 -m tools.compare_form_sensitivity --include-wildcard --p
 ```
 
 Capture fresh inputs after updating; offline replay uses the policy recorded in its bundle.
+
+### Cautious paid-transfer advice (9 October 2026)
+
+Live current-season form weight is now `min(completed_gameweeks / 6, minutes / 1080, 1)`.
+This caps a tiny sample without changing official availability, expected-points inputs,
+captain weighting or the existing score objective. Both HQ and Chips use this cap.
+A proposed paid plan must also clear the existing 3-point net model-gain gate under
+`min(completed_gameweeks / 12, minutes / 1080, 1)`, compared with the best tested
+no-hit plan. The same purchased squads are checked; only their XI/captain is
+reoptimised, with each hit subtracted once. A failed check falls back to the
+no-hit plan (or HOLD if the free-transfer gate fails). This is a sensitivity
+safeguard, not calibrated accuracy. A lower paid plan is not searched after failure.
+
+HQ shows the check and a separate best lineup using only your owned players,
+including captain, vice and bench order. `python3 -m tools.review_weekly_report`
+also reports these fields. Changes to your live XI do not alter the HOLD baseline,
+which already optimises the existing squad. Paid moves are additional transfers.
+Refresh analysis after pulling and restarting; old report schemas and chip cache
+keys are invalidated. Old research captures remain preserved but require a fresh
+capture for replay under the new code. No FPL actions are automatically submitted.

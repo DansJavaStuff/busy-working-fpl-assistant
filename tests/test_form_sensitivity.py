@@ -65,7 +65,10 @@ class FormSensitivityTests(unittest.TestCase):
         control = reweight_player(saved, 6, 'control_6gw')
         capped = reweight_player(saved, 6, 'form_12gw_minutes_cap')
         self.assertAlmostEqual(capped['projection_debug']['current_season_weight'], 63/1080)
-        self.assertLess(capped['proj_5gw'], control['proj_5gw'])
+        self.assertEqual(capped['proj_5gw'], control['proj_5gw'])
+        legacy = project_gameweeks(saved['projection_input'], saved['fixtures'], 6, 10,
+                                   current_season_weight_override=5/6)
+        self.assertLess(capped['proj_gw7'], legacy[7])
         self.assertEqual(capped['projection_debug']['ep_next'], 0)
         unflagged = deepcopy(saved)
         unflagged['availability_factor'] = 1
@@ -77,7 +80,7 @@ class FormSensitivityTests(unittest.TestCase):
         saved = saved_player(minutes=63, fixtures=[attacking_fixture(gw) for gw in range(6, 11)])
         saved['projection_input'].update(points_per_game=16, ep_next=0)
         before = deepcopy(saved)
-        for variant, weight in [('control_6gw', 5/6), ('form_12gw', 5/12),
+        for variant, weight in [('control_6gw', 63/1080), ('form_12gw', 5/12),
                                 ('form_12gw_minutes_cap', 63/1080)]:
             with self.subTest(variant=variant):
                 replay = reweight_player(saved, 6, variant, 'chips')
@@ -195,7 +198,7 @@ class FormSensitivityTests(unittest.TestCase):
         with patch('form_sensitivity.optimise_transfers', side_effect=solve), \
                 patch('form_sensitivity.wildcard_comparison', side_effect=wildcard):
             report = compare_frozen_inputs(bundle, include_wildcard=True)
-        self.assertEqual(weights, [5/6, 5/12, 5/12])
+        self.assertEqual(weights, [5/12, 5/12, 5/12])
         self.assertTrue(all('wildcard' in v for v in report['variants']))
         self.assertEqual(bundle, before)
 

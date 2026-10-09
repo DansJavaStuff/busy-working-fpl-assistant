@@ -1,3 +1,12 @@
+## Current change — cautious advice (9 October 2026, evening)
+
+- User completed free Richarlison → João Pedro transfer, then moved João Pedro into XI and Groß to captain. Refreshed HQ sees bank £0.1m / zero FT and still proposes three additional moves: Gabriel → Tarkowski, Scott → Schade, Dewsbury-Hall → Hinshelwood; hit 12, gross ranking gain 20.35, net 8.35. Hit accounting is correct; forecast sensitivity is the concern.
+- User authorised a production change: six-GW form weight now capped at minutes/1080 (Hinshelwood 63 minutes → 5.83%, rather than 83.33%). Shared projection change applies to HQ and Chips.
+- HQ paid plan must additionally clear the existing 3-point gate against its best tested no-hit squad with 12-GW minutes-capped form. Same purchases, legal XI/captain reoptimised without more CBC calls, hit deducted once. Failed check falls back to no-hit/free gate. No search for a lower paid alternative after failure.
+- HQ and saved-report CLI show best owned-only HOLD lineup, captain/vice/bench, plus paid-check explanation. Weekly schema bumped to 5; chip cache context includes new model policy so prior results are invalidated. Research control follows new live policy; older bundles need fresh capture.
+- This is a conservative response to small samples and sensitivity, not proof of improved accuracy. Need fresh Pi analysis on the post-transfer squad; do not promise HOLD or any particular captain. Forward snapshots/outcome validation remain the next evidence source.
+- Previous result sections below are historical records of pre-change code, not current live policy. No FPL submission performed.
+
 # Current Status
 
 _Last updated: 2026-10-09_

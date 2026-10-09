@@ -251,6 +251,7 @@ def _chip_cache_context(
     )
 
     return {
+        "projection_policy": "minutes-capped-form-v1",
         "gameweek":
             planning_gameweek,
         "bank":

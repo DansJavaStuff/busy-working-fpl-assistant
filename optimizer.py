@@ -105,10 +105,11 @@ def project_gameweeks(
 
     current_season_weight = min(
         current_season_games / 6.0,
+        max(0, minutes) / 1080.0,
         1.0
     )
 
-    # Optional research override; live callers retain the existing six-GW rule.
+    # Optional research override; live callers use the minutes-capped six-GW rule.
     if current_season_weight_override is not None:
         if not 0 <= current_season_weight_override <= 1:
             raise ValueError("Current-season weight must be between zero and one")

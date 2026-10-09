@@ -72,6 +72,13 @@ def weekly_report_review(report, now=None):
         "model_score_note": MODEL_SCORE_NOTE,
         "free_transfers": report["free_transfers"],
         "bank": report["bank"],
+        "paid_plan_check": report.get("paid_plan_check"),
+        "hold_lineup": {
+            "starters": [p["name"] for p in report["hold_lineup"]["starters"]],
+            "bench": [p["name"] for p in report["hold_lineup"]["bench"]],
+            "captain": report["hold_lineup"]["captain"]["name"],
+            "vice": report["hold_lineup"]["vice"]["name"],
+        } if report.get("hold_lineup") else None,
         "current_captain": (report.get("current_captain") or {}).get("name"),
         "availability_flags": [
             {"name": p["name"], "starter": p.get("starter", False),
