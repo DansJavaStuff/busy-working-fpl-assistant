@@ -136,3 +136,33 @@ An explicit `--projection-policy` on replay must match the bundle; changing that
 The chip-policy comparison uses the same normal/HOLD/Wildcard metrics and baselines as the first research comparison. It reuses live projection settings and the unrestricted squad objective, but does not rerun the full future chip-timing curve or change strategic thresholds, injury assumptions, live cache/report or FPL team. The normal plan still applies HQ's existing free/paid gates; the highest-scoring tested normal baseline is reported separately, matching the baseline used for the live unrestricted Wildcard selection-score comparison. Compare variants within this newly frozen run. Do not attribute differences from older captures entirely to the policy change; those captures also have different timestamps and may have different news/input values.
 
 Full-pool Pi chip-policy results remain pending. The previous weekly-policy run took 2m9.797s; chip policy still uses 15 CBC solves and fixed-squad evaluations, but no new runtime guarantee is made.
+
+## Full-pool live Chips-policy Pi result — 9 October 2026
+
+Capture **19:14:58 UTC**, PR #60 (`346a5bc`), `projection_policy=chips`, `long_range_regression=true`. Control replay passed. Runtime **2m13.365s** elapsed, 2m9.029s user, 1.622s system. This run retains live chip projection policy across all three alternatives; no live advice or FPL team was changed.
+
+| Variant | Selected normal plan | Hit | Normal ranking gain vs HOLD | WC changes | WC five-week gain vs best no-hit plan | WC five-week gain vs highest-ranking tested normal |
+|---|---|---:|---:|---:|---:|---:|
+| Control 6-GW | Scott → Schade; Richarlison → Kostoulas; Ajayi → Tarkowski | 8 | +11.3211 | 11 | +25.0523 | +23.4362 |
+| 12-GW | Richarlison → João Pedro | 0 | +6.3130 | 9 | +11.8667 | +13.8506 |
+| 12-GW, minutes cap | Richarlison → João Pedro | 0 | +6.1085 | 9 | +12.7420 | +14.1844 |
+
+The control's unrestricted WC ranking advantage is +21.5104, and its five-week advantage against the best no-hit fixed squad is +25.0523, consistent at display precision with the earlier live chip report's +21.5 and +25.1. This is a fresh capture, not proof of identical raw inputs or a rerun of all future timing windows. The control normal transfer pairs differ from the weekly-policy result; do not conflate weekly advice with chip-policy hypothetical normal plans.
+
+Under both alternatives, the best paid ranking plan adds only +1.6245 / +1.6097 over the best no-hit plan, below HQ's additional-gain gate of 3. Their five-week projected totals are also lower than the selected free-transfer squad: 307.1056 vs 309.0895 for 12-GW; 306.2022 vs 307.6446 with the cap. Highest ranking score is not the same as highest five-week projection.
+
+**The remaining Wildcard gain is concentrated in GW6:**
+
+| Variant | WC vs best no-hit squad, GW6 | WC vs same squad, GW7–10 combined | Five-week total advantage |
+|---|---:|---:|---:|
+| Control | +17.5780 | +7.4744 | +25.0523 |
+| 12-GW | +13.1424 | −1.2758 | +11.8667 |
+| 12-GW, minutes cap | +12.9921 | −0.2501 | +12.7420 |
+
+Weekly components use rounded report values and may differ from the unrounded total by 0.0001. Under stronger form protection, the model does not show a continuing GW7–10 benefit from the rebuilt fixed squad over the free-transfer fixed squad. Spending the Wildcard therefore needs justification beyond a positive five-week headline, particularly because future free transfers and the opportunity cost of using the chip remain omitted. This is model evidence, not proof that holding the chip is optimal.
+
+Both alternative Wildcards select the identical 15 players and GW6 starters: Raya; Bogle, De Cuyper, Gvardiol, Tarkowski; Belloumi, Groß (captain), Schade; Haaland, João Pedro, Kostoulas. Remaining squad: Kelleher, Gabriel, Bruno G., Stach. Cost £99.4m within a £99.4m selling-value-plus-bank budget, nine changes from the captured owned squad. Hinshelwood and Semenyo are absent; current control retains both on its bench. Outfield expected starting probability remains an assumption of 1.0, not verified team news; Bruno G. has only 123 captured minutes despite a 100% availability flag.
+
+Hinshelwood's chip-policy GW6 projection is 3.4877 / 2.5481 / 1.7400 across the variants, with the cap retaining the same 50% injury flag. Groß remains captain in all variants; alternative vice is Haaland rather than Schade.
+
+Decision evidence: the large-hit recommendation is sensitive to form weighting, and the rebuilt squad's conservative five-week gain is primarily a current-GW effect. A free Richarlison → João Pedro move is a consistent research alternative across reduced-form settings; it is not submitted advice or a production-model promotion. Review current team news and the cost of spending the Wildcard before committing. Do not launch another broad historical reconstruction or alter live weights solely to match these preferences. Live models, chip labels and thresholds remain unchanged.

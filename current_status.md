@@ -19,9 +19,17 @@ Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first 
 ## Live Chips policy comparison ready (2026-10-09)
 
 - Added explicit `--projection-policy chips` to the research command. Capture uses the same long-range regression and projection horizon arguments as the live Chips page. The saved policy is replayed unchanged across control, 12-GW and minutes-capped alternatives; control reproduction is checked before solving. Default weekly mode and live advice remain unchanged.
-- Pi next command: `time nice -n 10 python3 -m tools.compare_form_sensitivity --include-wildcard --projection-policy chips`. Requires fresh capture after pulling because code signature changed. Replay automatically uses saved policy and rejects attempts to switch it. Results are pending.
+- Pi next command: `time nice -n 10 python3 -m tools.compare_form_sensitivity --include-wildcard --projection-policy chips`. Requires fresh capture after pulling because code signature changed. Replay automatically uses saved policy and rejects attempts to switch it. Full-pool results are now recorded below.
 - Validation: 151 tests, compilation, undefined-name lint and dependency audit pass. Real CBC smoke exercises all three chip-policy variants and verifies control ranking-score parity with the live Wildcard analysis on identical synthetic inputs.
 - This resolves the projection-settings mismatch for a fresh controlled run; it does not reproduce an old timestamp's exact advice, rerun full chip timing or account for future transfers/news. Highest-scoring tested normal plan remains distinct from HQ's threshold-selected plan.
+
+## Latest live chip-policy result (2026-10-09)
+
+- Pi capture 19:14:58 UTC under PR #60 (`346a5bc`) completed in 2m13.365s with successful control replay. Policy is explicitly chips/regression enabled. Control WC reproduces earlier displayed +21.5 ranking advantage (+21.5104) and roughly +25.1 five-week value vs best no-hit fixed squad (+25.0523), on this fresh capture. Full future timing curve was not rerun.
+- Control selects three moves / 8-point hit (Scott → Schade, Richarlison → Kostoulas, Ajayi → Tarkowski). Both alternatives select one free Richarlison → João Pedro move; paid increments 1.6245 / 1.6097 fail the existing 3-point gate. All are hypothetical chip-policy normal plans, distinct from weekly-policy advice.
+- WC advantage vs the selected free squad is +11.8667 (12-GW) / +12.7420 (minutes cap), but almost entirely GW6: +13.1424 / +12.9921 now and −1.2758 / −0.2501 over GW7–10 combined. This weakens the case for a lasting rebuild despite a positive headline. Future transfers and chip opportunity cost remain omitted.
+- Both alternative WC squads are identical, nine changes, cost £99.4m. Hinshelwood and Semenyo drop out; Groß captain / Haaland vice persist in alternative normal plans. Detailed squad and evidence: [chip-policy result](docs/form_sensitivity.md#full-pool-live-chips-policy-pi-result--9-october-2026).
+- No live weights, chip labels, reports or FPL team changed. Next practical step is decision review of the free move versus spending the Wildcard, with fresh team news and starting-role checks; broad historical reconstruction remains deferred. Do not interpret sensitivity results as calibrated forecasts or automatically retune thresholds.
 
 ## Controlled Wildcard review (2026-10-09)
 
