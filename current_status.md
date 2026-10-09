@@ -1,6 +1,6 @@
 # Current Status
 
-_Last updated: 2026-10-04_
+_Last updated: 2026-10-09_
 
 Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first in a new conversation and replace stale details when milestones finish.
 
@@ -15,6 +15,14 @@ Durable handoff for `DansJavaStuff/busy-working-fpl-assistant`. Read this first 
 ## Roadmap alignment (2026-10-04)
 
 `ROADMAP.md` reviewed after PR #55. Core local dashboard, decision report and coordinated chip schedule are implemented; current focus is decision reliability and forward accuracy evidence. Historical reconstruction is deferred. Next session: refresh/review advice closer to GW6 deadline; leave collection running. No immediate repeat optimiser run or production model change is needed. Projection/outcome evaluation and broader model calibration remain open.
+
+## Controlled Wildcard review (2026-10-09)
+
+- Pi GW6 advice now recommends three transfers with an 8-point hit; normal model gains are +8.71 / +12.73 / +15.33 for 1 / 2 / 3 moves. Chips flags WC as CANDIDATE (+25.1 five-week timing value); unrestricted selection changes 11 players and reports +21.5 ranking-score advantage over the best tested normal plan. These use different metrics/baselines.
+- Saved chip report at 18:13:53 UTC includes Hinshelwood (50%, ep_next 0, PPG 16, roughly 63 minutes) and Semenyo (75%). Screenshots confirm ankle-injury flags. Hinshelwood's current PPG still receives 5/6 weight; only underlying-stat adjustments get minutes reliability. Later-GW injury penalties are absent. This is a reason to scrutinise recommendations, not proof that any replacement is correct.
+- Added research-only `--include-wildcard` to `tools.compare_form_sensitivity`: same frozen pool/team across all three variants; normal gates unchanged; unrestricted WC and fixed-squad five-week evaluation against HOLD and normal plans; detailed squad/watch-player diagnostics. No live model/cache/report or FPL submission changes. See [form sensitivity](docs/form_sensitivity.md).
+- Validation: 147 tests pass; undefined-name lint, compilation and dependency audit pass; a synthetic 18-player run exercised all 15 real CBC solves and fixed-squad evaluations without API calls. Full-pool Pi results are still pending.
+- Next Pi step: `time nice -n 10 python3 -m tools.compare_form_sensitivity --include-wildcard` after pulling. Requires a fresh capture under the updated code signature and no active KEEP/INCLUDE constraints. Optional-mode full-pool runtime/results remain pending. Review before applying either the hit plan or Wildcard.
 
 ## Latest milestone
 
