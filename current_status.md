@@ -1,3 +1,17 @@
+# Current milestone — snapshot audit and first outcome review
+
+_Last updated: 2026-11-20_
+
+- Added `python3 -m tools.review_snapshot_outcomes --summary` (offline read-only audit) and `--fetch-outcomes --summary` (public FPL bootstrap/results reads, no writes). Details: [snapshot outcome review](docs/snapshot_outcome_review.md).
+- Audits all stored entry/weeks with gaps, duplicate records, per-checkpoint pending/missing/eligible status, actual capture/deadline timing, required evaluation content, season and captured `is_next` alignment. Chooses one latest eligible record per entry/GW by default; `--checkpoint` permits a fixed lead-time comparison. No claiming five checkpoints are five independent weeks.
+- Older snapshots save raw bootstrap/fixtures/squad, not full app predictions. Their report compares captured `ep_next` and captured PPG on identical players to finished, data-checked current-season event points. Metrics: n/MAE/bias/RMSE, missing-result coverage; snapshot-XI captain player comparisons. Missing values are not zero; no final-team scoring, auto-subs/chips/hit gains, historical app replay or accuracy-improvement claims.
+- Collector now additionally freezes a whitelisted existing weekly report's player GW projections, captains, generation age/schema and recommendation metadata into new snapshots. Requires same GW/owned squad, pre-capture generation time and finite consistent projections. No extra API or solver; missing/invalid reports get a reason and raw collection continues. Old snapshots unchanged. Unknown model versions stay null; older advice vs newer raw inputs is explicitly not a controlled model comparison.
+- Last Pi coverage supplied on 24 October: GW6–8 each had five stored checkpoints; GW9 had one baseline. Need new Pi audit output to establish coverage through GW10/current GW11 and actual timing/content. This workspace does not contain the Pi's authoritative runtime DB.
+- GW11 user completed João Pedro → N.Jackson; bank £0.8m / zero FT, HOLD, no further hits. Jackson captain/Gabriel vice. Diagnostic: FPL ep_next Jackson 11.0 vs Haaland 4.0 drives current captain ranking; 40/20/10% same-formula sensitivity gives Jackson/Haaland 7.059/5.226, 5.732/5.634, 5.069/5.838. Live feed matched GW11 next and those inputs; user elected to leave captain choice alone. No new model change authorised as part of snapshot work.
+- Next on Pi after merge: pull, restart `fpl-assistant`, run offline audit then `--fetch-outcomes --summary`, share output. Review data gaps, errors and captain cases before deciding any model adjustment. Full model variant replay and multiweek transfer outcomes remain future work; never reconstruct missing past inputs using current context without clear retrospective labels.
+
+---
+
 ## Current change — cautious advice (9 October 2026, evening)
 
 - User completed free Richarlison → João Pedro transfer, then moved João Pedro into XI and Groß to captain. Refreshed HQ sees bank £0.1m / zero FT and still proposes three additional moves: Gabriel → Tarkowski, Scott → Schade, Dewsbury-Hall → Hinshelwood; hit 12, gross ranking gain 20.35, net 8.35. Hit accounting is correct; forecast sensitivity is the concern.
@@ -7,7 +21,7 @@
 - This is a conservative response to small samples and sensitivity, not proof of improved accuracy. Need fresh Pi analysis on the post-transfer squad; do not promise HOLD or any particular captain. Forward snapshots/outcome validation remain the next evidence source.
 - Previous result sections below are historical records of pre-change code, not current live policy. No FPL submission performed.
 
-# Current Status
+# Previous status — retained as historical context
 
 _Last updated: 2026-10-09_
 

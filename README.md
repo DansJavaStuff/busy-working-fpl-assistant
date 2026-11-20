@@ -692,3 +692,13 @@ which already optimises the existing squad. Paid moves are additional transfers.
 Refresh analysis after pulling and restarting; old report schemas and chip cache
 keys are invalidated. Old research captures remain preserved but require a fresh
 capture for replay under the new code. No FPL actions are automatically submitted.
+
+
+### Snapshot coverage and outcome review
+
+Audit every stored week with `python3 -m tools.review_snapshot_outcomes --summary`.
+Add `--fetch-outcomes` to compare captured FPL expected points and a PPG baseline with
+finished, checked official results. Both modes keep the database read-only. Older raw-only
+snapshots cannot recover missing app predictions; the collector now also freezes a valid
+existing weekly report's GW advice, without additional API/optimiser work, for future app
+projection checks. See [scope, filters and interpretation](docs/snapshot_outcome_review.md).
