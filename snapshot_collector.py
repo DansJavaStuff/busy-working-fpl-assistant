@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+from snapshot_advice import frozen_advice
+
 from fpl_api import (
     get_bootstrap,
     get_entry,
@@ -302,6 +304,7 @@ def collect_if_due():
     )
 
     payload = {
+        "app_advice": frozen_advice(planning_gameweek, captured_at, current_team),
         "checkpoint":
             checkpoint,
         "captured_at":
