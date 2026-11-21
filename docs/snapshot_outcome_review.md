@@ -94,3 +94,59 @@ The service restart loads the updated collector for any in-process use; the time
 Python invocation also picks it up on its next run. Refresh HQ advice before the checkpoint
 if you want fresh app predictions captured. Existing raw-only weeks still have value for the
 FPL-estimate baseline and capture-quality checks.
+
+
+## First Pi result — 21 November 2026
+
+User ran PR #63 / `8abc3e7` at 07:52 UTC with `--fetch-outcomes --summary`.
+The report covers six entry/Gameweeks (GW6–11), all with an eligible selected
+snapshot, and five completed/data-checked event evaluations (GW6–10).
+
+- GW6–10 each have baseline/T60/T15/T10/T5 saved and eligible, with no invalid
+  snapshots in the summary. Each selected latest capture is a T5 capture marked
+  on time. Eligibility alone does not prove every other checkpoint was on time;
+  the full report retains those individual timings.
+- All 15 owned players match results in each completed week: 75 player/week
+  observations across five weeks. Players repeat across weeks; these are not
+  75 independent trials.
+- GW11 has its existing baseline only at this run. All four later checkpoints
+  are `pending`, not expired/missed. The `missing_checkpoints` list also contains
+  those labels because it means not yet stored; use `checkpoint_status` to
+  distinguish pending from missed.
+- App advice is `not_recorded` for all five evaluated weeks, as expected from
+  pre-PR63 captures. These results do not establish historical app accuracy.
+
+Pooled owned-player errors, weighted by matched-player count (15 each week):
+
+| Captured signal | MAE | Bias (forecast minus actual) | RMSE |
+|---|---:|---:|---:|
+| FPL ep_next | 3.516 | +0.9347 | 4.6292 |
+| PPG baseline | 3.704 | +2.0000 | 4.5087 |
+
+FPL ep_next has a modestly lower absolute error and less average overprediction,
+but higher RMSE, which penalises larger misses more strongly. Neither signal
+wins both error measures. These five weeks do not justify a new production
+weight or captain rule; the app blends other inputs, and its forecasts are absent.
+
+Captain comparisons below are raw individual player points from the captured XI,
+not doubled team/captain totals or guaranteed final submitted picks:
+
+| GW | Recorded snapshot captain | Return | Haaland return | Highest captured ep_next player | Return |
+|---|---|---:|---:|---|---:|
+| 6 | Groß | 6 | 6 | Groß | 6 |
+| 7 | Groß | 5 | 13 | De Cuyper | 6 |
+| 8 | Haaland | 8 | 8 | Henderson | 2 |
+| 9 | Haaland | 2 | 2 | Gabriel | 6 |
+| 10 | Haaland | 2 | 2 | Konsa | 8 |
+| Total | | 23 | 31 | | 28 |
+
+The captured-PPG captain benchmark totals 17. Highest-estimate ties use lowest
+player ID: this affects the selected ep_next benchmark in GW8 (Henderson vs
+De Cuyper, both 10.5) and GW9 (Gabriel vs Haaland, both 9.0). Do not treat these
+benchmark choices as unique or as the app's recommendations. The entire
+recorded-captain vs Haaland difference is GW7; five weeks do not resolve GW11.
+
+Next: refresh saved HQ advice before the upcoming GW11 checkpoints so the new
+collector can retain it, then review checked GW11 outcomes with the same command.
+Actual eligibility, saved-advice presence and advice age still need verification
+from the next Pi output. No model changes follow from this result alone.

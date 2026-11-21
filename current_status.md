@@ -1,6 +1,15 @@
+## Latest Pi result — 21 November 2026
+
+- PR #63 / `8abc3e7` deployed on Pi; user ran `review_snapshot_outcomes --fetch-outcomes --summary` at 07:52 UTC. Six stored entry/weeks GW6–11 all have eligible captures; GW6–10 are finished/checked and evaluated. Each completed week has all five checkpoints eligible, no invalid snapshots, selected T5 on time, and all 15 owned players matched. Need full output to assert other checkpoint timings, rather than equating eligible with on-time.
+- GW11 baseline remains from 6 November; other four checkpoints pending at this run. `missing_checkpoints` includes not-yet-stored labels; `checkpoint_status` distinguishes pending from truly missed. No collector fault indicated.
+- First 75 owned-player/week observations (repeated players, five weeks): captured FPL ep_next MAE 3.516, bias +0.9347, RMSE 4.6292; captured PPG baseline MAE 3.704, bias +2.0, RMSE 4.5087. Modest ep_next absolute-error advantage but higher RMSE. No calibration/accuracy-improvement claim or weight change.
+- Captain player-return totals GW6–10: recorded snapshot captain 23; highest captured ep_next in snapshot XI 28; highest captured PPG 17; Haaland in snapshot XI 31. Raw player points, not doubled/final-team scores. Entire recorded-vs-Haaland gap is GW7 (Groß 5 vs Haaland 13). Lowest-ID tie choice affects ep_next benchmark GW8/GW9. Not proof of a best captain policy.
+- Every evaluated week reports app advice `not_recorded`, as expected before the new collector. App forecasts can only be assessed where newly frozen advice is actually present. Refresh HQ before GW11 checkpoints; rerun after GW11 is finished/data-checked and inspect saved advice/status/age. GW11 current Jackson captain decision left as agreed; no live model change.
+- Full result/interpretation: [snapshot outcome review](docs/snapshot_outcome_review.md#first-pi-result--21-november-2026). This result supersedes the older "need new Pi audit" handoff below. Original frozen data unchanged.
+
 # Current milestone — snapshot audit and first outcome review
 
-_Last updated: 2026-11-20_
+_Last updated: 2026-11-21_
 
 - Added `python3 -m tools.review_snapshot_outcomes --summary` (offline read-only audit) and `--fetch-outcomes --summary` (public FPL bootstrap/results reads, no writes). Details: [snapshot outcome review](docs/snapshot_outcome_review.md).
 - Audits all stored entry/weeks with gaps, duplicate records, per-checkpoint pending/missing/eligible status, actual capture/deadline timing, required evaluation content, season and captured `is_next` alignment. Chooses one latest eligible record per entry/GW by default; `--checkpoint` permits a fixed lead-time comparison. No claiming five checkpoints are five independent weeks.
